@@ -1,83 +1,121 @@
 # Gallery Crypto — Founder's Archive
 
-The public site (English) for the band-tee archive and the 2027 presale draw, plus an admin screen (Japanese).
+バンドTアーカイブの公開サイト（英語）と、2027年プレセールの抽選・決済、管理画面（日本語）です。
 
-- `/` — public site: archive, presale draw entries, provenance, contact form
-- `/admin` — admin screen: add photos (including from the iPhone camera), view entries and messages, edit site text
-- `/legal` — 特定商取引法に基づく表記 (rewrite the parts marked [ ])
+- `/` — 公開サイト：アーカイブ、抽選エントリー、来歴、問い合わせ。一般販売中は「Buy now」
+- `/admin` — 管理画面：写真の登録（iPhone のカメラ可）、価格、当選者の選定、注文、問い合わせ、サイト設定
+- `/buy/…` — 抽選の当選者専用の購入ページ（1回限り）
+- `/thanks` — 支払い完了ページ
+- `/legal` — 特定商取引法に基づく表記（[ ] の部分を書き換え）
 
-Built with Next.js, Supabase (database, photo storage, login) and Vercel (hosting). Everything runs within the free plans.
+仕組み：Next.js ＋ Supabase（データベース・写真・ログイン）＋ Stripe（カード決済）＋ Vercel（公開）。Stripe 以外は無料プランの範囲で動きます。Stripe は売れたときだけ手数料がかかります。
 
 ---
 
-## Setup (about 30 minutes, no coding)
+## セットアップ
 
-### 1. Supabase (database)
+### 1. Supabase（データベース）
 
-1. Create a free account at https://supabase.com, then click **New project**.
-   - Name: `gallery-crypto`
-   - Region: `Northeast Asia (Tokyo)`
-   - Database password: anything (keep it somewhere safe)
-2. Open **SQL Editor** from the left menu.
-3. Paste the whole of `supabase/schema.sql`.
-4. **Change `you@example.com` on the last line to your own email address**, then click **Run**.
-5. Go to **Authentication → Users → Add user → Send invitation** and enter the same email address.
-6. Go to **Authentication → Sign In / Providers** and turn **Allow new users to sign up** off. This stops anyone else from creating an account.
-7. Go to **Project Settings → API** and copy these two values:
+1. https://supabase.com で無料登録し、「**New project**」。
+   - Name：`gallery-crypto`
+   - Region：`Northeast Asia (Tokyo)`
+   - Database password：任意（控えておく）
+2. 左メニュー「**SQL Editor**」を開き、`supabase/schema.sql` の中身を全部貼り付けます。
+3. **最後の行の `you@example.com` をご自身のメールアドレスに書き換えて**から「**Run**」。
+4. 続けて `supabase/002_stripe.sql` も同じように貼り付けて「**Run**」（決済用の追加）。
+5. 「**Authentication → Users → Add user → Send invitation**」で同じメールアドレスを登録。
+6. 「**Authentication → Sign In / Providers**」で「**Allow new users to sign up**」をオフ（他人がアカウントを作れないように）。
+7. 「**Project Settings → API**」から次をコピー：
    - `Project URL`
-   - `anon public` key
+   - `anon public` キー
+   - `service_role` キー（**絶対に公開しない鍵**。Vercel の環境変数にだけ入れます）
 
-### 2. Vercel (publishing)
+### 2. Vercel（公開）
 
-1. Sign in at https://vercel.com with your GitHub account.
-2. Choose **Add New → Project** and import the `gallery-crypto-site` repository.
-3. Under **Environment Variables**, add:
+1. https://vercel.com に GitHub アカウントでログイン。
+2. 「**Add New → Project**」で `gallery-crypto-site` リポジトリを選択。
+3. 「**Environment Variables**」に追加：
 
-   | Name | Value |
+   | 名前 | 値 |
    |---|---|
-   | `NEXT_PUBLIC_SUPABASE_URL` | the Project URL |
-   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | the anon public key |
+   | `NEXT_PUBLIC_SUPABASE_URL` | Project URL |
+   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | anon public キー |
+   | `SUPABASE_SERVICE_ROLE_KEY` | service_role キー |
+   | `NEXT_PUBLIC_SITE_URL` | 公開後のURL（例 `https://gallery-crypto-site.vercel.app`。最初は空でも可） |
 
-4. Click **Deploy**. After a minute or two you get a URL like `https://gallery-crypto-site.vercel.app`.
-5. Back in Supabase, open **Authentication → URL Configuration**:
-   - Set **Site URL** to that URL.
-   - Add `https://<that URL>/admin` under **Redirect URLs**.
+4. 「**Deploy**」。1〜2分で URL ができます。
+5. Supabase に戻り「**Authentication → URL Configuration**」：
+   - **Site URL** にその URL
+   - **Redirect URLs** に `https://<そのURL>/admin`
 
-### 3. Adding pieces from your iPhone
+### 3. Stripe（カード決済）— 販売開始の前までに
 
-1. Open `https://<your URL>/admin` in Safari and enter your email address. Open the login link you receive in the same Safari.
-2. To add pieces:
-   - **Choose photos**: one photo = one piece, saved as an unpublished draft.
-   - **Take a photo**: shoot the piece and fill in its details straight away.
-3. Tap a draft, enter the band name, year and so on, tick **Publish on site**, then save. It appears on the public site within a minute.
-4. Tip: in Safari, use Share → **Add to Home Screen** to open the admin screen like an app.
+1. https://stripe.com で無料登録し、本人確認と入金先（日本の銀行口座）を登録。個人事業主として登録できます。お客さまは米ドルで支払い、円に換えて入金されます。
+2. まずは「**テストモード**」のまま進めます。
+3. 「開発者 → API キー」の **シークレットキー**（`sk_test_…`）をコピー。
+4. 「開発者 → Webhook → エンドポイントを追加」
+   - URL：`https://<あなたのURL>/api/stripe/webhook`
+   - イベント：`checkout.session.completed`、`checkout.session.async_payment_succeeded`、`checkout.session.expired`
+   - 作成後の **署名シークレット**（`whsec_…`）をコピー。
+5. Vercel の環境変数に追加して「**Deployments → Redeploy**」：
 
-### 4. Custom domain (optional)
+   | 名前 | 値 |
+   |---|---|
+   | `STRIPE_SECRET_KEY` | `sk_test_…`（本番では `sk_live_…`） |
+   | `STRIPE_WEBHOOK_SECRET` | `whsec_…` |
 
-Buy a domain (for example `gallerycrypto.com`), add it under Vercel **Settings → Domains**, and set it at your registrar as instructed. Then update the Supabase Site URL and Redirect URLs to match.
+6. **テスト購入**：
+   - 管理画面で1着に価格を入れます。
+   - 自分のメールで抽選にエントリーし、「抽選エントリー」タブで「当選にする」→「リンクをコピー」。
+   - リンクを開いて、カード番号 `4242 4242 4242 4242`、有効期限は未来の日付、CVC は何でもで支払います。
+   - 「注文」タブに入り、商品が SOLD になれば成功。テスト後は商品の「売約済み」を外しておきます。
+7. 本番に切り替えるとき：Stripe を本番モードにし、本番のシークレットキーと、本番側で作り直した Webhook の署名シークレットに差し替えて Redeploy。
+
+### 4. iPhone から登録
+
+1. Safari で `https://<あなたのURL>/admin` を開き、メールアドレスを入力。届いたリンクを同じ Safari で開きます。
+2. 「**写真を選ぶ**」（1枚＝1着の下書き）か「**カメラで撮る**」（撮ってすぐ入力）。
+3. 下書きをタップしてバンド名・年などを入れ、「サイトに公開」にチェックして保存。1分以内に公開サイトに出ます。
+4. Safari の共有 →「**ホーム画面に追加**」で、アプリのように開けます。
+
+### 5. 独自ドメイン（任意）
+
+ドメイン（例 `gallerycrypto.com`）を取得し、Vercel の「**Settings → Domains**」に追加。その後 Supabase の Site URL / Redirect URLs、Stripe の Webhook URL、環境変数 `NEXT_PUBLIC_SITE_URL` を新しいドメインに合わせます。
 
 ---
 
-## Security notes
+## 販売の流れ
 
-- Photos and the public fields can be seen by anyone. **Never put purchase prices or similar into the provenance text.**
-- Rank is shown only in the admin screen. The database blocks it from public visitors.
-- Only email addresses in the `admins` table can add, edit or delete pieces, and read entries and messages.
-- To add another admin, run this in the Supabase SQL Editor and also invite them under Authentication → Users:
-  ```sql
-  insert into admins values ('someone@example.com')
-  ```
+| 時期 | 管理画面での操作 | お客さまに見えるもの |
+|---|---|---|
+| 〜2026年 | 写真と情報を登録・公開 | アーカイブと無料の抽選エントリー |
+| 2027年1月 抽選 | 各着に価格（米ドル）を入力 →「抽選エントリー」で当選者を「当選にする」→「メール作成」で購入リンクを送る | 当選者だけが自分のリンクから購入（1回限り） |
+| 一般販売 | 「サイト設定」で「一般販売を開始する」をオン | 価格のある全商品に「Buy now」。売れた商品は自動で SOLD |
 
-## Later additions (planned)
+- 決済画面を開いてから30分は、その商品を他の人が買えないよう確保します（二重販売の防止）。支払わずに閉じた場合は30分後に自動で戻ります。
+- 送料は「サイト設定」で1注文あたりの金額を設定します（0 で送料無料）。
+- 発送したら「注文」タブで「発送済みにする」。返金は Stripe の管理画面から行います。
+- 手数料は Stripe の料金表で確認してください。海外カードや通貨換算には追加の手数料がかかります。
 
-- **2027**: card payments with Stripe (with Apple Pay), and an email notice when a buyer wins the draw
-- **Solana devnet → mainnet**: record a provenance certificate for each piece (the "Network: Solana (test network)" shown on the site is a preview)
-- **Draw**: Solana VRF (verifiable random numbers) and publishing the results
+## 安全のために
 
-## Development
+- 写真と公開項目は誰でも見られます。**仕入れ値などは来歴欄に書かないでください。**
+- ランクは管理画面にだけ表示され、公開サイトからはデータベース側で読めないようにしてあります。
+- 管理者（admins に登録したメール）だけが、商品の追加・編集・削除と、エントリー・注文・問い合わせの閲覧ができます。
+- 価格はサーバーがデータベースから読み直して Stripe に渡すため、ブラウザ側で書き換えても変わりません。カード情報はこのサイトを通らず、Stripe の画面で直接入力されます。
+- `SUPABASE_SERVICE_ROLE_KEY` と `STRIPE_SECRET_KEY` は Vercel の環境変数にだけ置き、GitHub やメールに書かないでください。
+- 管理者を増やすとき：SQL Editor で `insert into admins values ('someone@example.com');` を実行し、Authentication → Users でも招待します。
+
+## 今後の追加（予定）
+
+- 当選・発送の案内メールの自動送信（今は管理画面の「メール作成」から手動）
+- **Solana devnet → mainnet**：各着の来歴証明書を記録（サイトの「Network: Solana (test network)」は予告表示）
+- **抽選**：Solana の検証可能な乱数（VRF）による当選者選定と結果の公開
+
+## 開発
 
 ```bash
 npm install
-cp .env.example .env.local   # fill in the two values
+cp .env.example .env.local   # 値を入れる
 npm run dev                  # http://localhost:3000
 ```
