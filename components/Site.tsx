@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { supabase, photoUrl } from '@/lib/supabase';
-import { ERA_LABEL, certNo, metaLine, type Item, type Settings } from '@/lib/types';
+import { ERA_LABEL, certNo, metaLine, usd, type Item, type Settings } from '@/lib/types';
+import BuyButton from '@/components/BuyButton';
 
 type Props = { settings: Settings; items: Item[]; configured: boolean };
 type Status = { kind: 'idle' | 'busy' | 'ok' | 'err'; text?: string };
@@ -74,7 +75,7 @@ function DrawForm({ itemId }: { itemId: string | null }) {
   );
 }
 
-function Detail({ it, onClose }: { it: Item; onClose: () => void }) {
+function Detail({ it, onClose, saleOpen }: { it: Item; onClose: () => void; saleOpen: boolean }) {
   useEffect(() => {
     const k = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     document.addEventListener('keydown', k);
@@ -126,8 +127,19 @@ function Detail({ it, onClose }: { it: Item; onClose: () => void }) {
             </div>
           )}
           <Cert it={it} />
-          <p className="price">Price — announced in 2027</p>
-          <DrawForm itemId={it.id} />
+          {it.sold ? (
+            <p className="price">Sold</p>
+          ) : saleOpen && it.price_usd ? (
+            <>
+              <p className="price">{usd(it.price_usd)}</p>
+              <BuyButton itemId={it.id} />
+            </>
+          ) : (
+            <>
+              <p className="price">Price — announced in 2027</p>
+              <DrawForm itemId={it.id} />
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -249,6 +261,7 @@ export default function Site({ settings: s, items }: Props) {
                       <span className="nm">{it.band || 'Untitled'}</span>
                       {it.title && <span className="sub">{it.title}</span>}
                       {meta && <span className="sub">{meta}</span>}
+                      {it.sold ? <span className="sub">Sold</span> : s.sale_open && it.price_usd ? <span className="sub">{usd(it.price_usd)}</span> : null}
                     </div>
                   </button>
                 );
@@ -321,7 +334,7 @@ export default function Site({ settings: s, items }: Props) {
         </span>
       </footer>
 
-      {open && <Detail it={open} onClose={() => setOpen(null)} />}
+      {open && <Detail it={open} saleOpen={s.sale_open} onClose={() => setOpen(null)} />}
     </div>
   );
 }

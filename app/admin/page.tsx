@@ -4,15 +4,16 @@ import { useCallback, useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase, photoUrl, configured } from '@/lib/supabase';
 import { shrink } from '@/lib/image';
-import { DEFAULT_SETTINGS, ERA_LABEL, certNo, eraOf, type Item, type Settings } from '@/lib/types';
+import { DEFAULT_SETTINGS, ERA_LABEL, certNo, eraOf, usd, type Item, type Settings } from '@/lib/types';
 
-type Entry = { id: string; email: string; item_id: string | null; created_at: string };
+type Entry = { id: string; email: string; item_id: string | null; created_at: string; won: boolean; token: string | null; used_at: string | null };
+type Order = { id: string; item_id: string | null; email: string; name: string; amount: number; currency: string; shipping: Record<string, string> | null; shipped_at: string | null; created_at: string };
 type Msg = { id: string; name: string; email: string; body: string; created_at: string };
-type Tab = 'items' | 'entries' | 'messages' | 'settings';
+type Tab = 'items' | 'entries' | 'orders' | 'messages' | 'settings';
 
 const BLANK: Omit<Item, 'id' | 'serial' | 'created_at'> = {
   photos: [], band: '', title: '', year: '', era: '', size: '', tag: '', stitch: false,
-  made_in: 'USA', cond: '', prov: '', dealer: '', published: true, rank: '',
+  made_in: 'USA', cond: '', prov: '', dealer: '', published: true, rank: '', price_usd: null, sold: false,
 };
 
 const fmt = (s: string) => new Date(s).toLocaleString('ja-JP', { dateStyle: 'short', timeStyle: 'short' });
@@ -80,6 +81,7 @@ function ItemForm({ init, onDone }: { init: Partial<Item> | null; onDone: (msg?:
       photos: f.photos, band: f.band.trim(), title: f.title.trim(), year: f.year.trim(),
       era: f.era || eraOf(f.year), size: f.size, tag: f.tag.trim(), stitch: f.stitch, made_in: f.made_in.trim(),
       cond: f.cond.trim(), prov: f.prov.trim(), dealer: f.dealer.trim(), published: f.published, rank: f.rank || '',
+      price_usd: f.price_usd ? Math.round(Number(f.price_usd)) || null : null, sold: f.sold,
     };
     const { error } = init?.id ? await db.from('items').update(row).eq('id', init.id) : await db.from('items').insert(row);
     setBusy('');
@@ -127,9 +129,11 @@ function ItemForm({ init, onDone }: { init: Partial<Item> | null; onDone: (msg?:
         <label>製造国<input value={f.made_in} onChange={(e) => set('made_in', e.target.value)} /></label>
         <label>状態<input value={f.cond} onChange={(e) => set('cond', e.target.value)} placeholder="Good — light fading" /></label>
         <label>仕入れ先ディーラー<input value={f.dealer} onChange={(e) => set('dealer', e.target.value)} placeholder="空欄なら Founder's collection" /></label>
+        <label>価格（米ドル・公開）<input inputMode="numeric" value={f.price_usd ?? ''} onChange={(e) => set('price_usd', e.target.value.replace(/[^0-9]/g, '') || null)} placeholder="例 450" /></label>
         <label>ランク（非公開）<input value={f.rank || ''} onChange={(e) => set('rank', e.target.value)} placeholder="A / B / C" /></label>
         <label className="wide">来歴（英語・公開）<textarea value={f.prov} onChange={(e) => set('prov', e.target.value)} /></label>
         <label className="check"><input type="checkbox" checked={f.stitch} onChange={(e) => set('stitch', e.target.checked)} />シングルステッチ</label>
+        <label className="check"><input type="checkbox" checked={f.sold} onChange={(e) => set('sold', e.target.checked)} />売約済み</label>
         <label className="check"><input type="checkbox" checked={f.published} onChange={(e) => set('published', e.target.checked)} />サイトに公開</label>
       </div>
       <p className="note">ランクは管理画面だけに表示され、公開サイトからは読めません。仕入れ値などはここにも入れないでください。</p>
@@ -191,8 +195,8 @@ function Items() {
           </label>
           <button className="btn" onClick={() => setEdit(null)}>写真なしで追加</button>
           <button className="btn" onClick={() => csvDownload('items.csv', [
-            ['No.', 'band', 'title', 'year', 'era', 'size', 'tag', 'stitch', 'made_in', 'cond', 'dealer', 'rank', 'published', 'provenance'],
-            ...items.map((it) => [certNo(it), it.band, it.title, it.year, it.era, it.size, it.tag, it.stitch ? 'yes' : '', it.made_in, it.cond, it.dealer, it.rank || '', it.published ? 'yes' : 'no', it.prov]),
+            ['No.', 'band', 'title', 'year', 'era', 'size', 'tag', 'stitch', 'made_in', 'cond', 'dealer', 'rank', 'price_usd', 'sold', 'published', 'provenance'],
+            ...items.map((it) => [certNo(it), it.band, it.title, it.year, it.era, it.size, it.tag, it.stitch ? 'yes' : '', it.made_in, it.cond, it.dealer, it.rank || '', it.price_usd, it.sold ? 'yes' : '', it.published ? 'yes' : 'no', it.prov]),
           ])}>CSV</button>
         </div>
         {st && <p className="status">{st}</p>}
@@ -208,7 +212,7 @@ function Items() {
               <div className="ph">{it.photos[0] ? <img src={photoUrl(it.photos[0])} alt="" loading="lazy" /> : <span className="noimg">No image</span>}</div>
               <div className="cap">
                 <span className="nm">{it.band || '（未入力）'}</span>
-                <span className="sub">{certNo(it)}{it.published ? '' : ' · 下書き'}{it.rank ? ` · ${it.rank}` : ''}</span>
+                <span className="sub">{certNo(it)}{it.published ? '' : ' · 下書き'}{it.rank ? ` · ${it.rank}` : ''}{it.sold ? ' · SOLD' : it.price_usd ? ` · ${usd(it.price_usd)}` : ''}</span>
               </div>
             </button>
             <button className="btn danger" style={{ fontSize: 11, padding: '4px 8px' }} onClick={async () => {
@@ -228,30 +232,100 @@ function Entries() {
   const db = supabase()!;
   const [rows, setRows] = useState<Entry[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
-  useEffect(() => {
-    (async () => {
-      const [{ data: e }, { data: i }] = await Promise.all([
-        db.from('entries').select('*').order('created_at', { ascending: false }),
-        db.from('items').select('id,serial,band'),
-      ]);
-      setRows((e as Entry[]) || []);
-      const m: Record<string, string> = {};
-      (i || []).forEach((x: { id: string; serial: number; band: string }) => (m[x.id] = `${certNo(x)} ${x.band}`));
-      setNames(m);
-    })();
+  const [onlyWon, setOnlyWon] = useState(false);
+  const [st, setSt] = useState('');
+  const load = useCallback(async () => {
+    const [{ data: e }, { data: i }] = await Promise.all([
+      db.from('entries').select('*').order('created_at', { ascending: false }),
+      db.from('items').select('id,serial,band'),
+    ]);
+    setRows((e as Entry[]) || []);
+    const m: Record<string, string> = {};
+    (i || []).forEach((x: { id: string; serial: number; band: string }) => (m[x.id] = `${certNo(x)} ${x.band}`));
+    setNames(m);
   }, [db]);
+  useEffect(() => { load(); }, [load]);
   const label = (id: string | null) => (id ? names[id] || '（削除済み）' : '全体エントリー');
+  const link = (t: string | null) => (t ? `${location.origin}/buy/${t}` : '');
   const uniq = new Set(rows.map((r) => r.email)).size;
+  const shown = onlyWon ? rows.filter((r) => r.won) : rows;
+  const setWon = async (r: Entry, won: boolean) => {
+    const { error } = await db.from('entries').update(won ? { won: true, token: r.token || crypto.randomUUID() } : { won: false, token: null }).eq('id', r.id);
+    setSt(error ? 'エラー: ' + error.message : won ? '当選にしました。購入リンクをコピーして当選者にメールしてください。' : '当選を取り消しました（リンクは無効になります）');
+    load();
+  };
   return (
     <div className="sec">
-      <h4>抽選エントリー（{rows.length} 件 · {uniq} 人）</h4>
+      <h4>抽選エントリー（{rows.length} 件 · {uniq} 人 · 当選 {rows.filter((r) => r.won).length}）</h4>
+      <p>当選にすると、その人だけが使える購入リンク（1回限り）ができます。一般販売を始める前でも、このリンクからは購入できます。</p>
       <div className="row" style={{ justifyContent: 'flex-start' }}>
-        <button className="btn" onClick={() => csvDownload('entries.csv', [['email', 'item', 'entered'], ...rows.map((r) => [r.email, label(r.item_id), r.created_at])])}>CSV</button>
+        <label className="check" style={{ fontSize: 12 }}><input type="checkbox" checked={onlyWon} onChange={(e) => setOnlyWon(e.target.checked)} />当選者だけ表示</label>
+        <button className="btn" onClick={() => csvDownload('entries.csv', [['email', 'item', 'entered', 'won', 'purchase_link', 'purchased'], ...rows.map((r) => [r.email, label(r.item_id), r.created_at, r.won ? 'yes' : '', link(r.token), r.used_at || ''])])}>CSV</button>
+        {st && <span className="status">{st}</span>}
       </div>
       <div className="tablewrap">
         <table>
-          <thead><tr><th>メール</th><th>対象</th><th>日時</th></tr></thead>
-          <tbody>{rows.map((r) => <tr key={r.id}><td>{r.email}</td><td>{label(r.item_id)}</td><td>{fmt(r.created_at)}</td></tr>)}</tbody>
+          <thead><tr><th>メール</th><th>対象</th><th>日時</th><th>当選・購入リンク</th></tr></thead>
+          <tbody>{shown.map((r) => (
+            <tr key={r.id}>
+              <td>{r.email}</td><td>{label(r.item_id)}</td><td>{fmt(r.created_at)}</td>
+              <td>
+                {r.used_at ? '購入済み' : r.won ? (
+                  <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    <button className="btn" style={{ padding: '4px 8px', fontSize: 11 }} onClick={async () => { await navigator.clipboard.writeText(link(r.token)); setSt('リンクをコピーしました'); }}>リンクをコピー</button>
+                    <a className="btn" style={{ padding: '4px 8px', fontSize: 11 }} href={`mailto:${r.email}?subject=${encodeURIComponent('Gallery Crypto — You won the draw')}&body=${encodeURIComponent(`Congratulations — you won the Gallery Crypto presale draw.\n\nYou can buy your piece here (this link is for you only and works once):\n${link(r.token)}\n\nGallery Crypto`)}`}>メール作成</a>
+                    <button className="btn" style={{ padding: '4px 8px', fontSize: 11 }} onClick={() => setWon(r, false)}>取消</button>
+                  </span>
+                ) : (
+                  <button className="btn" style={{ padding: '4px 8px', fontSize: 11 }} onClick={() => setWon(r, true)}>当選にする</button>
+                )}
+              </td>
+            </tr>
+          ))}</tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function Orders() {
+  const db = supabase()!;
+  const [rows, setRows] = useState<Order[]>([]);
+  const [names, setNames] = useState<Record<string, string>>({});
+  const load = useCallback(async () => {
+    const [{ data: o }, { data: i }] = await Promise.all([
+      db.from('orders').select('*').order('created_at', { ascending: false }),
+      db.from('items').select('id,serial,band'),
+    ]);
+    setRows((o as Order[]) || []);
+    const m: Record<string, string> = {};
+    (i || []).forEach((x: { id: string; serial: number; band: string }) => (m[x.id] = `${certNo(x)} ${x.band}`));
+    setNames(m);
+  }, [db]);
+  useEffect(() => { load(); }, [load]);
+  const addr = (a: Record<string, string> | null) => (a ? [a.line1, a.line2, a.city, a.state, a.postal_code, a.country].filter(Boolean).join(', ') : '');
+  const total = rows.reduce((n, r) => n + r.amount, 0) / 100;
+  return (
+    <div className="sec">
+      <h4>注文（{rows.length} 件 · 合計 {usd(total) || '$0'}）</h4>
+      <p>支払いが完了すると自動でここに入り、商品は「売約済み」になります。返金は Stripe の管理画面から行います。</p>
+      <div className="row" style={{ justifyContent: 'flex-start' }}>
+        <button className="btn" onClick={() => csvDownload('orders.csv', [['date', 'item', 'name', 'email', 'amount', 'currency', 'address', 'shipped'], ...rows.map((r) => [r.created_at, r.item_id ? names[r.item_id] || '' : '', r.name, r.email, r.amount / 100, r.currency, addr(r.shipping), r.shipped_at || ''])])}>CSV</button>
+      </div>
+      <div className="tablewrap">
+        <table>
+          <thead><tr><th>日時</th><th>商品</th><th>購入者・配送先</th><th>金額</th><th>発送</th></tr></thead>
+          <tbody>{rows.map((r) => (
+            <tr key={r.id}>
+              <td>{fmt(r.created_at)}</td>
+              <td>{r.item_id ? names[r.item_id] || '（削除済み）' : ''}</td>
+              <td>{r.name}<br /><a href={`mailto:${r.email}`}>{r.email}</a><br />{addr(r.shipping)}</td>
+              <td>{usd(r.amount / 100)}</td>
+              <td>{r.shipped_at ? fmt(r.shipped_at) : (
+                <button className="btn" style={{ padding: '4px 8px', fontSize: 11 }} onClick={async () => { await db.from('orders').update({ shipped_at: new Date().toISOString() }).eq('id', r.id); load(); }}>発送済みにする</button>
+              )}</td>
+            </tr>
+          ))}</tbody>
         </table>
       </div>
     </div>
@@ -291,7 +365,7 @@ function SettingsForm() {
   useEffect(() => {
     db.from('settings').select('*').eq('id', 1).single().then(({ data }) => data && setS({ ...DEFAULT_SETTINGS, ...data }));
   }, [db]);
-  const set = (k: keyof Settings, v: string) => setS((p) => ({ ...p, [k]: v }));
+  const set = (k: 'headline' | 'lead' | 'launch' | 'instagram' | 'email', v: string) => setS((p) => ({ ...p, [k]: v }));
   return (
     <div className="sec">
       <h4>サイトの文言（英語）</h4>
@@ -301,11 +375,14 @@ function SettingsForm() {
         <label className="wide">発売の一行<input value={s.launch} onChange={(e) => set('launch', e.target.value)} /></label>
         <label>Instagram の URL<input value={s.instagram} onChange={(e) => set('instagram', e.target.value)} placeholder="https://instagram.com/..." /></label>
         <label>公開する連絡先メール<input value={s.email} onChange={(e) => set('email', e.target.value)} /></label>
+        <label>送料（米ドル・1注文）<input inputMode="numeric" value={s.shipping_usd} onChange={(e) => setS((p) => ({ ...p, shipping_usd: Number(e.target.value.replace(/[^0-9]/g, '')) || 0 }))} /></label>
+        <label className="check wide"><input type="checkbox" checked={s.sale_open} onChange={(e) => setS((p) => ({ ...p, sale_open: e.target.checked }))} />一般販売を開始する（オンにすると、価格を入れた商品に誰でも買える「Buy now」が出ます）</label>
       </div>
       <div className="row" style={{ justifyContent: 'flex-start' }}>
         <button className="btn primary" onClick={async () => {
-          const { headline, lead, launch, instagram, email } = s;
-          const { error } = await db.from('settings').update({ headline, lead, launch, instagram, email, updated_at: new Date().toISOString() }).eq('id', 1);
+          const { headline, lead, launch, instagram, email, sale_open, shipping_usd } = s;
+          if (sale_open && !confirm('一般販売を開始しますか？価格が入っている商品はすぐに誰でも購入できるようになります。')) return;
+          const { error } = await db.from('settings').update({ headline, lead, launch, instagram, email, sale_open, shipping_usd, updated_at: new Date().toISOString() }).eq('id', 1);
           setSt(error ? 'エラー: ' + error.message : '保存しました（サイトへの反映は最大1分）');
         }}>保存</button>
         {st && <span className="status">{st}</span>}
@@ -352,12 +429,13 @@ export default function Admin() {
     body = (
       <>
         <div className="adm-tabs">
-          {([['items', 'アーカイブ'], ['entries', '抽選エントリー'], ['messages', '問い合わせ'], ['settings', 'サイト設定']] as [Tab, string][]).map(([k, l]) => (
+          {([['items', 'アーカイブ'], ['entries', '抽選エントリー'], ['orders', '注文'], ['messages', '問い合わせ'], ['settings', 'サイト設定']] as [Tab, string][]).map(([k, l]) => (
             <button key={k} aria-pressed={tab === k} onClick={() => setTab(k)}>{l}</button>
           ))}
         </div>
         {tab === 'items' && <Items />}
         {tab === 'entries' && <Entries />}
+        {tab === 'orders' && <Orders />}
         {tab === 'messages' && <Messages />}
         {tab === 'settings' && <SettingsForm />}
       </>

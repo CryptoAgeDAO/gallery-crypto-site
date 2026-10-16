@@ -4,6 +4,8 @@ export type Settings = {
   launch: string;
   instagram: string;
   email: string;
+  sale_open: boolean;
+  shipping_usd: number;
 };
 
 export type Item = {
@@ -24,10 +26,12 @@ export type Item = {
   published: boolean;
   created_at: string;
   rank?: string;
+  price_usd: number | null;
+  sold: boolean;
 };
 
 export const PUBLIC_ITEM_COLUMNS =
-  'id,serial,photos,band,title,year,era,size,tag,stitch,made_in,cond,prov,dealer,published,created_at';
+  'id,serial,photos,band,title,year,era,size,tag,stitch,made_in,cond,prov,dealer,published,created_at,price_usd,sold';
 
 export const DEFAULT_SETTINGS: Settings = {
   headline: "Founder's Archive",
@@ -36,6 +40,8 @@ export const DEFAULT_SETTINGS: Settings = {
   launch: 'On sale in 2027 · Lottery release',
   instagram: '',
   email: '',
+  sale_open: false,
+  shipping_usd: 20,
 };
 
 export const ERA_LABEL: Record<string, string> = { '80s': '80s', '90s': '90s', '00s': '2000s', other: 'Other' };
@@ -60,4 +66,8 @@ export function metaLine(it: Item): string {
   if (it.made_in) p.push(it.made_in);
   if (it.stitch) p.push('Single stitch');
   return p.join(' · ');
+}
+
+export function usd(n: number | null | undefined): string {
+  return n ? '$' + n.toLocaleString('en-US') : '';
 }

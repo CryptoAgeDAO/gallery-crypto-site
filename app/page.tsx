@@ -8,7 +8,7 @@ async function load(): Promise<{ settings: Settings; items: Item[] }> {
   const db = supabase();
   if (!db) return { settings: DEFAULT_SETTINGS, items: [] };
   const [s, i] = await Promise.all([
-    db.from('settings').select('headline,lead,launch,instagram,email').eq('id', 1).maybeSingle(),
+    db.from('settings').select('headline,lead,launch,instagram,email,sale_open,shipping_usd').eq('id', 1).maybeSingle(),
     db.from('items').select(PUBLIC_ITEM_COLUMNS).eq('published', true).order('serial', { ascending: false }),
   ]);
   return {
