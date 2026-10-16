@@ -18,3 +18,8 @@ export function photoUrl(path: string): string {
   if (path.startsWith('http')) return path;
   return `${url}/storage/v1/object/public/photos/${path}`;
 }
+
+export function audioUrl(path: string): string {
+  if (!url || !path) return '';
+  return `${url}/storage/v1/object/public/audio/${path}`;
+}

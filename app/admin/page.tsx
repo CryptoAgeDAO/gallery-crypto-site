@@ -14,6 +14,7 @@ type Tab = 'items' | 'entries' | 'orders' | 'messages' | 'settings';
 const BLANK: Omit<Item, 'id' | 'serial' | 'created_at'> = {
   photos: [], band: '', title: '', year: '', era: '', size: '', tag: '', stitch: false,
   made_in: 'USA', cond: '', prov: '', dealer: '', published: true, rank: '', price_usd: null, sold: false,
+  listen: '', audio_path: '', audio_name: '', audio_credit: '',
 };
 
 const fmt = (s: string) => new Date(s).toLocaleString('ja-JP', { dateStyle: 'short', timeStyle: 'short' });
@@ -29,6 +30,18 @@ function csvDownload(name: string, rows: (string | number | null)[][]) {
   a.download = name;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+const AUDIO_EXT: Record<string, string> = { mp3: 'audio/mpeg', m4a: 'audio/mp4', aac: 'audio/aac', wav: 'audio/wav', webm: 'audio/webm', ogg: 'audio/ogg' };
+async function uploadAudio(file: File): Promise<{ path: string; name: string }> {
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  const type = AUDIO_EXT[ext];
+  if (!type) throw new Error('mp3・m4a・wav・aac のファイルを選んでください');
+  if (file.size > 20 * 1024 * 1024) throw new Error('20MB を超えています。短くするか圧縮してください');
+  const path = `${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase()!.storage.from('audio').upload(path, file, { contentType: type, cacheControl: '31536000' });
+  if (error) throw error;
+  return { path, name: file.name.replace(/\.[^.]+$/, '') };
 }
 
 async function upload(files: FileList | File[]): Promise<string[]> {
@@ -82,6 +95,7 @@ function ItemForm({ init, onDone }: { init: Partial<Item> | null; onDone: (msg?:
       era: f.era || eraOf(f.year), size: f.size, tag: f.tag.trim(), stitch: f.stitch, made_in: f.made_in.trim(),
       cond: f.cond.trim(), prov: f.prov.trim(), dealer: f.dealer.trim(), published: f.published, rank: f.rank || '',
       price_usd: f.price_usd ? Math.round(Number(f.price_usd)) || null : null, sold: f.sold,
+      listen: /^https:\/\//.test(f.listen.trim()) ? f.listen.trim() : '', audio_path: f.audio_path, audio_name: f.audio_name.trim(), audio_credit: f.audio_credit.trim(),
     };
     const { error } = init?.id ? await db.from('items').update(row).eq('id', init.id) : await db.from('items').insert(row);
     setBusy('');
@@ -131,6 +145,34 @@ function ItemForm({ init, onDone }: { init: Partial<Item> | null; onDone: (msg?:
         <label>仕入れ先ディーラー<input value={f.dealer} onChange={(e) => set('dealer', e.target.value)} placeholder="空欄なら Founder's collection" /></label>
         <label>価格（米ドル・公開）<input inputMode="numeric" value={f.price_usd ?? ''} onChange={(e) => set('price_usd', e.target.value.replace(/[^0-9]/g, '') || null)} placeholder="例 450" /></label>
         <label>ランク（非公開）<input value={f.rank || ''} onChange={(e) => set('rank', e.target.value)} placeholder="A / B / C" /></label>
+        <label className="wide">試聴リンク（Spotify・Apple Music・YouTube の URL）<input type="url" value={f.listen} onChange={(e) => set('listen', e.target.value)} placeholder="https://open.spotify.com/track/..." /></label>
+        <div className="sec wide" style={{ gridColumn: '1/-1' }}>
+          <h4>音源ファイル（権利をお持ちの音源のみ）</h4>
+          <p>市販の CD や配信の曲をサイトで流すには、作詞・作曲の権利（JASRAC など）と原盤の権利（レーベル）の両方の許諾が必要です。許諾のない曲は上の試聴リンクを使ってください。ご自身で制作した音源や、利用許諾を得た BGM はここにアップロードできます（mp3・m4a・wav、20MB まで）。</p>
+          <div className="row" style={{ justifyContent: 'flex-start', alignItems: 'center' }}>
+            {f.audio_path ? (
+              <>
+                <span>♪ {f.audio_name || '音源'}</span>
+                <button type="button" className="btn" onClick={() => { set('audio_path', ''); set('audio_name', ''); }}>外す</button>
+              </>
+            ) : (
+              <span className="note">音源はまだありません</span>
+            )}
+            <label className="btn" style={{ cursor: 'pointer' }}>
+              音源を選ぶ
+              <input type="file" accept="audio/*,.mp3,.m4a,.wav,.aac" hidden onChange={async (e) => {
+                const file = e.target.files?.[0];
+                e.target.value = '';
+                if (!file) return;
+                setBusy('音源をアップロード中…');
+                try { const a = await uploadAudio(file); set('audio_path', a.path); set('audio_name', a.name); setBusy('音源を追加しました（保存してください）'); }
+                catch (err) { alertMsg((err as Error).message); }
+              }} />
+            </label>
+          </div>
+          <label>曲名（公開）<input value={f.audio_name} onChange={(e) => set('audio_name', e.target.value)} /></label>
+          <label>クレジット（公開・例：Music by ○○ / Licensed）<input value={f.audio_credit} onChange={(e) => set('audio_credit', e.target.value)} /></label>
+        </div>
         <label className="wide">来歴（英語・公開）<textarea value={f.prov} onChange={(e) => set('prov', e.target.value)} /></label>
         <label className="check"><input type="checkbox" checked={f.stitch} onChange={(e) => set('stitch', e.target.checked)} />シングルステッチ</label>
         <label className="check"><input type="checkbox" checked={f.sold} onChange={(e) => set('sold', e.target.checked)} />売約済み</label>
@@ -219,6 +261,7 @@ function Items() {
               if (!confirm(`${certNo(it)} ${it.band} を削除しますか？`)) return;
               await db.from('items').delete().eq('id', it.id);
               if (it.photos.length) await db.storage.from('photos').remove(it.photos);
+              if (it.audio_path) await db.storage.from('audio').remove([it.audio_path]);
               load();
             }}>削除</button>
           </div>

@@ -28,10 +28,14 @@ export type Item = {
   rank?: string;
   price_usd: number | null;
   sold: boolean;
+  listen: string;
+  audio_path: string;
+  audio_name: string;
+  audio_credit: string;
 };
 
 export const PUBLIC_ITEM_COLUMNS =
-  'id,serial,photos,band,title,year,era,size,tag,stitch,made_in,cond,prov,dealer,published,created_at,price_usd,sold';
+  'id,serial,photos,band,title,year,era,size,tag,stitch,made_in,cond,prov,dealer,published,created_at,price_usd,sold,listen,audio_path,audio_name,audio_credit';
 
 export const DEFAULT_SETTINGS: Settings = {
   headline: "Founder's Archive",

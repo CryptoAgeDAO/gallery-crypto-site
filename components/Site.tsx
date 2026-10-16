@@ -1,9 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase, photoUrl } from '@/lib/supabase';
-import { ERA_LABEL, certNo, metaLine, usd, type Item, type Settings } from '@/lib/types';
+import { ERA_LABEL, certNo, usd, type Item, type Settings } from '@/lib/types';
 import BuyButton from '@/components/BuyButton';
+import { CardBack, CardFront } from '@/components/Card';
+import { MusicBar, PlayButton } from '@/components/Music';
+import { flipFront, flipOver, startFlip, stopFlip, watchCards } from '@/lib/motion';
+import { onSfxChange, setSfx, sfx, sfxDeal, sfxEnabled } from '@/lib/sfx';
 
 type Props = { settings: Settings; items: Item[]; configured: boolean };
 type Status = { kind: 'idle' | 'busy' | 'ok' | 'err'; text?: string };
@@ -62,7 +66,9 @@ function DrawForm({ itemId }: { itemId: string | null }) {
         e.preventDefault();
         if (hp) return;
         setSt({ kind: 'busy' });
-        setSt(await enter(email, itemId));
+        const r = await enter(email, itemId);
+        if (r.kind === 'ok') sfx('coin');
+        setSt(r);
       }}
     >
       <input className="hp" tabIndex={-1} aria-hidden="true" autoComplete="off" value={hp} onChange={(e) => setHp(e.target.value)} />
@@ -76,11 +82,22 @@ function DrawForm({ itemId }: { itemId: string | null }) {
 }
 
 function Detail({ it, onClose, saleOpen }: { it: Item; onClose: () => void; saleOpen: boolean }) {
+  const flipRef = useRef<HTMLDivElement>(null);
+  const [side, setSide] = useState(0);
+  const close = () => {
+    sfx('close');
+    onClose();
+  };
   useEffect(() => {
-    const k = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    const k = (e: KeyboardEvent) => e.key === 'Escape' && close();
     document.addEventListener('keydown', k);
     return () => document.removeEventListener('keydown', k);
-  }, [onClose]);
+  });
+  useEffect(() => {
+    if (flipRef.current) startFlip(flipRef.current, setSide);
+    sfx('open');
+    return () => stopFlip();
+  }, [it.id]);
   const rows: [string, string][] = (
     [
       ['Decade', ERA_LABEL[it.era] || ''],
@@ -93,19 +110,43 @@ function Detail({ it, onClose, saleOpen }: { it: Item; onClose: () => void; sale
     ] as [string, string][]
   ).filter((r) => r[1]);
   return (
-    <div className="modal" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="modal" onClick={(e) => e.target === e.currentTarget && close()}>
       <div className="panel detail" role="dialog" aria-modal="true" aria-label={it.band || 'Piece'}>
-        <button className="x" onClick={onClose} aria-label="Close" autoFocus>
+        <button className="x" onClick={close} aria-label="Close" autoFocus>
           ×
         </button>
-        <div className="pv">
-          {it.photos.length ? (
-            it.photos.map((p) => <img key={p} src={photoUrl(p)} alt="" />)
-          ) : (
-            <div className="ph">
-              <span className="noimg">No image</span>
+        <div className="pv cardview">
+          <div className="flip" id="flip" ref={flipRef}>
+            <div className="flip-in">
+              <div className="tc big side">
+                <CardFront it={it} saleOpen={saleOpen} big />
+              </div>
+              <div className="tc big side backside">
+                <CardBack it={it} />
+              </div>
             </div>
-          )}
+          </div>
+          <div className="pv-ctl">
+            <button className="btn pub" onClick={flipOver}>
+              {side ? 'Flip · Front' : 'Flip · Certificate'}
+            </button>
+            {it.photos.length > 1 &&
+              it.photos.map((p) => (
+                <button
+                  key={p}
+                  className="thumb"
+                  aria-label="Show photo"
+                  onClick={() => {
+                    const m = document.getElementById('pv-main') as HTMLImageElement | null;
+                    if (m) m.src = photoUrl(p);
+                    flipFront();
+                  }}
+                >
+                  <img src={photoUrl(p)} alt="" />
+                </button>
+              ))}
+          </div>
+          <span className="flip-hint">Drag the card to turn it</span>
         </div>
         <div className="info">
           <h2>{it.band || 'Untitled'}</h2>
@@ -119,6 +160,24 @@ function Detail({ it, onClose, saleOpen }: { it: Item; onClose: () => void; sale
                 </div>
               ))}
             </dl>
+          )}
+          {(it.audio_path || it.listen) && (
+            <div className="snd">
+              <span className="lb">Sound</span>
+              <div className="row" style={{ justifyContent: 'flex-start' }}>
+                {it.audio_path && <PlayButton it={it} />}
+                {it.listen && (
+                  <a className="btn pub" href={it.listen} target="_blank" rel="noopener noreferrer">
+                    Listen ↗
+                  </a>
+                )}
+              </div>
+              {it.audio_path && it.audio_credit && (
+                <p className="note-pub" style={{ marginTop: 6 }}>
+                  {it.audio_credit}
+                </p>
+              )}
+            </div>
           )}
           {it.prov && (
             <div className="prov">
@@ -143,6 +202,19 @@ function Detail({ it, onClose, saleOpen }: { it: Item; onClose: () => void; sale
         </div>
       </div>
     </div>
+  );
+}
+
+function SfxToggle() {
+  const [on, setOn] = useState(true);
+  useEffect(() => {
+    setOn(sfxEnabled());
+    return onSfxChange(setOn);
+  }, []);
+  return (
+    <button className="sfx-t" aria-pressed={on} onClick={() => setSfx(!on)}>
+      ♪ SFX {on ? 'On' : 'Off'}
+    </button>
   );
 }
 
@@ -202,6 +274,12 @@ export default function Site({ settings: s, items }: Props) {
   }, [items]);
   const shown = flt === 'all' ? items : items.filter((it) => it.era === flt);
   const sample = items.find((it) => it.band && it.photos.length) || items[0];
+  const firstDeal = useRef(true);
+  useEffect(() => {
+    watchCards();
+    if (firstDeal.current) firstDeal.current = false;
+    else sfxDeal(shown.length);
+  }, [flt, items]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="site">
@@ -212,6 +290,7 @@ export default function Site({ settings: s, items }: Props) {
           <a href="#presale">Presale</a>
           <a href="#provenance">Provenance</a>
           <a href="#contact">Contact</a>
+          <SfxToggle />
           {s.instagram && (
             <a href={s.instagram} target="_blank" rel="noopener noreferrer">
               Instagram
@@ -242,30 +321,18 @@ export default function Site({ settings: s, items }: Props) {
                 {shown.length} {shown.length === 1 ? 'piece' : 'pieces'}
               </span>
             </nav>
-            <div className="grid">
-              {shown.map((it) => {
-                const meta = metaLine(it);
-                return (
-                  <button key={it.id} className="card" onClick={() => setOpen(it)}>
-                    <div className="ph">
-                      {it.photos[0] ? (
-                        <>
-                          <img src={photoUrl(it.photos[0])} alt={`${it.band} ${it.title}`.trim()} loading="lazy" />
-                          {it.photos[1] && <img className="alt" src={photoUrl(it.photos[1])} alt="" loading="lazy" />}
-                        </>
-                      ) : (
-                        <span className="noimg">No image</span>
-                      )}
-                    </div>
-                    <div className="cap">
-                      <span className="nm">{it.band || 'Untitled'}</span>
-                      {it.title && <span className="sub">{it.title}</span>}
-                      {meta && <span className="sub">{meta}</span>}
-                      {it.sold ? <span className="sub">Sold</span> : s.sale_open && it.price_usd ? <span className="sub">{usd(it.price_usd)}</span> : null}
-                    </div>
-                  </button>
-                );
-              })}
+            <div className="grid tcg" key={flt}>
+              {shown.map((it, i) => (
+                <button
+                  key={it.id}
+                  className="tc"
+                  style={{ ['--i' as string]: Math.min(i, 10) }}
+                  aria-label={`${it.band || 'Untitled'} ${certNo(it)}`}
+                  onClick={() => setOpen(it)}
+                >
+                  <CardFront it={it} saleOpen={s.sale_open} />
+                </button>
+              ))}
             </div>
             {!shown.length && <p className="empty">No pieces from this decade yet.</p>}
           </>
@@ -310,9 +377,13 @@ export default function Site({ settings: s, items }: Props) {
           Every piece carries a permanent record: where it was found, which dealer it came through, and who owns it now. Records are written on Solana first, with XRP Ledger support to follow.
         </p>
         {sample && (
-          <div className="certcard">
-            <div className="ph">{sample.photos[0] ? <img src={photoUrl(sample.photos[0])} alt="" /> : <span className="noimg">No image</span>}</div>
-            <Cert it={sample} />
+          <div className="pair">
+            <div className="tc">
+              <CardFront it={sample} saleOpen={s.sale_open} />
+            </div>
+            <div className="tc">
+              <CardBack it={sample} />
+            </div>
           </div>
         )}
       </section>
@@ -335,6 +406,7 @@ export default function Site({ settings: s, items }: Props) {
       </footer>
 
       {open && <Detail it={open} saleOpen={s.sale_open} onClose={() => setOpen(null)} />}
+      <MusicBar />
     </div>
   );
 }
