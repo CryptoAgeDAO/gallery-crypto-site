@@ -1,0 +1,372 @@
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
+import type { Session } from '@supabase/supabase-js';
+import { supabase, photoUrl, configured } from '@/lib/supabase';
+import { shrink } from '@/lib/image';
+import { DEFAULT_SETTINGS, ERA_LABEL, certNo, eraOf, type Item, type Settings } from '@/lib/types';
+
+type Entry = { id: string; email: string; item_id: string | null; created_at: string };
+type Msg = { id: string; name: string; email: string; body: string; created_at: string };
+type Tab = 'items' | 'entries' | 'messages' | 'settings';
+
+const BLANK: Omit<Item, 'id' | 'serial' | 'created_at'> = {
+  photos: [], band: '', title: '', year: '', era: '', size: '', tag: '', stitch: false,
+  made_in: 'USA', cond: '', prov: '', dealer: '', published: true, rank: '',
+};
+
+const fmt = (s: string) => new Date(s).toLocaleString('ja-JP', { dateStyle: 'short', timeStyle: 'short' });
+
+function csvDownload(name: string, rows: (string | number | null)[][]) {
+  const esc = (v: string | number | null) => {
+    const s = v == null ? '' : String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const blob = new Blob(['﻿' + rows.map((r) => r.map(esc).join(',')).join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+async function upload(files: FileList | File[]): Promise<string[]> {
+  const db = supabase()!;
+  const out: string[] = [];
+  for (const f of Array.from(files)) {
+    const blob = await shrink(f);
+    const path = `${crypto.randomUUID()}.jpg`;
+    const { error } = await db.storage.from('photos').upload(path, blob, { contentType: 'image/jpeg', cacheControl: '31536000' });
+    if (error) throw error;
+    out.push(path);
+  }
+  return out;
+}
+
+function Login() {
+  const [email, setEmail] = useState('');
+  const [st, setSt] = useState('');
+  return (
+    <form
+      className="sec"
+      style={{ maxWidth: 420 }}
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setSt('送信中…');
+        const { error } = await supabase()!.auth.signInWithOtp({
+          email: email.trim(),
+          options: { shouldCreateUser: false, emailRedirectTo: `${location.origin}/admin` },
+        });
+        setSt(error ? 'ログインできるメールアドレスではありません（Supabase の Users に登録されているか確認してください）。' : 'ログイン用のリンクをメールで送りました。このブラウザで開いてください。');
+      }}
+    >
+      <h4>管理画面にログイン</h4>
+      <p>登録した管理者のメールアドレスにログイン用リンクを送ります。</p>
+      <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+      <button className="btn primary" type="submit">リンクを送る</button>
+      {st && <p>{st}</p>}
+    </form>
+  );
+}
+
+function ItemForm({ init, onDone }: { init: Partial<Item> | null; onDone: (msg?: string) => void }) {
+  const [f, setF] = useState({ ...BLANK, ...(init || {}) });
+  const [busy, setBusy] = useState('');
+  const set = (k: string, v: unknown) => setF((p) => ({ ...p, [k]: v }));
+  const db = supabase()!;
+  const save = async () => {
+    setBusy('保存中…');
+    const row = {
+      photos: f.photos, band: f.band.trim(), title: f.title.trim(), year: f.year.trim(),
+      era: f.era || eraOf(f.year), size: f.size, tag: f.tag.trim(), stitch: f.stitch, made_in: f.made_in.trim(),
+      cond: f.cond.trim(), prov: f.prov.trim(), dealer: f.dealer.trim(), published: f.published, rank: f.rank || '',
+    };
+    const { error } = init?.id ? await db.from('items').update(row).eq('id', init.id) : await db.from('items').insert(row);
+    setBusy('');
+    if (error) return alertMsg(error.message);
+    onDone('保存しました');
+  };
+  const alertMsg = (m: string) => setBusy('エラー: ' + m);
+  return (
+    <div className="sec">
+      <h4>{init?.id ? `${certNo(init as Item)} を編集` : '新しく追加'}</h4>
+      <div className="photos">
+        {f.photos.map((p) => (
+          <figure key={p}>
+            <img src={photoUrl(p)} alt="" />
+            <button type="button" onClick={() => set('photos', f.photos.filter((x) => x !== p))} aria-label="写真を外す">×</button>
+          </figure>
+        ))}
+        <label className="btn" style={{ cursor: 'pointer' }}>
+          写真を追加
+          <input type="file" accept="image/*" multiple hidden onChange={async (e) => {
+            if (!e.target.files?.length) return;
+            setBusy('アップロード中…');
+            try { const p = await upload(e.target.files); set('photos', [...f.photos, ...p]); setBusy(''); }
+            catch (err) { alertMsg((err as Error).message); }
+          }} />
+        </label>
+      </div>
+      <div className="form">
+        <label>バンド名<input value={f.band} onChange={(e) => set('band', e.target.value)} /></label>
+        <label>ツアー名・デザイン<input value={f.title} onChange={(e) => set('title', e.target.value)} /></label>
+        <label>年<input inputMode="numeric" value={f.year} onChange={(e) => set('year', e.target.value)} placeholder="1991" /></label>
+        <label>年代
+          <select value={f.era} onChange={(e) => set('era', e.target.value)}>
+            <option value="">年から自動</option>
+            {Object.entries(ERA_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
+        </label>
+        <label>サイズ
+          <select value={f.size} onChange={(e) => set('size', e.target.value)}>
+            <option value="">—</option>
+            {['xs', 's', 'm', 'l', 'xl', 'xxl'].map((s) => <option key={s} value={s}>{s.toUpperCase()}</option>)}
+          </select>
+        </label>
+        <label>タグ<input value={f.tag} onChange={(e) => set('tag', e.target.value)} placeholder="Brockum" /></label>
+        <label>製造国<input value={f.made_in} onChange={(e) => set('made_in', e.target.value)} /></label>
+        <label>状態<input value={f.cond} onChange={(e) => set('cond', e.target.value)} placeholder="Good — light fading" /></label>
+        <label>仕入れ先ディーラー<input value={f.dealer} onChange={(e) => set('dealer', e.target.value)} placeholder="空欄なら Founder's collection" /></label>
+        <label>ランク（非公開）<input value={f.rank || ''} onChange={(e) => set('rank', e.target.value)} placeholder="A / B / C" /></label>
+        <label className="wide">来歴（英語・公開）<textarea value={f.prov} onChange={(e) => set('prov', e.target.value)} /></label>
+        <label className="check"><input type="checkbox" checked={f.stitch} onChange={(e) => set('stitch', e.target.checked)} />シングルステッチ</label>
+        <label className="check"><input type="checkbox" checked={f.published} onChange={(e) => set('published', e.target.checked)} />サイトに公開</label>
+      </div>
+      <p className="note">ランクは管理画面だけに表示され、公開サイトからは読めません。仕入れ値などはここにも入れないでください。</p>
+      <div className="row" style={{ justifyContent: 'flex-start' }}>
+        <button className="btn primary" disabled={!!busy && busy !== '' && !busy.startsWith('エラー')} onClick={save}>保存</button>
+        <button className="btn" onClick={() => onDone()}>閉じる</button>
+        {busy && <span className="status">{busy}</span>}
+      </div>
+    </div>
+  );
+}
+
+function Items() {
+  const db = supabase()!;
+  const [items, setItems] = useState<Item[]>([]);
+  const [edit, setEdit] = useState<Partial<Item> | null | undefined>(undefined);
+  const [st, setSt] = useState('');
+  const load = useCallback(async () => {
+    const { data, error } = await db.from('items').select('*').order('serial', { ascending: false });
+    if (error) setSt('読み込めません: ' + error.message);
+    else setItems((data as Item[]) || []);
+  }, [db]);
+  useEffect(() => { load(); }, [load]);
+
+  return (
+    <>
+      <div className="sec">
+        <h4>写真からまとめて追加</h4>
+        <p>1枚の写真につき1着として下書き登録します（非公開）。あとで1着ずつ情報を入れて公開してください。iPhone ならカメラで直接撮影もできます。</p>
+        <div className="row" style={{ justifyContent: 'flex-start' }}>
+          <label className="btn primary" style={{ cursor: 'pointer' }}>
+            写真を選ぶ
+            <input type="file" accept="image/*" multiple hidden onChange={async (e) => {
+              const files = Array.from(e.target.files || []);
+              e.target.value = '';
+              if (!files.length) return;
+              try {
+                for (let i = 0; i < files.length; i++) {
+                  setSt(`アップロード中 ${i + 1} / ${files.length}`);
+                  const [p] = await upload([files[i]]);
+                  const { error } = await db.from('items').insert({ ...BLANK, photos: [p], published: false });
+                  if (error) throw error;
+                }
+                setSt(`${files.length} 着を下書きで追加しました`);
+                load();
+              } catch (err) { setSt('エラー: ' + (err as Error).message); }
+            }} />
+          </label>
+          <label className="btn" style={{ cursor: 'pointer' }}>
+            カメラで撮る
+            <input type="file" accept="image/*" capture="environment" hidden onChange={async (e) => {
+              const f = e.target.files?.[0];
+              e.target.value = '';
+              if (!f) return;
+              setSt('アップロード中…');
+              try { const [p] = await upload([f]); setEdit({ ...BLANK, photos: [p] }); setSt(''); }
+              catch (err) { setSt('エラー: ' + (err as Error).message); }
+            }} />
+          </label>
+          <button className="btn" onClick={() => setEdit(null)}>写真なしで追加</button>
+          <button className="btn" onClick={() => csvDownload('items.csv', [
+            ['No.', 'band', 'title', 'year', 'era', 'size', 'tag', 'stitch', 'made_in', 'cond', 'dealer', 'rank', 'published', 'provenance'],
+            ...items.map((it) => [certNo(it), it.band, it.title, it.year, it.era, it.size, it.tag, it.stitch ? 'yes' : '', it.made_in, it.cond, it.dealer, it.rank || '', it.published ? 'yes' : 'no', it.prov]),
+          ])}>CSV</button>
+        </div>
+        {st && <p className="status">{st}</p>}
+      </div>
+
+      {edit !== undefined && <ItemForm key={edit?.id || 'new' + (edit?.photos?.[0] || '')} init={edit} onDone={(m) => { setEdit(undefined); if (m) setSt(m); load(); }} />}
+
+      <p className="note">全 {items.length} 着 · 公開 {items.filter((i) => i.published).length} · 下書き {items.filter((i) => !i.published).length}</p>
+      <div className="adm-grid">
+        {items.map((it) => (
+          <div key={it.id} style={{ display: 'grid', gap: 6, alignContent: 'start' }}>
+            <button className="card" onClick={() => setEdit(it)} style={{ opacity: it.published ? 1 : 0.5 }}>
+              <div className="ph">{it.photos[0] ? <img src={photoUrl(it.photos[0])} alt="" loading="lazy" /> : <span className="noimg">No image</span>}</div>
+              <div className="cap">
+                <span className="nm">{it.band || '（未入力）'}</span>
+                <span className="sub">{certNo(it)}{it.published ? '' : ' · 下書き'}{it.rank ? ` · ${it.rank}` : ''}</span>
+              </div>
+            </button>
+            <button className="btn danger" style={{ fontSize: 11, padding: '4px 8px' }} onClick={async () => {
+              if (!confirm(`${certNo(it)} ${it.band} を削除しますか？`)) return;
+              await db.from('items').delete().eq('id', it.id);
+              if (it.photos.length) await db.storage.from('photos').remove(it.photos);
+              load();
+            }}>削除</button>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function Entries() {
+  const db = supabase()!;
+  const [rows, setRows] = useState<Entry[]>([]);
+  const [names, setNames] = useState<Record<string, string>>({});
+  useEffect(() => {
+    (async () => {
+      const [{ data: e }, { data: i }] = await Promise.all([
+        db.from('entries').select('*').order('created_at', { ascending: false }),
+        db.from('items').select('id,serial,band'),
+      ]);
+      setRows((e as Entry[]) || []);
+      const m: Record<string, string> = {};
+      (i || []).forEach((x: { id: string; serial: number; band: string }) => (m[x.id] = `${certNo(x)} ${x.band}`));
+      setNames(m);
+    })();
+  }, [db]);
+  const label = (id: string | null) => (id ? names[id] || '（削除済み）' : '全体エントリー');
+  const uniq = new Set(rows.map((r) => r.email)).size;
+  return (
+    <div className="sec">
+      <h4>抽選エントリー（{rows.length} 件 · {uniq} 人）</h4>
+      <div className="row" style={{ justifyContent: 'flex-start' }}>
+        <button className="btn" onClick={() => csvDownload('entries.csv', [['email', 'item', 'entered'], ...rows.map((r) => [r.email, label(r.item_id), r.created_at])])}>CSV</button>
+      </div>
+      <div className="tablewrap">
+        <table>
+          <thead><tr><th>メール</th><th>対象</th><th>日時</th></tr></thead>
+          <tbody>{rows.map((r) => <tr key={r.id}><td>{r.email}</td><td>{label(r.item_id)}</td><td>{fmt(r.created_at)}</td></tr>)}</tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function Messages() {
+  const db = supabase()!;
+  const [rows, setRows] = useState<Msg[]>([]);
+  const load = useCallback(async () => {
+    const { data } = await db.from('messages').select('*').order('created_at', { ascending: false });
+    setRows((data as Msg[]) || []);
+  }, [db]);
+  useEffect(() => { load(); }, [load]);
+  return (
+    <div className="sec">
+      <h4>問い合わせ（{rows.length} 件）</h4>
+      {!rows.length && <p>まだありません。</p>}
+      {rows.map((m) => (
+        <div key={m.id} style={{ borderTop: '1px solid var(--line)', paddingTop: 10, display: 'grid', gap: 6 }}>
+          <p style={{ color: 'var(--fg)' }}><b>{m.name}</b> · <a href={`mailto:${m.email}`}>{m.email}</a> · {fmt(m.created_at)}</p>
+          <p style={{ whiteSpace: 'pre-wrap', color: 'var(--fg)' }}>{m.body}</p>
+          <div><button className="btn danger" style={{ fontSize: 11, padding: '4px 8px' }} onClick={async () => {
+            if (!confirm('この問い合わせを削除しますか？')) return;
+            await db.from('messages').delete().eq('id', m.id); load();
+          }}>削除</button></div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SettingsForm() {
+  const db = supabase()!;
+  const [s, setS] = useState<Settings>(DEFAULT_SETTINGS);
+  const [st, setSt] = useState('');
+  useEffect(() => {
+    db.from('settings').select('*').eq('id', 1).single().then(({ data }) => data && setS({ ...DEFAULT_SETTINGS, ...data }));
+  }, [db]);
+  const set = (k: keyof Settings, v: string) => setS((p) => ({ ...p, [k]: v }));
+  return (
+    <div className="sec">
+      <h4>サイトの文言（英語）</h4>
+      <div className="form">
+        <label className="wide">見出し<input value={s.headline} onChange={(e) => set('headline', e.target.value)} /></label>
+        <label className="wide">紹介文<textarea value={s.lead} onChange={(e) => set('lead', e.target.value)} /></label>
+        <label className="wide">発売の一行<input value={s.launch} onChange={(e) => set('launch', e.target.value)} /></label>
+        <label>Instagram の URL<input value={s.instagram} onChange={(e) => set('instagram', e.target.value)} placeholder="https://instagram.com/..." /></label>
+        <label>公開する連絡先メール<input value={s.email} onChange={(e) => set('email', e.target.value)} /></label>
+      </div>
+      <div className="row" style={{ justifyContent: 'flex-start' }}>
+        <button className="btn primary" onClick={async () => {
+          const { headline, lead, launch, instagram, email } = s;
+          const { error } = await db.from('settings').update({ headline, lead, launch, instagram, email, updated_at: new Date().toISOString() }).eq('id', 1);
+          setSt(error ? 'エラー: ' + error.message : '保存しました（サイトへの反映は最大1分）');
+        }}>保存</button>
+        {st && <span className="status">{st}</span>}
+      </div>
+    </div>
+  );
+}
+
+export default function Admin() {
+  const [session, setSession] = useState<Session | null | undefined>(undefined);
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const [tab, setTab] = useState<Tab>('items');
+
+  useEffect(() => {
+    const db = supabase();
+    if (!db) return setSession(null);
+    db.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data } = db.auth.onAuthStateChange((_e, s) => setSession(s));
+    return () => data.subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!session) return setIsAdmin(null);
+    supabase()!.rpc('is_admin').then(({ data }) => setIsAdmin(Boolean(data)));
+  }, [session]);
+
+  const head = (
+    <header className="hd">
+      <a className="wm" href="/">Gallery Crypto</a>
+      <nav className="nav">
+        <span>管理画面</span>
+        {session && <button className="btn" style={{ padding: '4px 10px' }} onClick={() => supabase()!.auth.signOut()}>ログアウト</button>}
+      </nav>
+    </header>
+  );
+
+  let body: React.ReactNode;
+  if (!configured) body = <div className="sec"><h4>まだ接続されていません</h4><p>Vercel の環境変数に NEXT_PUBLIC_SUPABASE_URL と NEXT_PUBLIC_SUPABASE_ANON_KEY を設定してください（README 参照）。</p></div>;
+  else if (session === undefined) body = <p className="status">読み込み中…</p>;
+  else if (!session) body = <Login />;
+  else if (isAdmin === null) body = <p className="status">確認中…</p>;
+  else if (!isAdmin) body = <div className="sec"><h4>管理者ではありません</h4><p>{session.user.email} は admins テーブルに登録されていません。</p></div>;
+  else
+    body = (
+      <>
+        <div className="adm-tabs">
+          {([['items', 'アーカイブ'], ['entries', '抽選エントリー'], ['messages', '問い合わせ'], ['settings', 'サイト設定']] as [Tab, string][]).map(([k, l]) => (
+            <button key={k} aria-pressed={tab === k} onClick={() => setTab(k)}>{l}</button>
+          ))}
+        </div>
+        {tab === 'items' && <Items />}
+        {tab === 'entries' && <Entries />}
+        {tab === 'messages' && <Messages />}
+        {tab === 'settings' && <SettingsForm />}
+      </>
+    );
+
+  return (
+    <div className="site">
+      {head}
+      <main className="adm">{body}</main>
+    </div>
+  );
+}
