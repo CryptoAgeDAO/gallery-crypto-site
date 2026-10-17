@@ -14,6 +14,19 @@
 
 ---
 
+## いちばん簡単な始め方（iPhone だけでできます）
+
+1. **Vercel**：vercel.com に GitHub でログイン →「Add New → Project」→ `gallery-crypto-site` を「Import」→ そのまま「Deploy」。
+2. **データベースをつなぐ**：できたプロジェクトの「Storage」→「Create Database」→「Supabase」→ リージョン Tokyo で作成し、このプロジェクトに接続。キーは自動で入ります。
+3. **表を作る**：Supabase の画面（Storage の「Open in Supabase」）→「SQL Editor」→ `supabase/setup_all.sql` の中身を全部貼って「Run」。
+4. **ログイン設定**：Supabase の「Authentication」で
+   - Users → Add user → Send invitation：管理者メール（conductor80s@gmail.com）
+   - Sign In / Providers：「Allow new users to sign up」をオフ
+   - URL Configuration：Site URL に Vercel の URL、Redirect URLs に `その URL/admin`
+5. Vercel の「Deployments」→ 最新の「…」→「Redeploy」。完了したら `その URL/admin` から写真を登録できます。
+
+下の「セットアップ」は、パソコンで手動で設定する場合の詳しい手順です。
+
 ## セットアップ
 
 ### 1. Supabase（データベース）

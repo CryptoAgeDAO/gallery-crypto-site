@@ -4,16 +4,21 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 
 let admin: SupabaseClient | null = null;
+
+// Vercel の Supabase 連携は SECRET_KEY、手動設定なら SERVICE_ROLE_KEY
+function serviceKey() {
+  return process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
+}
 let stripeClient: Stripe | null = null;
 
 export const paymentsConfigured = Boolean(
-  process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.STRIPE_SECRET_KEY,
+  process.env.NEXT_PUBLIC_SUPABASE_URL && serviceKey() && process.env.STRIPE_SECRET_KEY,
 );
 
 // 管理者権限のデータベース接続（行レベルの保護を通らないので、サーバー内の決まった処理だけで使う）
 export function db(): SupabaseClient {
   if (!admin) {
-    admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL as string, process.env.SUPABASE_SERVICE_ROLE_KEY as string, {
+    admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL as string, serviceKey() as string, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
   }
