@@ -84,6 +84,9 @@ function DrawForm({ itemId }: { itemId: string | null }) {
       <button className="btn primary pub full" type="submit" disabled={st.kind === 'busy'}>
         {st.kind === 'busy' ? 'Entering…' : 'Enter the draw — free'}
       </button>
+      <p className="note-pub">
+        Your email is used only for the draw. <a href="/privacy">Privacy</a>
+      </p>
       {st.kind === 'err' && <p className="status-err">{st.text}</p>}
     </form>
   );
@@ -405,7 +408,8 @@ export default function Site({ settings: s, items }: Props) {
       <footer className="ft">
         <span>© Gallery Crypto</span>
         <span className="contact">
-          <a href="/legal">Legal notice</a>
+          <a href="/privacy">Privacy</a>
+          {s.sale_open && <a href="/legal">Legal notice</a>}
           {s.instagram && (
             <a href={s.instagram} target="_blank" rel="noopener noreferrer">
               Instagram

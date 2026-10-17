@@ -2,7 +2,8 @@ import Site from '@/components/Site';
 import { supabase, configured } from '@/lib/supabase';
 import { DEFAULT_SETTINGS, PUBLIC_ITEM_COLUMNS, type Item, type Settings } from '@/lib/types';
 
-export const revalidate = 60;
+// 管理画面での変更をすぐ反映するため、アクセスのたびに最新のデータを読む
+export const dynamic = 'force-dynamic';
 
 async function load(): Promise<{ settings: Settings; items: Item[] }> {
   const db = supabase();

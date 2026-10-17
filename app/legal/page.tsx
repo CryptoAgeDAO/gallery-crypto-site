@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 
-export const metadata: Metadata = { title: 'Legal notice — Gallery Crypto' };
+export const metadata: Metadata = { title: 'Legal notice — Gallery Crypto', robots: { index: false } }; // 販売開始までは検索に出さない
 
 // 特定商取引法に基づく表記。［ ］の部分を開業後に書き換えてください。
 // 個人事業の場合、住所・電話番号は「請求があれば遅滞なく開示します」とすることもできます。
