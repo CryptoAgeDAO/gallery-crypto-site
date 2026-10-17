@@ -19,11 +19,19 @@ const FILTERS: [string, string][] = [
   ['00s', '2000s'],
 ];
 
+// 管理者への通知（失敗しても画面には影響させない）
+function notify(kind: 'entry' | 'message', email: string) {
+  fetch('/api/notify', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind, email: email.trim() }), keepalive: true }).catch(() => {});
+}
+
 async function enter(email: string, itemId: string | null): Promise<Status> {
   const db = supabase();
   if (!db) return { kind: 'err', text: 'Entries are not open yet.' };
   const { error } = await db.from('entries').insert({ email: email.trim().toLowerCase(), item_id: itemId });
-  if (!error) return { kind: 'ok', text: 'You are entered. Winners are drawn in January 2027 and contacted by email.' };
+  if (!error) {
+    notify('entry', email);
+    return { kind: 'ok', text: 'You are entered. Winners are drawn in January 2027 and contacted by email.' };
+  }
   if (error.code === '23505') return { kind: 'ok', text: 'You have already entered with this email.' };
   return { kind: 'err', text: 'Your entry could not be saved. Please try again in a moment.' };
 }
@@ -234,6 +242,7 @@ function Contact({ email }: { email: string }) {
           if (!db) return setSt({ kind: 'err', text: 'The form is not open yet.' });
           setSt({ kind: 'busy' });
           const { error } = await db.from('messages').insert({ name: f.name.trim(), email: f.email.trim(), body: f.body.trim() });
+          if (!error) notify('message', f.email);
           setSt(error ? { kind: 'err', text: 'Your message could not be sent. Please try again in a moment.' } : { kind: 'ok', text: 'Thank you. Your message has been sent.' });
         }}
       >
