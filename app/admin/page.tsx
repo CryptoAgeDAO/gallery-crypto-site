@@ -59,25 +59,76 @@ async function upload(files: FileList | File[]): Promise<string[]> {
 
 function Login() {
   const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
+  const [step, setStep] = useState<'email' | 'code'>('email');
   const [st, setSt] = useState('');
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('gc-admin-email');
+      if (saved) setEmail(saved);
+    } catch {}
+  }, []);
+  const send = async () => {
+    setBusy(true);
+    setSt('送信中…');
+    const { error } = await supabase()!.auth.signInWithOtp({
+      email: email.trim(),
+      options: { shouldCreateUser: false, emailRedirectTo: `${location.origin}/admin` },
+    });
+    setBusy(false);
+    if (error) {
+      setSt(/rate|seconds/i.test(error.message) ? '短い間に何度も送ったため、少し待ってからもう一度お試しください。' : 'このメールアドレスではログインできません。管理者として登録されたメールか確認してください。');
+      return;
+    }
+    try { localStorage.setItem('gc-admin-email', email.trim()); } catch {}
+    setStep('code');
+    setSt('メールを送りました。届いた6桁のコードを入力してください（メール内のリンクを押しても入れます）。');
+  };
+  const verify = async () => {
+    setBusy(true);
+    setSt('確認中…');
+    const { error } = await supabase()!.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: 'email' });
+    setBusy(false);
+    if (error) setSt('コードが違うか、期限が切れています。もう一度「コードを送る」からやり直してください。');
+  };
   return (
     <form
       className="sec"
       style={{ maxWidth: 420 }}
-      onSubmit={async (e) => {
+      onSubmit={(e) => {
         e.preventDefault();
-        setSt('送信中…');
-        const { error } = await supabase()!.auth.signInWithOtp({
-          email: email.trim(),
-          options: { shouldCreateUser: false, emailRedirectTo: `${location.origin}/admin` },
-        });
-        setSt(error ? 'ログインできるメールアドレスではありません（Supabase の Users に登録されているか確認してください）。' : 'ログイン用のリンクをメールで送りました。このブラウザで開いてください。');
+        if (step === 'email') send();
+        else verify();
       }}
     >
       <h4>管理画面にログイン</h4>
-      <p>登録した管理者のメールアドレスにログイン用リンクを送ります。</p>
-      <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
-      <button className="btn primary" type="submit">リンクを送る</button>
+      {step === 'email' ? (
+        <>
+          <p>管理者のメールアドレスに、ログイン用の6桁のコードを送ります。iPhone でもパソコンでも同じ手順です。</p>
+          <input type="email" required autoComplete="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+          <button className="btn primary" type="submit" disabled={busy}>コードを送る</button>
+        </>
+      ) : (
+        <>
+          <p>{email} に届いたコードを入力してください。</p>
+          <input
+            type="text"
+            required
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            pattern="[0-9]{6,10}"
+            maxLength={10}
+            value={code}
+            onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, ''))}
+            placeholder="123456"
+            style={{ fontSize: 22, letterSpacing: '.3em', textAlign: 'center' }}
+            autoFocus
+          />
+          <button className="btn primary" type="submit" disabled={busy || code.length < 6}>ログイン</button>
+          <button className="btn" type="button" onClick={() => { setStep('email'); setCode(''); setSt(''); }}>メールアドレスを変える・再送する</button>
+        </>
+      )}
       {st && <p>{st}</p>}
     </form>
   );
