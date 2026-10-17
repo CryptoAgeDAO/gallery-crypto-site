@@ -59,8 +59,8 @@ async function upload(files: FileList | File[]): Promise<string[]> {
 
 function Login() {
   const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
-  const [step, setStep] = useState<'email' | 'code'>('email');
+  const [pw, setPw] = useState('');
+  const [mode, setMode] = useState<'password' | 'link'>('password');
   const [st, setSt] = useState('');
   const [busy, setBusy] = useState(false);
   useEffect(() => {
@@ -69,7 +69,10 @@ function Login() {
       if (saved) setEmail(saved);
     } catch {}
   }, []);
-  const send = async () => {
+  const remember = () => {
+    try { localStorage.setItem('gc-admin-email', email.trim()); } catch {}
+  };
+  const sendLink = async () => {
     setBusy(true);
     setSt('送信中…');
     const { error } = await supabase()!.auth.signInWithOtp({
@@ -77,20 +80,17 @@ function Login() {
       options: { shouldCreateUser: false, emailRedirectTo: `${location.origin}/admin` },
     });
     setBusy(false);
-    if (error) {
-      setSt(/rate|seconds/i.test(error.message) ? '短い間に何度も送ったため、少し待ってからもう一度お試しください。' : 'このメールアドレスではログインできません。管理者として登録されたメールか確認してください。');
-      return;
-    }
-    try { localStorage.setItem('gc-admin-email', email.trim()); } catch {}
-    setStep('code');
-    setSt('メールを送りました。届いた6桁のコードを入力してください（メール内のリンクを押しても入れます）。');
+    if (error) return setSt(/rate|seconds/i.test(error.message) ? '短い間に何度も送ったため、1分ほど待ってからもう一度お試しください。' : 'このメールアドレスではログインできません。管理者として登録されたメールか確認してください。');
+    remember();
+    setSt('メールを送りました。iPhone の場合は、メールのリンクを長押しして「Safari で開く」を選ぶと確実です。');
   };
-  const verify = async () => {
+  const signIn = async () => {
     setBusy(true);
-    setSt('確認中…');
-    const { error } = await supabase()!.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: 'email' });
+    setSt('ログイン中…');
+    const { error } = await supabase()!.auth.signInWithPassword({ email: email.trim(), password: pw });
     setBusy(false);
-    if (error) setSt('コードが違うか、期限が切れています。もう一度「コードを送る」からやり直してください。');
+    if (error) return setSt('メールアドレスかパスワードが違います。パスワードをまだ設定していない場合は「メールのリンクでログイン」から入って、サイト設定でパスワードを設定してください。');
+    remember();
   };
   return (
     <form
@@ -98,38 +98,62 @@ function Login() {
       style={{ maxWidth: 420 }}
       onSubmit={(e) => {
         e.preventDefault();
-        if (step === 'email') send();
-        else verify();
+        if (mode === 'password') signIn();
+        else sendLink();
       }}
     >
       <h4>管理画面にログイン</h4>
-      {step === 'email' ? (
+      <div className="adm-tabs">
+        <button type="button" aria-pressed={mode === 'password'} onClick={() => { setMode('password'); setSt(''); }}>パスワード</button>
+        <button type="button" aria-pressed={mode === 'link'} onClick={() => { setMode('link'); setSt(''); }}>メールのリンク</button>
+      </div>
+      <input type="email" required autoComplete="username" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="メールアドレス" />
+      {mode === 'password' ? (
         <>
-          <p>管理者のメールアドレスに、ログイン用の6桁のコードを送ります。iPhone でもパソコンでも同じ手順です。</p>
-          <input type="email" required autoComplete="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
-          <button className="btn primary" type="submit" disabled={busy}>コードを送る</button>
+          <input type="password" required autoComplete="current-password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="パスワード" />
+          <button className="btn primary" type="submit" disabled={busy}>ログイン</button>
+          <p>はじめての方・パスワードを忘れた方は「メールのリンク」から入り、サイト設定でパスワードを設定してください。</p>
         </>
       ) : (
         <>
-          <p>{email} に届いたコードを入力してください。</p>
-          <input
-            type="text"
-            required
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            pattern="[0-9]{6,10}"
-            maxLength={10}
-            value={code}
-            onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, ''))}
-            placeholder="123456"
-            style={{ fontSize: 22, letterSpacing: '.3em', textAlign: 'center' }}
-            autoFocus
-          />
-          <button className="btn primary" type="submit" disabled={busy || code.length < 6}>ログイン</button>
-          <button className="btn" type="button" onClick={() => { setStep('email'); setCode(''); setSt(''); }}>メールアドレスを変える・再送する</button>
+          <button className="btn primary" type="submit" disabled={busy}>ログイン用リンクを送る</button>
+          <p>届いたメールのリンクを開くとログインできます。</p>
         </>
       )}
       {st && <p>{st}</p>}
+    </form>
+  );
+}
+
+function PasswordForm({ highlight }: { highlight?: boolean }) {
+  const [pw, setPw] = useState('');
+  const [pw2, setPw2] = useState('');
+  const [st, setSt] = useState('');
+  return (
+    <form
+      className="sec"
+      style={highlight ? { borderColor: 'var(--fg)' } : undefined}
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (pw.length < 8) return setSt('8文字以上にしてください。');
+        if (pw !== pw2) return setSt('2回の入力が一致しません。');
+        setSt('保存中…');
+        const { error } = await supabase()!.auth.updateUser({ password: pw });
+        if (error) return setSt('保存できませんでした：' + error.message);
+        setPw(''); setPw2('');
+        setSt('パスワードを設定しました。次回から iPhone でもメールアドレスとパスワードでログインできます。');
+      }}
+    >
+      <h4>ログイン用パスワード{highlight ? 'を設定してください' : ''}</h4>
+      <p>一度設定すると、iPhone でもパソコンでも、メールアドレスとこのパスワードですぐにログインできます。iPhone ではパスワードを保存しておくと便利です。</p>
+      <div className="form">
+        <label>新しいパスワード（8文字以上）<input type="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} /></label>
+        <label>もう一度<input type="password" autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} /></label>
+      </div>
+      <div className="row" style={{ justifyContent: 'flex-start' }}>
+        <button className="btn primary" type="submit">パスワードを保存</button>
+        {st && <span className="status">{st}</span>}
+      </div>
     </form>
   );
 }
@@ -489,12 +513,17 @@ export default function Admin() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [tab, setTab] = useState<Tab>('items');
+  const [needPw, setNeedPw] = useState(false);
 
   useEffect(() => {
     const db = supabase();
     if (!db) return setSession(null);
     db.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data } = db.auth.onAuthStateChange((_e, s) => setSession(s));
+    if (/type=(invite|recovery|magiclink)/.test(location.hash)) setNeedPw(true);
+    const { data } = db.auth.onAuthStateChange((e, s) => {
+      setSession(s);
+      if (e === 'PASSWORD_RECOVERY') setNeedPw(true);
+    });
     return () => data.subscription.unsubscribe();
   }, []);
 
@@ -522,6 +551,7 @@ export default function Admin() {
   else
     body = (
       <>
+        {needPw && <PasswordForm highlight />}
         <div className="adm-tabs">
           {([['items', 'アーカイブ'], ['entries', '抽選エントリー'], ['orders', '注文'], ['messages', '問い合わせ'], ['settings', 'サイト設定']] as [Tab, string][]).map(([k, l]) => (
             <button key={k} aria-pressed={tab === k} onClick={() => setTab(k)}>{l}</button>
@@ -532,6 +562,7 @@ export default function Admin() {
         {tab === 'orders' && <Orders />}
         {tab === 'messages' && <Messages />}
         {tab === 'settings' && <SettingsForm />}
+        {tab === 'settings' && !needPw && <PasswordForm />}
       </>
     );
 
