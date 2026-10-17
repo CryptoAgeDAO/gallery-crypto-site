@@ -14,6 +14,14 @@
 
 ---
 
+## 公開中の環境（2026年10月17日 設定済み）
+
+- サイト：https://gallery-crypto-site.vercel.app（管理画面は /admin）
+- Vercel：チーム gallery crypto（Hobby）／プロジェクト gallery-crypto-site
+- Supabase：gallery-crypto（Tokyo・Free）。Vercel の Storage から開けます
+- ログイン：メール＋パスワード（初回はメールのリンクで入り、サイト設定でパスワードを設定）
+- 通知メール：Resend（RESEND_API_KEY）。新しい抽選エントリー・問い合わせを管理者メールに通知
+
 ## いちばん簡単な始め方（iPhone だけでできます）
 
 1. **Vercel**：vercel.com に GitHub でログイン →「Add New → Project」→ `gallery-crypto-site` を「Import」→ そのまま「Deploy」。
