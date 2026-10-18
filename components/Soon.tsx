@@ -1,131 +1,95 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 
-// アーカイブが空のあいだに出す「Coming Soon」。サイバー系の HUD（照準・走査線・起動ログ）。
-const LOG = [
-  'GC-NET :: handshake ............ OK',
-  'ARCHIVE NODE / TOKYO ........... ONLINE',
-  'PROVENANCE LEDGER .............. STANDBY',
-  'INDEXING FOUNDER PIECES ........ IN PROGRESS',
+// アーカイブが空のあいだに出す「Coming soon」。点で描いた T シャツを走査線がスキャンしていく。
+// Tシャツの輪郭（100×100 の座標）
+const TEE: [number, number][] = [
+  [30, 8], [40, 5], [44, 9], [50, 11], [56, 9], [60, 5], [70, 8], [92, 22], [84, 38], [74, 32],
+  [74, 95], [26, 95], [26, 32], [16, 38], [8, 22],
 ];
 
-const pad = (n: number, w = 2) => String(n).padStart(w, '0');
-
 export default function Soon() {
-  const ref = useRef<HTMLDivElement>(null);
-  const [now, setNow] = useState<Date | null>(null);
-  const [lines, setLines] = useState(0);
-  const [pt, setPt] = useState({ x: 0.5, y: 0.5 });
+  const ref = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    setNow(new Date());
-    const t = setInterval(() => setNow(new Date()), 1000);
+    const c = ref.current;
+    const x = c?.getContext('2d');
+    if (!c || !x) return;
+    const path = new Path2D();
+    TEE.forEach(([a, b], i) => (i ? path.lineTo(a, b) : path.moveTo(a, b)));
+    path.closePath();
+    const probe = document.createElement('canvas').getContext('2d')!;
+    const pts: [number, number, number][] = [];
+    for (let y = 4; y <= 96; y += 1.6)
+      for (let px = 6; px <= 94; px += 1.1) if (probe.isPointInPath(path, px, y)) pts.push([px - 50, y - 50, Math.random()]);
+
+    let W = 0, H = 0, dpr = 1, raf = 0, visible = true;
+    const size = () => {
+      dpr = Math.min(2, window.devicePixelRatio || 1);
+      W = c.clientWidth;
+      H = c.clientHeight;
+      c.width = W * dpr;
+      c.height = H * dpr;
+    };
+    size();
+    window.addEventListener('resize', size);
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    let i = 0;
-    const l = reduce
-      ? (setLines(LOG.length), undefined)
-      : setInterval(() => {
-          i += 1;
-          setLines(i);
-          if (i >= LOG.length && l) clearInterval(l);
-        }, 420);
+    const t0 = performance.now();
+
+    const draw = (t: number) => {
+      const s = reduce ? 20 : (t - t0) / 1000;
+      x.setTransform(dpr, 0, 0, dpr, 0, 0);
+      x.clearRect(0, 0, W, H);
+      const sc = Math.min(W * 0.9, H * 0.85) / 100, cx = W / 2, cy = H / 2 + 4;
+      const a = reduce ? 0.35 : Math.sin(s * 0.35) * 0.9, ca = Math.cos(a), sa = Math.sin(a);
+      const scanY = reduce ? 60 : ((s * 0.16) % 1.3) * 100 - 52;
+      for (const [px, py, r] of pts) {
+        const z = Math.sin(px / 14 + r * 0.3) * 6 * (1 - Math.abs(py) / 60);
+        const X = px * ca + z * sa, Z = -px * sa + z * ca, k = 1 + Z / 180;
+        const d = py - scanY, lit = d < 0, near = Math.abs(d) < 2.2;
+        x.fillStyle = near ? '#ffb547' : lit ? `rgba(238,241,247,${0.35 + (0.55 * (Z + 40)) / 80})` : 'rgba(238,241,247,.07)';
+        const sz = near ? 2 : lit ? 1.3 : 1;
+        x.fillRect(cx + X * sc * k, cy + py * sc * k, sz, sz);
+      }
+      if (scanY < 50) {
+        x.fillStyle = 'rgba(255,181,71,.12)';
+        x.fillRect(0, cy + scanY * sc - 1, W, 2);
+      }
+      if (!reduce && visible) raf = requestAnimationFrame(draw);
+    };
+    // 画面外では止めて電池を節約
+    const io = new IntersectionObserver(([e]) => {
+      visible = e.isIntersecting;
+      cancelAnimationFrame(raf);
+      if (visible) raf = requestAnimationFrame(draw);
+    });
+    io.observe(c);
+    raf = requestAnimationFrame(draw);
     return () => {
-      clearInterval(t);
-      if (l) clearInterval(l);
+      cancelAnimationFrame(raf);
+      io.disconnect();
+      window.removeEventListener('resize', size);
     };
   }, []);
 
-  const move = (e: React.PointerEvent) => {
-    const r = ref.current?.getBoundingClientRect();
-    if (!r) return;
-    setPt({ x: Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), y: Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)) });
-  };
-
-  const jst = now ? new Date(now.getTime() + 9 * 3600_000) : null;
-  const clock = jst ? `${pad(jst.getUTCHours())}:${pad(jst.getUTCMinutes())}:${pad(jst.getUTCSeconds())}` : '--:--:--';
-  const date = jst ? `${jst.getUTCFullYear()}.${pad(jst.getUTCMonth() + 1)}.${pad(jst.getUTCDate())}` : '----.--.--';
-
   return (
-    <div
-      className="hud"
-      ref={ref}
-      onPointerMove={move}
-      style={{ ['--px' as string]: pt.x, ['--py' as string]: pt.y }}
-    >
-      <span className="hud-c tl" />
-      <span className="hud-c tr" />
-      <span className="hud-c bl" />
-      <span className="hud-c br" />
-      <span className="hud-scan" aria-hidden />
-      <span className="hud-cross" aria-hidden />
-
-      <div className="hud-top">
-        <span>GC-NET // SECTOR TOKYO</span>
-        <span className="hud-live">
-          <i /> LIVE {date} {clock} JST
-        </span>
+    <section className="dive">
+      <canvas ref={ref} aria-hidden />
+      <div className="dive-txt">
+        <p className="dive-cap">Scanning piece 001 of the archive</p>
+        <h2>
+          Coming
+          <br />
+          soon
+        </h2>
+        <p className="dive-s">
+          The founder&apos;s archive of American band tees is being photographed, piece by piece. The presale opens in 2027 as a free draw.
+        </p>
+        <a className="dive-b" href="#presale">
+          Enter the draw
+        </a>
       </div>
-
-      <div className="hud-body">
-        <div className="hud-main">
-          <pre className="hud-log" aria-hidden>
-            {LOG.slice(0, lines).map((s) => (
-              <span key={s}>&gt; {s}</span>
-            ))}
-            <span className="hud-cur">_</span>
-          </pre>
-          <p className="hud-k">Founder&apos;s Archive · Status</p>
-          <p className="hud-t" data-text="COMING SOON">
-            COMING SOON
-          </p>
-          <p className="hud-s">The first pieces are being indexed. Enter the free presale draw below.</p>
-          <a className="hud-b" href="#presale">
-            <span>Enter the draw</span>
-            <b aria-hidden>→</b>
-          </a>
-        </div>
-
-        <svg className="hud-ret" viewBox="0 0 200 200" aria-hidden>
-          <g className="r1">
-            <circle cx="100" cy="100" r="92" />
-            {Array.from({ length: 72 }, (_, i) => (
-              <line key={i} x1="100" y1="8" x2="100" y2={i % 6 ? 13 : 20} transform={`rotate(${i * 5} 100 100)`} />
-            ))}
-          </g>
-          <g className="r2">
-            <circle cx="100" cy="100" r="70" strokeDasharray="40 12 4 12" />
-          </g>
-          <g className="r3">
-            <path d="M100 46 A54 54 0 0 1 154 100" />
-            <path d="M100 154 A54 54 0 0 1 46 100" />
-          </g>
-          <circle cx="100" cy="100" r="3" className="dot" />
-          <path d="M100 74v16M100 110v16M74 100h16M110 100h16" />
-          <text x="100" y="214" textAnchor="middle">TARGET LOCK</text>
-        </svg>
-      </div>
-
-      <dl className="hud-ft">
-        <div>
-          <dt>Lat / Lon</dt>
-          <dd>35.6762N 139.6503E</dd>
-        </div>
-        <div>
-          <dt>Pieces indexed</dt>
-          <dd>000</dd>
-        </div>
-        <div>
-          <dt>Presale</dt>
-          <dd>2027</dd>
-        </div>
-        <div>
-          <dt>Cursor</dt>
-          <dd>
-            X{pad(Math.round(pt.x * 999), 3)} Y{pad(Math.round(pt.y * 999), 3)}
-          </dd>
-        </div>
-      </dl>
-    </div>
+    </section>
   );
 }
