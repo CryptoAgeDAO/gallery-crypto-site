@@ -350,7 +350,7 @@ export default function Site({ settings: s, items }: Props) {
             {!shown.length && <p className="empty">No pieces from this decade yet.</p>}
           </>
         ) : (
-          <Soon />
+          <Soon instagram={s.instagram} />
         )}
       </div>
 
