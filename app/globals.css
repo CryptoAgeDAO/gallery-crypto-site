@@ -244,43 +244,55 @@ body{background:radial-gradient(1100px 560px at 92% -8%,#edeffb 0%,rgba(237,239,
 /* iPhone は 16px 未満の入力欄をタップすると画面が拡大されるので、タッチ端末では 16px にする */
 @media (hover:none) and (pointer:coarse){input,select,textarea{font-size:16px!important}}
 
-/* Coming soon — a 1-bit 1980s desktop: menu bar, dithered desktop, a draggable window. Shown while no pieces are published. */
+/* Coming soon — a 1-bit 1980s desktop with two draggable windows. Shown while no pieces are published. */
 .mac{--px:"Pixelify Sans",var(--mono);margin:0 0 72px;border:2px solid #000;background:#fff;color:#000;font-family:var(--px);font-variant-ligatures:none;user-select:none;-webkit-user-select:none}
+.mac svg{fill:#000}
 .mac-menu{display:flex;align-items:center;gap:22px;height:30px;padding:0 14px;border-bottom:2px solid #000;font-size:15px;line-height:1}
 .mac-menu b{font-weight:700}
-.mac-logo svg{display:block;width:16px;height:16px}
+.mac-logo{display:block;width:16px;height:16px}
 .mac-clock{margin-left:auto;font-variant-numeric:tabular-nums}
-.mac-desk{position:relative;min-height:520px;padding:28px 16px 40px;background-color:#fff;background-image:repeating-conic-gradient(#000 0 25%,#fff 0 50%);background-size:4px 4px;display:grid;place-items:center;overflow:hidden}
-@media (min-width:900px){.mac-desk{min-height:580px}}
-.mac-icon{position:absolute;top:22px;right:20px;display:grid;justify-items:center;gap:4px;width:92px;color:#000;text-decoration:none;font-size:13px}
-.mac-icon svg{width:44px;height:33px;background:#fff;padding:1px}
-.mac-icon span{background:#fff;padding:1px 5px}
-.mac-icon.on svg{filter:invert(1);background:#000}
-.mac-icon.on span{background:#000;color:#fff}
-.mac-win{position:relative;width:min(640px,100%);background:#fff;border:2px solid #000;box-shadow:4px 4px 0 #000;touch-action:none;z-index:2;animation:mac-in .01s .5s both}
-.mac-win.drag{cursor:grabbing}
-@keyframes mac-in{from{visibility:hidden}}
-.mac-title{position:relative;display:flex;align-items:center;justify-content:center;height:26px;border-bottom:2px solid #000;cursor:grab;background:repeating-linear-gradient(#fff 0 3px,#000 3px 5px);background-clip:content-box;padding:4px 4px}
+.mac-desk{position:relative;display:grid;gap:22px;padding:22px 14px 30px;background:#fff repeating-conic-gradient(#000 0 25%,#fff 0 100%) 0 0/4px 4px;overflow:hidden}
+.mac-icon{justify-self:end;display:grid;justify-items:center;gap:4px;width:96px;color:#000;text-decoration:none;font-size:13px}
+.mac-icon svg{width:44px;height:28px;background:#fff;padding:2px}
+.mac-icon span{background:#fff;padding:1px 6px}
+.mac-icon:active svg,.mac-icon:focus-visible svg{filter:invert(1);background:#000}
+.mac-icon:active span,.mac-icon:focus-visible span{background:#000;color:#fff}
+.mac-icon:focus-visible{outline:none}
+.mac-win{position:relative;background:#fff;border:2px solid #000;box-shadow:4px 4px 0 #000;touch-action:none;z-index:1}
+.mac-win.front{z-index:3}
+.mac-b{order:-1}
+.mac-title{position:relative;display:flex;align-items:center;justify-content:center;height:26px;padding:4px;border-bottom:2px solid #000;cursor:grab;background:repeating-linear-gradient(#fff 0 3px,#000 3px 5px) content-box}
+.mac-title:active{cursor:grabbing}
+.mac-title.idle{background:#fff}
+.mac-title.idle .mac-close{visibility:hidden}
 .mac-name{background:#fff;padding:0 10px;font-size:15px;font-weight:700;line-height:18px}
 .mac-close{position:absolute;left:12px;top:50%;width:15px;height:15px;margin-top:-7.5px;background:#fff;border:2px solid #000;box-shadow:0 0 0 3px #fff}
-.mac-bar{display:flex;justify-content:space-between;gap:12px;padding:4px 12px;border-bottom:1px solid #000;font-size:13px}
-.mac-body{display:grid;grid-template-columns:minmax(0,1fr);justify-items:center;gap:20px;padding:28px 22px 30px;text-align:center}
-@media (min-width:620px){.mac-body{grid-template-columns:150px minmax(0,1fr);justify-items:start;text-align:left;padding:36px 36px 38px;gap:32px;align-items:center}}
-.mac-tee{width:112px;height:112px}
-@media (min-width:620px){.mac-tee{width:150px;height:150px}}
+.mac-bar{display:flex;justify-content:space-between;padding:4px 12px;border-bottom:1px solid #000;font-size:13px}
+.mac-slots{list-style:none;margin:0;padding:18px 14px 20px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px 8px}
+.mac-slots li{display:grid;justify-items:center;gap:6px;font-size:12px}
+.mac-slots li:nth-child(n+7){display:none}
+.mac-slots svg{width:40px;height:40px}
+.mac-body{display:grid;justify-items:center;gap:18px;padding:26px 22px 30px;text-align:center}
+.mac-tee{width:160px;height:160px}
+.mac-tee rect{animation:mac-px .01s steps(1) both}
+@keyframes mac-px{from{opacity:0}}
 .mac-copy{display:grid;gap:14px;justify-items:center}
-@media (min-width:620px){.mac-copy{justify-items:start}}
-.mac-copy h2{margin:0;font-size:clamp(40px,7vw,64px);line-height:.95;font-weight:700;letter-spacing:-.01em}
-.mac-copy p{margin:0;max-width:34ch;font-family:var(--px);font-size:16px;line-height:1.45}
-.mac-btn{margin-top:6px;display:inline-block;padding:9px 26px;border:2px solid #000;border-radius:12px;box-shadow:0 0 0 3px #fff,0 0 0 5px #000;color:#000;background:#fff;text-decoration:none;font-size:16px;font-weight:600}
-.mac-btn:active,.mac-btn:hover{background:#000;color:#fff}
+.mac-copy h2{margin:0;font-size:clamp(40px,7vw,60px);line-height:.95;font-weight:700}
+.mac-copy p{margin:0;max-width:32ch;font-size:16px;line-height:1.45}
+.mac-btn{margin-top:6px;padding:9px 26px;border:2px solid #000;border-radius:12px;box-shadow:0 0 0 3px #fff,0 0 0 5px #000;color:#000;background:#fff;text-decoration:none;font-size:16px;font-weight:600}
+.mac-btn:hover,.mac-btn:active{background:#000;color:#fff}
 .mac-btn:focus-visible{outline:2px dashed #000;outline-offset:8px}
-.mac-zoom{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none}
-.mac-zoom i{grid-area:1/1;width:min(640px,calc(100% - 32px));height:330px;border:1px dashed #000;background:transparent;opacity:0;animation:mac-z .5s steps(1) both}
-.mac-zoom i:nth-child(1){animation-name:mac-z1}.mac-zoom i:nth-child(2){animation-name:mac-z2}.mac-zoom i:nth-child(3){animation-name:mac-z3}.mac-zoom i:nth-child(4){animation-name:mac-z4}
-@keyframes mac-z1{0%{opacity:1;transform:scale(.12)}25%,100%{opacity:0}}
-@keyframes mac-z2{0%,20%{opacity:0}25%{opacity:1;transform:scale(.35)}50%,100%{opacity:0}}
-@keyframes mac-z3{0%,45%{opacity:0}50%{opacity:1;transform:scale(.62)}75%,100%{opacity:0}}
-@keyframes mac-z4{0%,70%{opacity:0}75%{opacity:1;transform:scale(.88)}99%{opacity:1;transform:scale(.88)}100%{opacity:0}}
-@media (max-width:520px){.mac-hide{display:none}.mac-icon{position:static;margin-bottom:18px;justify-self:end}.mac-desk{place-items:start center;align-content:start}}
-@media (prefers-reduced-motion:reduce){.mac-zoom{display:none}.mac-win{animation:none}}
+@media (max-width:520px){.mac-hide{display:none}}
+@media (min-width:900px){
+  .mac-desk{display:block;height:620px;padding:0}
+  .mac-icon{position:absolute;top:24px;right:24px}
+  .mac-win{position:absolute}
+  .mac-a{left:5%;top:48px;width:min(520px,44%)}
+  .mac-b{left:34%;top:112px;width:min(600px,52%)}
+  .mac-slots{grid-template-columns:repeat(4,minmax(0,1fr));padding:22px 18px 26px;gap:22px 8px}
+  .mac-slots li:nth-child(n+7){display:grid}
+  .mac-body{grid-template-columns:200px minmax(0,1fr);justify-items:start;align-items:center;text-align:left;gap:30px;padding:34px 34px 38px}
+  .mac-tee{width:200px;height:200px}
+  .mac-copy{justify-items:start}
+}
+@media (prefers-reduced-motion:reduce){.mac-tee rect{animation:none}}
