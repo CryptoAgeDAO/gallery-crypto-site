@@ -2,8 +2,8 @@
 
 import { useEffect, useRef } from 'react';
 
-// アーカイブが空のあいだに出す「Coming soon」。点で描いた T シャツを走査線がスキャンしていく。
-// Tシャツの輪郭（100×100 の座標）
+// アーカイブが空のあいだに出す「Coming soon」。
+// 地球の縁の上に、点で描いたバンドTが浮かぶ「打ち上げ前」の画面。
 const TEE: [number, number][] = [
   [30, 8], [40, 5], [44, 9], [50, 11], [56, 9], [60, 5], [70, 8], [92, 22], [84, 38], [74, 32],
   [74, 95], [26, 95], [26, 32], [16, 38], [8, 22],
@@ -21,8 +21,9 @@ export default function Soon() {
     path.closePath();
     const probe = document.createElement('canvas').getContext('2d')!;
     const pts: [number, number, number][] = [];
-    for (let y = 4; y <= 96; y += 1.6)
-      for (let px = 6; px <= 94; px += 1.1) if (probe.isPointInPath(path, px, y)) pts.push([px - 50, y - 50, Math.random()]);
+    for (let y = 4; y <= 96; y += 1.5)
+      for (let px = 6; px <= 94; px += 1.05) if (probe.isPointInPath(path, px, y)) pts.push([px - 50, y - 50, Math.random()]);
+    const stars = Array.from({ length: 160 }, () => [Math.random(), Math.random() * 0.8, Math.random(), Math.random() * 6.28]);
 
     let W = 0, H = 0, dpr = 1, raf = 0, visible = true;
     const size = () => {
@@ -38,27 +39,51 @@ export default function Soon() {
     const t0 = performance.now();
 
     const draw = (t: number) => {
-      const s = reduce ? 20 : (t - t0) / 1000;
+      const s = reduce ? 8 : (t - t0) / 1000;
       x.setTransform(dpr, 0, 0, dpr, 0, 0);
       x.clearRect(0, 0, W, H);
-      const sc = Math.min(W * 0.9, H * 0.85) / 100, cx = W / 2, cy = H / 2 + 4;
-      const a = reduce ? 0.35 : Math.sin(s * 0.35) * 0.9, ca = Math.cos(a), sa = Math.sin(a);
-      const scanY = reduce ? 60 : ((s * 0.16) % 1.3) * 100 - 52;
+
+      // 星
+      for (const [sx, sy, b, ph] of stars) {
+        const a = 0.15 + 0.35 * b * (0.6 + 0.4 * Math.sin(s * (0.6 + b) + ph));
+        x.fillStyle = `rgba(255,255,255,${a})`;
+        x.fillRect(sx * W, sy * H, b > 0.85 ? 1.6 : 1, b > 0.85 ? 1.6 : 1);
+      }
+
+      // 地球の縁（大気の光）
+      const R = Math.max(W * 1.6, H * 1.4);
+      const ex = W / 2, ey = H * 0.94 + R;
+      const glow = x.createRadialGradient(ex, ey, R - 2, ex, ey, R + H * 0.22);
+      glow.addColorStop(0, 'rgba(90,160,255,.55)');
+      glow.addColorStop(0.08, 'rgba(60,120,255,.18)');
+      glow.addColorStop(1, 'rgba(20,40,120,0)');
+      x.fillStyle = glow;
+      x.beginPath();
+      x.arc(ex, ey, R + H * 0.22, 0, Math.PI * 2);
+      x.fill();
+      x.fillStyle = '#000';
+      x.beginPath();
+      x.arc(ex, ey, R, 0, Math.PI * 2);
+      x.fill();
+      x.strokeStyle = 'rgba(170,210,255,.9)';
+      x.lineWidth = 1;
+      x.beginPath();
+      x.arc(ex, ey, R, Math.PI * 1.2, Math.PI * 1.8);
+      x.stroke();
+
+      // バンドT（ゆっくり回転しながら浮かぶ）
+      const sc = Math.min(W * 0.62, H * 0.44) / 100;
+      const cx = W / 2, cy = H * 0.36 + Math.sin(s * 0.8) * 6;
+      const a = reduce ? 0.35 : s * 0.3, ca = Math.cos(a), sa = Math.sin(a);
       for (const [px, py, r] of pts) {
         const z = Math.sin(px / 14 + r * 0.3) * 6 * (1 - Math.abs(py) / 60);
-        const X = px * ca + z * sa, Z = -px * sa + z * ca, k = 1 + Z / 180;
-        const d = py - scanY, lit = d < 0, near = Math.abs(d) < 2.2;
-        x.fillStyle = near ? '#ffb547' : lit ? `rgba(238,241,247,${0.35 + (0.55 * (Z + 40)) / 80})` : 'rgba(238,241,247,.07)';
-        const sz = near ? 2 : lit ? 1.3 : 1;
-        x.fillRect(cx + X * sc * k, cy + py * sc * k, sz, sz);
-      }
-      if (scanY < 50) {
-        x.fillStyle = 'rgba(255,181,71,.12)';
-        x.fillRect(0, cy + scanY * sc - 1, W, 2);
+        const X = px * ca + z * sa, Z = -px * sa + z * ca, k = 1 + Z / 200;
+        const front = (Z + 50) / 100;
+        x.fillStyle = `rgba(255,255,255,${0.12 + 0.7 * front})`;
+        x.fillRect(cx + X * sc * k, cy + py * sc * k, 1.2, 1.2);
       }
       if (!reduce && visible) raf = requestAnimationFrame(draw);
     };
-    // 画面外では止めて電池を節約
     const io = new IntersectionObserver(([e]) => {
       visible = e.isIntersecting;
       cancelAnimationFrame(raf);
@@ -74,19 +99,13 @@ export default function Soon() {
   }, []);
 
   return (
-    <section className="dive">
+    <section className="orbit">
       <canvas ref={ref} aria-hidden />
-      <div className="dive-txt">
-        <p className="dive-cap">Scanning piece 001 of the archive</p>
-        <h2>
-          Coming
-          <br />
-          soon
-        </h2>
-        <p className="dive-s">
-          The founder&apos;s archive of American band tees is being photographed, piece by piece. The presale opens in 2027 as a free draw.
-        </p>
-        <a className="dive-b" href="#presale">
+      <p className="orbit-top">Mission 01 · Founder&apos;s Archive</p>
+      <div className="orbit-txt">
+        <h2>Coming soon</h2>
+        <p className="orbit-s">American band tees from the &apos;80s to the 2000s. Presale 2027.</p>
+        <a className="orbit-b" href="#presale">
           Enter the draw
         </a>
       </div>
