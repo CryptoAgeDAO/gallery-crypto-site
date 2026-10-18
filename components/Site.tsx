@@ -349,7 +349,12 @@ export default function Site({ settings: s, items }: Props) {
             {!shown.length && <p className="empty">No pieces from this decade yet.</p>}
           </>
         ) : (
-          <p className="empty">The archive is being prepared. Pieces will be added one by one until launch.</p>
+          <div className="soon">
+            <p className="soon-k">Founder&apos;s Archive</p>
+            <p className="soon-t">Coming Soon</p>
+            <p className="soon-s">The first pieces are being added. Enter the free presale draw below.</p>
+            <a className="soon-b" href="#presale">Enter the draw</a>
+          </div>
         )}
       </div>
 

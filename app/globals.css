@@ -243,3 +243,12 @@ body{background:radial-gradient(1100px 560px at 92% -8%,#edeffb 0%,rgba(237,239,
 .site{overflow-x:clip}
 /* iPhone は 16px 未満の入力欄をタップすると画面が拡大されるので、タッチ端末では 16px にする */
 @media (hover:none) and (pointer:coarse){input,select,textarea{font-size:16px!important}}
+
+/* Coming soon — shown while the archive has no published pieces */
+.soon{padding-block:88px 104px;display:grid;justify-items:start;gap:14px;border-top:1px solid var(--line)}
+.soon-k{margin:0;font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted)}
+.soon-t{margin:0;font-size:clamp(44px,12vw,128px);line-height:.95;font-weight:600;letter-spacing:-.02em;text-transform:uppercase;background:linear-gradient(110deg,#111 0%,#111 38%,#8fd3ff 46%,#c9a4ff 52%,#ffd59a 58%,#111 66%,#111 100%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:soon 6s ease-in-out infinite}
+@keyframes soon{0%,30%{background-position:100% 0}70%,100%{background-position:0% 0}}
+.soon-s{margin:0;max-width:420px;color:#4a4a47}
+.soon-b{margin-top:8px;padding:12px 20px;background:var(--fg);color:var(--bg);text-decoration:none;font-size:11px;letter-spacing:.18em;text-transform:uppercase}
+@media (prefers-reduced-motion:reduce){.soon-t{animation:none;background:none;color:var(--fg)}}
