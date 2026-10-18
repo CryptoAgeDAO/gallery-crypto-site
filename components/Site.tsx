@@ -31,7 +31,7 @@ async function enter(email: string, itemId: string | null): Promise<Status> {
   const { error } = await db.from('entries').insert({ email: email.trim().toLowerCase(), item_id: itemId });
   if (!error) {
     notify('entry', email);
-    return { kind: 'ok', text: 'You are entered. Winners are drawn in January 2027 and contacted by email.' };
+    return { kind: 'ok', text: 'You are entered. Winners are drawn in 2027 and contacted by email.' };
   }
   if (error.code === '23505') return { kind: 'ok', text: 'You have already entered with this email.' };
   return { kind: 'err', text: 'Your entry could not be saved. Please try again in a moment.' };
@@ -356,7 +356,7 @@ export default function Site({ settings: s, items }: Props) {
 
       <section className="block" id="presale">
         <h2>Presale 2027</h2>
-        <p className="lead">The first release opens in January 2027 as a free draw, together with dealers in Los Angeles. No entry fee, no tokens to buy.</p>
+        <p className="lead">The first release opens in 2027 as a free draw, together with dealers in Los Angeles. No entry fee, no tokens to buy.</p>
         <ol className="steps">
           <li>
             <span>01</span>

@@ -116,8 +116,8 @@ export default function Soon() {
           <dd>000</dd>
         </div>
         <div>
-          <dt>Signal</dt>
-          <dd>ENCRYPTED</dd>
+          <dt>Presale</dt>
+          <dd>2027</dd>
         </div>
         <div>
           <dt>Cursor</dt>
