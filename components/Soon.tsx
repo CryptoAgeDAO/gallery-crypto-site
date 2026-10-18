@@ -9,7 +9,6 @@ const LOG = [
   'PROVENANCE LEDGER .............. STANDBY',
   'INDEXING FOUNDER PIECES ........ IN PROGRESS',
 ];
-const LAUNCH = Date.UTC(2026, 11, 31, 15); // 2027-01-01 00:00 JST
 
 const pad = (n: number, w = 2) => String(n).padStart(w, '0');
 
@@ -46,7 +45,6 @@ export default function Soon() {
   const jst = now ? new Date(now.getTime() + 9 * 3600_000) : null;
   const clock = jst ? `${pad(jst.getUTCHours())}:${pad(jst.getUTCMinutes())}:${pad(jst.getUTCSeconds())}` : '--:--:--';
   const date = jst ? `${jst.getUTCFullYear()}.${pad(jst.getUTCMonth() + 1)}.${pad(jst.getUTCDate())}` : '----.--.--';
-  const days = now ? Math.max(0, Math.ceil((LAUNCH - now.getTime()) / 86_400_000)) : null;
 
   return (
     <div
@@ -118,8 +116,8 @@ export default function Soon() {
           <dd>000</dd>
         </div>
         <div>
-          <dt>Presale</dt>
-          <dd>2027.01{days !== null && ` · T-${pad(days, 3)}D`}</dd>
+          <dt>Signal</dt>
+          <dd>ENCRYPTED</dd>
         </div>
         <div>
           <dt>Cursor</dt>
