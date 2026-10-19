@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { sfx } from '@/lib/sfx';
+import { onSfxChange, setSfx, sfx, sfxBoot, sfxEnabled } from '@/lib/sfx';
 
 // アーカイブが空のあいだに出す「Coming soon」。
 // 1990年代半ばのパソコン画面風（青緑のデスクトップ・灰色の立体ウィンドウ・タスクバー）。
@@ -54,6 +54,7 @@ const NOTE = [
   '.#wwwwwwwwwww#..',
   '.#############..',
 ];
+const SPEAKER = ['......#..', '.....##..', '###.#.#.#', '#.##..#..', '#..#..#.#', '#.##..#..', '###.#.#.#', '.....##..', '......#..'];
 const COLORS: Record<string, string> = { '#': '#000', o: '#fff', y: '#fff6a8', Y: '#e8c84a', w: '#fff', g: '#808080' };
 
 function Pix({ rows, className, ghost }: { rows: string[]; className?: string; ghost?: boolean }) {
@@ -139,6 +140,39 @@ export default function Soon({ instagram }: { instagram?: string | null }) {
   const [menu, setMenu] = useState(false);
   const [clock, setClock] = useState('');
   const tee = useMemo(bigTee, []);
+  // 起動画面：同じタブでは1回だけ。タップすると起動音が鳴る（ブラウザは最初のタップまで音を出せない）
+  const [boot, setBoot] = useState<'boot' | 'fade' | 'done'>('done');
+  const chimed = useRef(false);
+  const [sound, setSound] = useState(true);
+  useEffect(() => {
+    setSound(sfxEnabled());
+    const off = onSfxChange(setSound);
+    let seen = false;
+    try {
+      seen = sessionStorage.getItem('gc-boot') === '1';
+      sessionStorage.setItem('gc-boot', '1');
+    } catch {}
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (seen || reduce) return off;
+    setBoot('boot');
+    const t1 = setTimeout(() => setBoot((b) => (b === 'boot' ? 'fade' : b)), 3600);
+    const t2 = setTimeout(() => setBoot('done'), 4000);
+    return () => {
+      off();
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, []);
+  const chime = () => {
+    if (chimed.current) return;
+    chimed.current = true;
+    sfxBoot();
+  };
+  const startUp = () => {
+    chime();
+    setBoot('fade');
+    setTimeout(() => setBoot('done'), 400);
+  };
 
   useEffect(() => {
     const tick = () => {
@@ -194,8 +228,29 @@ export default function Soon({ instagram }: { instagram?: string | null }) {
   };
 
   return (
-    <section className="w9" aria-label="Coming soon" onPointerDown={(e) => !(e.target as HTMLElement).closest('.w9-start,.w9-menu') && setMenu(false)}>
+    <section
+      className="w9"
+      aria-label="Coming soon"
+      onPointerDown={(e) => {
+        // 起動画面を見逃した人にも、最初のタップで一度だけ起動音を鳴らす
+        if (!(e.target as HTMLElement).closest('.w9-snd')) chime();
+        if (!(e.target as HTMLElement).closest('.w9-start,.w9-menu')) setMenu(false);
+      }}
+    >
       <div className="w9-desk" ref={desk}>
+        {boot !== 'done' && (
+          <button className={`w9-boot${boot === 'fade' ? ' out' : ''}`} onClick={startUp} aria-label="Start">
+            <Pix rows={TEE16} className="w9-boot-logo" />
+            <span className="w9-boot-name">
+              <b>Gallery</b> Crypto
+            </span>
+            <span className="w9-boot-sub">Founder&apos;s Archive</span>
+            <span className="w9-boot-bar" aria-hidden>
+              <i />
+            </span>
+            <span className="w9-boot-tap">Click to start</span>
+          </button>
+        )}
         <div className="w9-icons">
           <button className="w9-icon" onClick={() => toggle('archive')}>
             <Pix rows={FOLDER} />
@@ -324,7 +379,25 @@ export default function Soon({ instagram }: { instagram?: string | null }) {
             <span>Coming soon</span>
           </button>
         </div>
-        <div className="w9-tray w9-inset">{clock}</div>
+        <div className="w9-tray w9-inset">
+          <button
+            className="w9-snd"
+            aria-label={sound ? 'Sound on' : 'Sound off'}
+            aria-pressed={sound}
+            onClick={() => {
+              const v = !sound;
+              setSfx(v);
+              if (v) {
+                chimed.current = true;
+                setTimeout(() => sfxBoot(), 120);
+              }
+            }}
+          >
+            <Pix rows={SPEAKER} />
+            {!sound && <i />}
+          </button>
+          {clock}
+        </div>
       </div>
     </section>
   );

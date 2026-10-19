@@ -126,6 +126,66 @@ export function sfx(name: Sfx) {
   }
 }
 
+// 起動音（オリジナルの和音。既存OSの起動音は使っていない）。
+// ブラウザの決まりで、ユーザーが一度タップ・クリックしたあとでないと鳴らせない。
+export async function sfxBoot() {
+  if (!on || typeof window === 'undefined') return;
+  const a = ctx();
+  if (!a) return;
+  if (a.state !== 'running') {
+    try {
+      await a.resume();
+    } catch {
+      return;
+    }
+  }
+  const t = a.currentTime + 0.03;
+  // 残響（ディレイ）
+  const out = a.createGain();
+  out.gain.value = 0.9;
+  const lp = a.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.value = 2400;
+  const dl = a.createDelay(1);
+  dl.delayTime.value = 0.27;
+  const fb = a.createGain();
+  fb.gain.value = 0.38;
+  out.connect(lp);
+  lp.connect(a.destination);
+  lp.connect(dl);
+  dl.connect(fb);
+  fb.connect(dl);
+  dl.connect(a.destination);
+  const voice = (type: OscillatorType, f: number, t0: number, att: number, dur: number, vol: number, detune = 0) => {
+    const o = a.createOscillator();
+    const g = a.createGain();
+    o.type = type;
+    o.frequency.value = f;
+    o.detune.value = detune;
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(vol, t0 + att);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g);
+    g.connect(out);
+    o.start(t0);
+    o.stop(t0 + dur + 0.05);
+  };
+  // ふくらむ和音（C・E・G・B・D）
+  [130.81, 261.63, 329.63, 392, 493.88, 587.33].forEach((f, i) => {
+    voice('sine', f, t, 0.9, 4.2, i ? 0.022 : 0.03);
+    voice('triangle', f, t + 0.05, 1.1, 3.8, 0.008, 7);
+  });
+  // きらめく上昇音
+  [783.99, 1046.5, 1318.51, 1567.98, 2093].forEach((f, i) => {
+    const t0 = t + 0.45 + i * 0.17;
+    voice('sine', f, t0, 0.01, 1.6, 0.03);
+    voice('sine', f * 2.01, t0, 0.01, 0.6, 0.006);
+  });
+  // 最後の着地音
+  voice('sine', 1046.5, t + 1.45, 0.02, 2.4, 0.02);
+  voice('sine', 523.25, t + 1.45, 0.05, 2.6, 0.02);
+}
+
 export function sfxDeal(n: number) {
   for (let i = 0; i < Math.min(n, 8); i++) setTimeout(() => sfx('deal'), i * 80);
 }
