@@ -155,8 +155,8 @@ export default function Soon({ instagram }: { instagram?: string | null }) {
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (seen || reduce) return off;
     setBoot('boot');
-    const t1 = setTimeout(() => setBoot((b) => (b === 'boot' ? 'fade' : b)), 3600);
-    const t2 = setTimeout(() => setBoot('done'), 4000);
+    const t1 = setTimeout(() => setBoot((b) => (b === 'boot' ? 'fade' : b)), 5600);
+    const t2 = setTimeout(() => setBoot('done'), 6000);
     return () => {
       off();
       clearTimeout(t1);
@@ -240,15 +240,19 @@ export default function Soon({ instagram }: { instagram?: string | null }) {
       <div className="w9-desk" ref={desk}>
         {boot !== 'done' && (
           <button className={`w9-boot${boot === 'fade' ? ' out' : ''}`} onClick={startUp} aria-label="Start">
-            <Pix rows={TEE16} className="w9-boot-logo" />
-            <span className="w9-boot-name">
-              <b>Gallery</b> Crypto
+            {/* 1) Tシャツがふわっと浮かぶ → 2) ロゴが左右から飛び込んで光る → 3) PUSH START */}
+            <svg className="w9-boot-tee" viewBox="0 0 32 32" shapeRendering="crispEdges" aria-hidden>
+              {tee.map(([x, y, c]) => (
+                <rect key={`${x}-${y}`} x={x} y={y} width="1" height="1" fill={c} />
+              ))}
+            </svg>
+            <span className="w9-logo" aria-label="Gallery Crypto">
+              <span className="l1" data-t="GALLERY">GALLERY</span>
+              <span className="l2" data-t="CRYPTO">CRYPTO</span>
             </span>
-            <span className="w9-boot-sub">Founder&apos;s Archive</span>
-            <span className="w9-boot-bar" aria-hidden>
-              <i />
-            </span>
-            <span className="w9-boot-tap">Click to start</span>
+            <span className="w9-boot-sub">Founder&apos;s Archive · Presale 2027</span>
+            <span className="w9-boot-tap">Push start</span>
+            <span className="w9-flash" aria-hidden />
           </button>
         )}
         <div className="w9-icons">

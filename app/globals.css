@@ -316,15 +316,23 @@ body{background:radial-gradient(1100px 560px at 92% -8%,#edeffb 0%,rgba(237,239,
 /* boot screen */
 .w9 .w9-boot{position:absolute;inset:0;z-index:20;display:grid;place-content:center;justify-items:center;gap:10px;border:0;background:#000;color:#fff;cursor:pointer;font-family:Tahoma,Verdana,sans-serif}
 .w9-boot.out{opacity:0;transition:opacity .35s steps(4)}
-.w9-boot-logo{width:96px;height:96px;margin-bottom:10px;filter:invert(1)}
-.w9-boot-name{font-size:clamp(30px,6vw,46px);font-weight:400;letter-spacing:-.01em;color:#c0c0c0}
-.w9-boot-name b{color:#fff;font-weight:700}
-.w9-boot-sub{font-size:14px;color:#c0c0c0;letter-spacing:.04em}
-.w9-boot-bar{width:min(260px,70vw);height:12px;margin-top:22px;padding:2px;border:1px solid #808080;overflow:hidden}
-.w9-boot-bar i{display:block;width:40%;height:100%;background:linear-gradient(90deg,transparent,#1084d0,#5ad,#1084d0,transparent);animation:w9-bb 1.2s linear infinite}
-@keyframes w9-bb{from{transform:translateX(-110%)}to{transform:translateX(260%)}}
-.w9-boot-tap{margin-top:14px;font-size:12px;color:#808080;animation:w9-blink 1s steps(2) infinite}
+.w9-boot-tee{width:88px;height:88px;animation:w9-rise 1s steps(8) both}
+@keyframes w9-rise{from{opacity:0;transform:translateY(24px)}}
+.w9-logo{position:relative;display:grid;justify-items:center;line-height:.86;margin-top:14px;font-family:"Pixelify Sans",var(--mono);font-weight:700;font-size:clamp(46px,11vw,120px);letter-spacing:.04em;animation:w9-shake .35s steps(6) 1.75s both}
+.w9-logo span{position:relative;display:block;background:linear-gradient(180deg,#fff7c2 0%,#ffd23a 30%,#ff8a00 52%,#c21500 53%,#ff4b1f 72%,#ffd0a8 100%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(4px 4px 0 #2a0080) drop-shadow(-1px -1px 0 #fff)}
+.w9-logo .l1{animation:w9-inR .55s cubic-bezier(.2,.9,.3,1.2) 1.2s both}
+.w9-logo .l2{animation:w9-inL .55s cubic-bezier(.2,.9,.3,1.2) 1.3s both}
+.w9-logo span::after{content:attr(data-t);position:absolute;inset:0;background:linear-gradient(100deg,transparent 40%,rgba(255,255,255,.95) 50%,transparent 60%) -200% 0/300% 100% no-repeat;-webkit-background-clip:text;background-clip:text;color:transparent;animation:w9-shine 2.4s linear 2.1s infinite}
+@keyframes w9-inR{from{transform:translateX(120vw)}}
+@keyframes w9-inL{from{transform:translateX(-120vw)}}
+@keyframes w9-shine{0%{background-position:-200% 0}40%,100%{background-position:200% 0}}
+@keyframes w9-shake{0%,100%{transform:none}20%{transform:translate(-6px,3px)}40%{transform:translate(5px,-4px)}60%{transform:translate(-3px,2px)}80%{transform:translate(2px,-1px)}}
+.w9-flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;animation:w9-flash .5s steps(5) 1.75s both}
+@keyframes w9-flash{0%{opacity:.95}100%{opacity:0}}
+.w9-boot-sub{margin-top:18px;font-family:"Pixelify Sans",var(--mono);font-size:15px;color:#9fd8ff;letter-spacing:.08em;animation:w9-fade .01s 2.3s both}
+@keyframes w9-fade{from{visibility:hidden}}
 @keyframes w9-blink{50%{opacity:0}}
+.w9-boot-tap{margin-top:22px;font-family:"Pixelify Sans",var(--mono);font-size:20px;font-weight:700;color:#fff;letter-spacing:.2em;text-transform:uppercase;animation:w9-fade .01s 2.6s both,w9-blink .9s steps(2) 2.6s infinite}
 .w9-tray{gap:8px;display:flex!important;align-items:center}
 .w9 .w9-snd{position:relative;display:grid;place-items:center;width:18px;height:18px;padding:0;border:0;background:none;cursor:pointer}
 .w9-snd svg{width:14px;height:14px}
