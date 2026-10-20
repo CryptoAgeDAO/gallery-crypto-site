@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { supabase, photoUrl } from '@/lib/supabase';
 import { ERA_LABEL, certNo, usd, type Item, type Settings } from '@/lib/types';
 import BuyButton from '@/components/BuyButton';
-import { SelectScreen, TitleScreen } from '@/components/Arcade';
+import Platinum from '@/components/Platinum';
 import { CardBack, CardFront } from '@/components/Card';
 import { MusicBar, PlayButton } from '@/components/Music';
 import { flipFront, flipOver, startFlip, stopFlip } from '@/lib/motion';
@@ -291,9 +291,13 @@ export default function Site({ settings: s, items }: Props) {
         </nav>
       </header>
 
-      <TitleScreen s={s} />
+      <section className="intro">
+        <h1>{s.headline}</h1>
+        <p>{s.lead}</p>
+        <p className="launch">{s.launch}</p>
+      </section>
 
-      <SelectScreen items={items} s={s} onOpen={setOpen} />
+      <Platinum items={items} s={s} onOpen={setOpen} />
 
       <section className="block" id="presale">
         <h2>Presale 2027</h2>
