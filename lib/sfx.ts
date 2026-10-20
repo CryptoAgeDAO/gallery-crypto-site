@@ -1,6 +1,6 @@
-// 8ビット風の効果音（ブラウザで合成。音源ファイルは使わない）。
+// パソコンの操作音のような、本物らしい効果音（ブラウザで合成。音源ファイルは使わない）。
 // 最初のタップのあとから鳴る（ブラウザの決まり）。ON/OFF は localStorage に保存。
-export type Sfx = 'tick' | 'select' | 'open' | 'flip' | 'close' | 'coin' | 'deal' | 'fanfare';
+export type Sfx = 'tick' | 'select' | 'open' | 'flip' | 'close' | 'coin' | 'deal' | 'fanfare' | 'shade' | 'menu' | 'drop' | 'alert';
 
 let AC: AudioContext | null = null;
 let on = true;
@@ -47,80 +47,137 @@ export function setSfx(v: boolean) {
   listeners.forEach((f) => f(v));
 }
 
-function tone(type: OscillatorType, f0: number, f1: number, t0: number, dur: number, vol: number) {
+let bus: GainNode | null = null;
+let room: ConvolverNode | null = null;
+// 小さな部屋の残響（ノイズを減衰させて作る）。音を少し空間になじませる
+function out(): AudioNode {
+  const a = AC!;
+  if (bus) return bus;
+  bus = a.createGain();
+  bus.gain.value = 1;
+  room = a.createConvolver();
+  const len = Math.floor(a.sampleRate * 0.6);
+  const ir = a.createBuffer(2, len, a.sampleRate);
+  for (let c = 0; c < 2; c++) {
+    const d = ir.getChannelData(c);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.5);
+  }
+  room.buffer = ir;
+  const wet = a.createGain();
+  wet.gain.value = 0.18;
+  bus.connect(a.destination);
+  bus.connect(room);
+  room.connect(wet);
+  wet.connect(a.destination);
+  return bus;
+}
+
+function tone(type: OscillatorType, f0: number, f1: number, t0: number, dur: number, vol: number, att = 0.002) {
   const a = AC!;
   const o = a.createOscillator();
   const g = a.createGain();
   o.type = type;
   o.frequency.setValueAtTime(f0, t0);
   if (f1) o.frequency.exponentialRampToValueAtTime(f1, t0 + dur);
-  g.gain.setValueAtTime(vol, t0);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(vol, t0 + att);
   g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
   o.connect(g);
-  g.connect(a.destination);
+  g.connect(out());
   o.start(t0);
   o.stop(t0 + dur + 0.03);
 }
 
-function noise(t0: number, dur: number, vol: number) {
+// フィルターを通したノイズ。f0→f1 に周波数を動かすと「シュッ」という音になる
+function noise(t0: number, dur: number, vol: number, f0 = 2200, f1 = 0, q = 0.9, type: BiquadFilterType = 'bandpass', att = 0.001) {
   const a = AC!;
   const b = a.createBuffer(1, Math.max(1, Math.floor(a.sampleRate * dur)), a.sampleRate);
   const d = b.getChannelData(0);
-  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
   const n = a.createBufferSource();
   const g = a.createGain();
   const f = a.createBiquadFilter();
-  f.type = 'bandpass';
-  f.frequency.value = 2200;
+  f.type = type;
+  f.Q.value = q;
+  f.frequency.setValueAtTime(f0, t0);
+  if (f1) f.frequency.exponentialRampToValueAtTime(f1, t0 + dur);
   n.buffer = b;
-  g.gain.value = vol;
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(vol, t0 + att);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
   n.connect(f);
   f.connect(g);
-  g.connect(a.destination);
+  g.connect(out());
   n.start(t0);
+  n.stop(t0 + dur + 0.02);
+}
+
+// マウスやキーの「カチッ」
+function click(t: number, v: number, pitch = 1) {
+  noise(t, 0.012, v, 3800 * pitch, 0, 1.2, 'highpass');
+  tone('sine', 2100 * pitch, 900 * pitch, t, 0.018, v * 0.35);
+  tone('sine', 180, 90, t, 0.02, v * 0.25);
 }
 
 export function sfx(name: Sfx) {
   if (!on || !AC || AC.state !== 'running') return;
   const t = AC.currentTime + 0.005;
-  const V = 0.045;
+  const V = 0.22;
   switch (name) {
     case 'tick':
-      if (t - lastTick < 0.07) return;
+      if (t - lastTick < 0.05) return;
       lastTick = t;
-      tone('square', 1568, 0, t, 0.03, V * 0.5);
+      click(t, V * 0.55);
       break;
     case 'select':
-      tone('square', 784, 0, t, 0.045, V);
-      tone('square', 1175, 0, t + 0.045, 0.07, V);
+      // ボタンを押して離す
+      click(t, V * 0.6, 0.9);
+      click(t + 0.07, V * 0.45, 1.1);
+      break;
+    case 'menu':
+      click(t, V * 0.4, 1.2);
+      noise(t, 0.05, V * 0.12, 6000, 0, 0.7, 'highpass');
       break;
     case 'open':
-      [392, 523, 659, 784, 1047].forEach((f, i) => tone('square', f, 0, t + i * 0.045, 0.07, V));
-      tone('triangle', 1047, 2093, t + 0.23, 0.22, V * 0.9);
-      noise(t + 0.23, 0.12, V * 0.5);
-      break;
-    case 'flip':
-      tone('square', 1100, 220, t, 0.11, V * 0.7);
-      noise(t, 0.09, V * 0.7);
+      // ウィンドウが開く「ファッ」
+      noise(t, 0.26, V * 0.5, 350, 2600, 1.4, 'bandpass', 0.06);
+      tone('sine', 520, 780, t + 0.02, 0.2, V * 0.08, 0.05);
       break;
     case 'close':
-      tone('square', 660, 330, t, 0.08, V * 0.6);
+      noise(t, 0.2, V * 0.45, 2600, 380, 1.4, 'bandpass', 0.02);
+      click(t + 0.17, V * 0.3, 0.8);
       break;
-    case 'coin':
-      tone('square', 1175, 0, t, 0.06, V);
-      tone('square', 1760, 0, t + 0.06, 0.28, V);
+    case 'shade':
+      // 窓を巻き上げる「シュッ」
+      noise(t, 0.09, V * 0.5, 1200, 5200, 2, 'bandpass', 0.005);
+      noise(t + 0.08, 0.06, V * 0.3, 5200, 2400, 2, 'bandpass', 0.003);
+      break;
+    case 'flip':
+      // 紙のカードをめくる
+      noise(t, 0.14, V * 0.55, 900, 4200, 0.8, 'bandpass', 0.01);
+      tone('sine', 140, 70, t + 0.1, 0.07, V * 0.35);
       break;
     case 'deal':
-      tone('triangle', 330, 990, t, 0.05, V * 0.55);
+      noise(t, 0.09, V * 0.35, 2500, 1200, 0.7, 'bandpass', 0.008);
       break;
+    case 'drop':
+      tone('sine', 220, 110, t, 0.09, V * 0.4);
+      noise(t, 0.05, V * 0.25, 800, 0, 1, 'lowpass');
+      break;
+    case 'coin':
+    case 'alert': {
+      // ガラスのような「チーン」
+      const f = name === 'coin' ? 1318.5 : 987.8;
+      [1, 2.76, 5.4].forEach((m, i) => tone('sine', f * m, 0, t, i ? 0.5 / i : 1.1, V * (i ? 0.08 / i : 0.22), 0.003));
+      if (name === 'coin') [1, 2.76].forEach((m, i) => tone('sine', 1760 * m, 0, t + 0.09, i ? 0.4 : 1.0, V * (i ? 0.05 : 0.16), 0.003));
+      break;
+    }
     case 'fanfare': {
-      let x = t;
-      ([[784, 0.09], [1047, 0.09], [1319, 0.09], [1568, 0.18], [1319, 0.09], [1568, 0.45]] as [number, number][]).forEach(([f, d]) => {
-        tone('square', f, 0, x, d * 0.92, V);
-        tone('triangle', f / 2, 0, x, d * 0.92, V * 0.9);
-        x += d;
+      // やわらかい和音のアルペジオ
+      [523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((f, i) => {
+        tone('triangle', f, 0, t + i * 0.08, 1.2, V * 0.14, 0.01);
+        tone('sine', f * 2, 0, t + i * 0.08, 0.6, V * 0.05, 0.005);
       });
-      noise(x - 0.45, 0.3, V * 0.4);
       break;
     }
   }
@@ -141,8 +198,8 @@ export async function sfxBoot() {
   }
   const t = a.currentTime + 0.03;
   // 残響（ディレイ）
-  const out = a.createGain();
-  out.gain.value = 0.9;
+  const out_ = a.createGain();
+  out_.gain.value = 0.9;
   const lp = a.createBiquadFilter();
   lp.type = 'lowpass';
   lp.frequency.value = 2400;
@@ -150,8 +207,8 @@ export async function sfxBoot() {
   dl.delayTime.value = 0.27;
   const fb = a.createGain();
   fb.gain.value = 0.38;
-  out.connect(lp);
-  lp.connect(a.destination);
+  out_.connect(lp);
+  lp.connect(out());
   lp.connect(dl);
   dl.connect(fb);
   fb.connect(dl);
@@ -166,7 +223,7 @@ export async function sfxBoot() {
     g.gain.exponentialRampToValueAtTime(vol, t0 + att);
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
     o.connect(g);
-    g.connect(out);
+    g.connect(out_);
     o.start(t0);
     o.stop(t0 + dur + 0.05);
   };

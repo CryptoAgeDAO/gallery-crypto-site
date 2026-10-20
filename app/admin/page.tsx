@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase, photoUrl, configured } from '@/lib/supabase';
 import { shrink } from '@/lib/image';
+import { onSfxChange, setSfx, sfx, sfxBoot, sfxEnabled } from '@/lib/sfx';
 import { DEFAULT_SETTINGS, ERA_LABEL, certNo, eraOf, usd, type Item, type Settings } from '@/lib/types';
 
 type Entry = { id: string; email: string; item_id: string | null; created_at: string; won: boolean; token: string | null; used_at: string | null };
@@ -532,13 +533,67 @@ export default function Admin() {
     supabase()!.rpc('is_admin').then(({ data }) => setIsAdmin(Boolean(data)));
   }, [session]);
 
+  // 1999〜2000年ごろのパソコン風の見た目と操作音
+  const [clock, setClock] = useState('');
+  const [sound, setSound] = useState(true);
+  useEffect(() => {
+    setSound(sfxEnabled());
+    const off = onSfxChange(setSound);
+    const tick = () => {
+      const d = new Date(Date.now() + 9 * 3600_000);
+      setClock(`${d.getUTCHours()}:${String(d.getUTCMinutes()).padStart(2, '0')}`);
+    };
+    tick();
+    const t = setInterval(tick, 15_000);
+    // ボタン・リンク・チェックを押したらクリック音
+    const down = (e: PointerEvent) => {
+      const el = (e.target as HTMLElement).closest('button, a, input[type=checkbox], input[type=file], label.check, select');
+      if (el && !el.closest('.os9-snd')) sfx(el.closest('.adm-tabs') ? 'select' : 'tick');
+    };
+    document.addEventListener('pointerdown', down);
+    return () => {
+      off();
+      clearInterval(t);
+      document.removeEventListener('pointerdown', down);
+    };
+  }, []);
+  useEffect(() => {
+    if (tab) sfx('shade');
+  }, [tab]);
+
   const head = (
-    <header className="hd">
-      <a className="wm" href="/">Gallery Crypto</a>
-      <nav className="nav">
-        <span>管理画面</span>
-        {session && <button className="btn" style={{ padding: '4px 10px' }} onClick={() => supabase()!.auth.signOut()}>ログアウト</button>}
-      </nav>
+    <header className="os9-menu">
+      <a className="os9-gc" href="/" aria-label="公開サイトへ">
+        <svg viewBox="0 0 16 16" aria-hidden shapeRendering="crispEdges">
+          <path d="M4 1h3v1h2V1h3v1h1v1h1v1h1v2h-1v1h-2v8H4V7H2V6H1V4h1V3h1V2h1Z" fill="#000" />
+          <path d="M5 2h1v1h4V2h1v1h1v1h1v1h-1v1h-1V5h-1v8H5V5H4v1H3V5H2V4h1V3h2Z" fill="#fff" />
+        </svg>
+      </a>
+      <b>Gallery Crypto</b>
+      <span>管理画面</span>
+      <span className="os9-right">
+        <button
+          className="os9-snd"
+          aria-label={sound ? '音をオフにする' : '音をオンにする'}
+          aria-pressed={sound}
+          onClick={() => {
+            const v = !sound;
+            setSfx(v);
+            if (v) setTimeout(() => sfxBoot(), 120);
+          }}
+        >
+          <svg viewBox="0 0 20 20" aria-hidden>
+            <path d="M3 8h3l5-4v12l-5-4H3Z" fill="currentColor" />
+            {sound ? <path d="M14 6q3 4 0 8M16 4q5 6 0 12" fill="none" stroke="currentColor" strokeWidth="1.6" /> : <path d="M14 7l5 6M19 7l-5 6" stroke="currentColor" strokeWidth="1.6" />}
+          </svg>
+        </button>
+        <span>{clock}</span>
+        {session && (
+          <button className="os9-out" onClick={() => (sfx('close'), supabase()!.auth.signOut())}>
+            ログアウト
+          </button>
+        )}
+      </span>
     </header>
   );
 
@@ -567,9 +622,20 @@ export default function Admin() {
     );
 
   return (
-    <div className="site">
+    <div className="os9">
       {head}
-      <main className="adm">{body}</main>
+      <div className="os9-desk">
+        <div className="os9-win">
+          <div className="os9-title">
+            <span className="os9-box" aria-hidden />
+            <span className="os9-ridge" aria-hidden />
+            <span className="os9-tt">Gallery Crypto 管理画面</span>
+            <span className="os9-ridge" aria-hidden />
+            <span className="os9-box" aria-hidden />
+          </div>
+          <main className="adm">{body}</main>
+        </div>
+      </div>
     </div>
   );
 }

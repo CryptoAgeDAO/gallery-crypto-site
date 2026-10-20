@@ -5,7 +5,7 @@ import { photoUrl } from '@/lib/supabase';
 import { certNo, type Item, type Settings } from '@/lib/types';
 import { onSfxChange, setSfx, sfx, sfxBoot, sfxEnabled } from '@/lib/sfx';
 
-// トップのアーカイブ。1998年ごろのパソコン（灰色の立体ウィンドウ）風。
+// トップのアーカイブ。1999〜2000年ごろのノートパソコン（灰色の立体ウィンドウ＋キャンディカラー）風。
 // 起動時：灰色の画面にニコッとしたTシャツ → 「Welcome to Gallery Crypto」と進行バー → 下に小さなアイコンが並んでいく → デスクトップ。
 // 既存OSのロゴ・アイコン・書体は使わず、絵はすべてこのサイト用のドット絵。
 
@@ -160,7 +160,7 @@ function useDrag(desk: React.RefObject<HTMLDivElement>) {
     onPointerUp: () => (st.current = null),
     onPointerCancel: () => (st.current = null),
   };
-  return { el, pos, handlers };
+  return { el, pos, handlers, reset: () => setPos({ x: 0, y: 0 }) };
 }
 
 const BOOT_ICONS = ['tee', 'folder', 'disk', 'note', 'star', 'mail', 'lock'];
@@ -174,6 +174,7 @@ export default function Platinum({ items, s, onOpen }: { items: Item[]; s: Setti
   const [sel, setSel] = useState<string | null>(null);
   const [clock, setClock] = useState('');
   const [sound, setSound] = useState(true);
+  const [menu, setMenu] = useState<string | null>(null);
 
   // 起動画面：同じタブでは1回だけ。0=灰色＋Tシャツ、1=Welcome、2=終わり
   const [boot, setBoot] = useState(-1);
@@ -208,6 +209,49 @@ export default function Platinum({ items, s, onOpen }: { items: Item[]; s: Setti
     chime();
     setBoot(2);
   };
+  // 起動が終わったら「Read Me」を知らせる音
+  useEffect(() => {
+    if (boot === 2 && !items.length) setTimeout(() => sfx('alert'), 250);
+  }, [boot]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const go = (hash: string) => {
+    setMenu(null);
+    sfx('select');
+    document.querySelector(hash)?.scrollIntoView({ behavior: 'smooth' });
+  };
+  const MENUS: { k: string; label: React.ReactNode; items: ([string, () => void] | null)[] }[] = [
+    {
+      k: 'gc',
+      label: <Pix name="tee" />,
+      items: [
+        ['About Gallery Crypto', () => (setMenu(null), open('soon'))],
+        null,
+        ...(s.instagram ? [['Instagram', () => (setMenu(null), window.open(s.instagram, '_blank', 'noopener'))] as [string, () => void]] : []),
+        ['Contact', () => go('#contact')],
+      ],
+    },
+    {
+      k: 'archive',
+      label: <b>Archive</b>,
+      items: [
+        ["Open Founder's Archive", () => (setMenu(null), open('archive'))],
+        ['Open Read Me', () => (setMenu(null), open('soon'))],
+        null,
+        ['Provenance', () => go('#provenance')],
+      ],
+    },
+    { k: 'draw', label: 'Draw', items: [['Enter the draw…', () => go('#presale')], ['How the draw works', () => go('#presale')]] },
+    {
+      k: 'view',
+      label: 'View',
+      items: [
+        ['Clean Up', () => (setMenu(null), sfx('drop'), drags.archive.reset(), drags.soon.reset())],
+        ['Collapse All', () => (setMenu(null), sfx('shade'), setShade({ archive: true, soon: true }))],
+        ['Expand All', () => (setMenu(null), sfx('shade'), setShade({ archive: false, soon: false }))],
+      ],
+    },
+    { k: 'help', label: 'Help', items: [['Read Me', () => (setMenu(null), open('soon'))], ['Contact', () => go('#contact')]] },
+  ];
 
   useEffect(() => {
     const tick = () => {
@@ -231,7 +275,7 @@ export default function Platinum({ items, s, onOpen }: { items: Item[]; s: Setti
     setFront(w);
   };
   const roll = (w: Win) => {
-    sfx('flip');
+    sfx('shade');
     setShade((h) => ({ ...h, [w]: !h[w] }));
   };
   const pick = (it: Item) => {
@@ -270,15 +314,46 @@ export default function Platinum({ items, s, onOpen }: { items: Item[]; s: Setti
   const n = items.length;
 
   return (
-    <section className="pt" id="archive" aria-label="Archive" onPointerDown={(e) => !(e.target as HTMLElement).closest('.pt-snd') && chime()}>
+    <section
+      className="pt"
+      id="archive"
+      aria-label="Archive"
+      onPointerDown={(e) => {
+        const el = e.target as HTMLElement;
+        if (!el.closest('.pt-snd')) chime();
+        if (!el.closest('.pt-m')) setMenu(null);
+      }}
+    >
       <div className="pt-menu">
-        <span className="pt-apple" aria-hidden>
-          <Pix name="tee" />
-        </span>
-        <b>Archive</b>
-        <span>Draw</span>
-        <span className="pt-hide">View</span>
-        <span className="pt-hide">Help</span>
+        {MENUS.map((m) => (
+          <div key={m.k} className={`pt-m${m.k === 'gc' ? ' gc' : ''}${m.k === 'view' || m.k === 'help' ? ' pt-hide' : ''}${menu === m.k ? ' on' : ''}`}>
+            <button
+              className="pt-mt"
+              aria-haspopup="menu"
+              aria-expanded={menu === m.k}
+              aria-label={m.k === 'gc' ? 'Gallery Crypto menu' : undefined}
+              onClick={() => (sfx('menu'), setMenu(menu === m.k ? null : m.k))}
+              onPointerEnter={() => menu && menu !== m.k && (sfx('tick'), setMenu(m.k))}
+            >
+              {m.label}
+            </button>
+            {menu === m.k && (
+              <ul className="pt-dd" role="menu">
+                {m.items.map((it, i) =>
+                  it ? (
+                    <li key={it[0]}>
+                      <button role="menuitem" onClick={it[1]}>
+                        {it[0]}
+                      </button>
+                    </li>
+                  ) : (
+                    <li key={`sep${i}`} className="sep" />
+                  ),
+                )}
+              </ul>
+            )}
+          </div>
+        ))}
         <span className="pt-right">
           <button
             className="pt-snd"
@@ -335,7 +410,7 @@ export default function Platinum({ items, s, onOpen }: { items: Item[]; s: Setti
             <Pix name="disk" />
             <span>Gallery HD</span>
           </button>
-          <a className="pt-icon" href="#presale" onClick={() => sfx('select')}>
+          <a className="pt-icon" href="#presale" onClick={() => sfx('open')}>
             <Pix name="note" />
             <span>Presale 2027</span>
           </a>

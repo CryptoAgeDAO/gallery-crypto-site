@@ -244,27 +244,41 @@ body{background:radial-gradient(1100px 560px at 92% -8%,#edeffb 0%,rgba(237,239,
 /* iPhone は 16px 未満の入力欄をタップすると画面が拡大されるので、タッチ端末では 16px にする */
 @media (hover:none) and (pointer:coarse){input,select,textarea{font-size:16px!important}}
 
-/* Archive as a late-'90s grey desktop (platinum look): boot sequence, menu bar, bevelled windows, icon view.
+/* Archive as a 1999–2000 laptop-era desktop (grey platinum windows + candy blueberry/tangerine accents): boot sequence, menu bar, bevelled windows, icon view.
    All artwork is original pixel art. */
-.pt{--face:#dddddd;--hi:#fff;--sh:#8a8a8a;--dk:#555;--ac:#6666cc;--ui:Charcoal,Chicago,Geneva,"Helvetica Neue",Arial,sans-serif;position:relative;margin:0 -16px 72px;font-family:var(--ui);font-size:12px;color:#000;user-select:none;-webkit-user-select:none;border-top:1px solid #000;border-bottom:1px solid #000}
+.pt{--face:#dddddd;--hi:#fff;--sh:#8a8a8a;--dk:#555;--ac:#2f6fd6;--tan:#ff9a2e;--ui:Charcoal,Chicago,Geneva,"Helvetica Neue",Arial,sans-serif;position:relative;margin:0 -16px 72px;font-family:var(--ui);font-size:12px;color:#000;user-select:none;-webkit-user-select:none;border-top:1px solid #000;border-bottom:1px solid #000}
 @media (min-width:900px){.pt{margin-inline:-32px}}
 .pt button{font:inherit;color:inherit}
 .pt svg{display:block}
-.pt-menu{position:relative;z-index:6;display:flex;align-items:center;gap:18px;height:22px;padding:0 10px;background:linear-gradient(#fafafa,#e4e4e4);border-bottom:1px solid #000;font-weight:700}
+.pt-menu{position:relative;z-index:6;display:flex;align-items:stretch;gap:2px;height:22px;padding:0 10px;background:linear-gradient(#fafafa,#e4e4e4);border-bottom:1px solid #000;font-weight:700}
 .pt-menu span,.pt-menu b{white-space:nowrap}
-.pt-apple svg{width:16px;height:16px}
+.pt-m{position:relative;height:100%;display:flex;align-items:stretch}
+.pt .pt-mt{display:flex;align-items:center;gap:4px;padding:0 9px;border:0;background:none;font-weight:700;cursor:default}
+.pt-m.gc .pt-mt svg{width:16px;height:16px}
+.pt-m.on .pt-mt{background:var(--ac);color:#fff}
+.pt-m.on .pt-mt svg{filter:invert(1)}
+.pt-dd{position:absolute;left:0;top:100%;z-index:30;list-style:none;margin:0;padding:3px 0;min-width:200px;background:var(--face);border:1px solid #000;box-shadow:inset 1px 1px #fff,inset -1px -1px var(--sh),3px 3px 0 rgba(0,0,0,.3);font-weight:400}
+.pt .pt-dd button{display:block;width:100%;padding:3px 18px;border:0;background:none;text-align:left;cursor:default}
+.pt .pt-dd button:hover,.pt .pt-dd button:focus{background:var(--ac);color:#fff;outline:none}
+.pt-dd .sep{height:1px;margin:4px 1px;background:var(--sh);box-shadow:0 1px #fff}
 .pt-right{margin-left:auto;display:flex;align-items:center;gap:12px;font-weight:400}
+.pt-menu>.pt-right{align-self:center}
 .pt-app{display:flex;align-items:center;gap:4px;padding-left:10px;border-left:1px solid #9a9a9a;font-weight:700}
 .pt-app svg{width:16px;height:12px}
 .pt .pt-snd{display:grid;place-items:center;width:20px;height:18px;padding:0;border:0;background:none;cursor:pointer}
 .pt-snd svg{width:15px;height:15px}
-.pt-desk{position:relative;display:grid;gap:18px;padding:16px 12px 26px;min-height:540px;overflow:hidden;background:#6a6ac4 repeating-conic-gradient(rgba(255,255,255,.06) 0 25%,transparent 0 50%) 0 0/4px 4px}
+.pt-desk{position:relative;display:grid;gap:18px;padding:16px 12px 26px;min-height:540px;overflow:hidden;background:
+  radial-gradient(40% 55% at 82% 78%,rgba(255,170,70,.55),transparent 70%),
+  radial-gradient(30% 40% at 12% 18%,rgba(140,220,255,.55),transparent 70%),
+  radial-gradient(22% 30% at 60% 28%,rgba(255,255,255,.22),transparent 70%),
+  repeating-linear-gradient(0deg,rgba(255,255,255,.05) 0 1px,transparent 1px 3px),
+  linear-gradient(150deg,#1d4fb0 0%,#2f78d8 45%,#4aa0ec 70%,#7cc4f6 100%)}
 .pt-icons{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end}
 .pt .pt-icon{display:grid;justify-items:center;gap:4px;width:86px;padding:4px 2px;border:0;background:none;color:#000;text-decoration:none;cursor:pointer;text-align:center}
 .pt-icon svg{width:34px;height:30px}
 .pt-icon span{padding:0 4px;background:#fff;line-height:16px}
 .pt-icon:focus{outline:none}
-.pt-icon:focus span,.pt-icon:active span{background:#000;color:#fff}
+.pt-icon:focus span,.pt-icon:active span{background:var(--ac);color:#fff}
 .pt-icon:focus svg,.pt-icon:active svg{filter:brightness(.55)}
 .pt-win{position:relative;z-index:1;background:var(--face);border:1px solid #000;box-shadow:inset 1px 1px var(--hi),inset -1px -1px var(--sh),2px 2px 0 rgba(0,0,0,.35);touch-action:none}
 .pt-win.front{z-index:3}
@@ -288,7 +302,7 @@ body{background:radial-gradient(1100px 560px at 92% -8%,#edeffb 0%,rgba(237,239,
 .pt-file svg,.pt-file img{width:44px;height:44px;object-fit:cover}
 .pt-file img{border:1px solid #000}
 .pt-file span{max-width:100%;padding:0 3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:15px}
-.pt-file.on span{background:#000;color:#fff}
+.pt-file.on span{background:var(--ac);color:#fff}
 .pt-file.on img,.pt-file.on svg{filter:brightness(.55)}
 .pt-file.ghost{cursor:default;color:#777}
 .pt-dlg{padding:16px 16px 14px;background:var(--face)}
@@ -299,15 +313,16 @@ body{background:radial-gradient(1100px 560px at 92% -8%,#edeffb 0%,rgba(237,239,
 .pt-copy p{margin:0;max-width:40ch;font-size:13px;line-height:1.5}
 .pt-small{justify-self:stretch;text-align:left;font-size:11px!important}
 .pt-prog{justify-self:stretch;height:12px;border:1px solid #000;background:#bdbdbd;box-shadow:inset 1px 1px #8a8a8a;overflow:hidden}
-.pt-prog i{display:block;height:100%;background:repeating-linear-gradient(-45deg,#8a8ae0 0 6px,#4a4aa8 6px 12px);background-size:17px 100%;animation:pt-pole .8s linear infinite}
-@keyframes pt-pole{to{background-position:17px 0}}
+.pt-prog i{display:block;height:100%;background:linear-gradient(rgba(255,255,255,.55),rgba(255,255,255,0) 55%),repeating-linear-gradient(-45deg,#7fb4ff 0 6px,#2f6fd6 6px 12px);background-size:100% 100%,17px 100%;animation:pt-pole .8s linear infinite}
+@keyframes pt-pole{to{background-position:0 0,17px 0}}
 .pt-btns{display:flex;justify-content:center;gap:14px;margin-top:16px}
 .pt .pt-btn{display:inline-grid;place-items:center;min-width:92px;height:22px;padding:0 14px;border:1px solid #000;border-radius:4px;background:linear-gradient(#fff,#d6d6d6);box-shadow:inset 1px 1px #fff,inset -1px -1px #9a9a9a;color:#000;text-decoration:none;font-size:12px;cursor:pointer}
 .pt .pt-btn.def{box-shadow:inset 1px 1px #fff,inset -1px -1px #9a9a9a,0 0 0 2px var(--face),0 0 0 4px #000;border-radius:5px;font-weight:700}
 .pt .pt-btn:active{background:#555;color:#fff}
 .pt-btn:focus-visible{outline:1px dotted #000;outline-offset:4px}
 /* boot */
-.pt .pt-boot{position:absolute;inset:0;z-index:20;display:grid;place-items:center;border:0;padding:0;background:#9b9b9b repeating-conic-gradient(rgba(0,0,0,.05) 0 25%,transparent 0 50%) 0 0/2px 2px;cursor:pointer}
+.pt .pt-boot{position:absolute;inset:0;z-index:20;display:grid;place-items:center;border:0;padding:0;background:#a6a6a6 repeating-conic-gradient(rgba(0,0,0,.05) 0 25%,transparent 0 50%) 0 0/2px 2px;cursor:pointer}
+.pt-welcome::before{content:"";display:block;justify-self:stretch;height:6px;margin:-14px -26px 8px;background:linear-gradient(90deg,#2f6fd6,#4aa0ec,#7cc520,#ff9a2e,#ff4d6d,#8e5bd6)}
 .pt-happy{width:96px;height:96px;animation:pt-pop .01s .25s both}
 @keyframes pt-pop{from{visibility:hidden}}
 .pt-welcome{display:grid;justify-items:center;gap:8px;padding:22px 34px 20px;background:var(--face);border:1px solid #000;box-shadow:inset 1px 1px #fff,inset -1px -1px #8a8a8a,3px 3px 0 rgba(0,0,0,.4);font-family:var(--ui)}
@@ -316,7 +331,7 @@ body{background:radial-gradient(1100px 560px at 92% -8%,#edeffb 0%,rgba(237,239,
 .pt-wtxt b{font-weight:700}
 .pt-wsub{font-size:12px;color:#444}
 .pt-wbar{width:min(240px,60vw);height:12px;margin-top:8px;border:1px solid #000;background:#bdbdbd;box-shadow:inset 1px 1px #8a8a8a}
-.pt-wbar i{display:block;height:100%;background:linear-gradient(#a8a8f0,#5a5ac0);transition:width .3s steps(3)}
+.pt-wbar i{display:block;height:100%;background:linear-gradient(#bfe0ff,#4a90e8 50%,#2f6fd6 51%,#7fb4ff);transition:width .3s steps(3)}
 .pt-ext{position:absolute;left:10px;bottom:10px;display:flex;gap:6px}
 .pt-ext svg{width:28px;height:24px}
 @media (max-width:520px){.pt-hide{display:none}.pt-menu{gap:12px}}
@@ -334,3 +349,45 @@ body{background:radial-gradient(1100px 560px at 92% -8%,#edeffb 0%,rgba(237,239,
   .pt-btns{justify-content:flex-end}
 }
 @media (prefers-reduced-motion:reduce){.pt-prog i{animation:none}}
+
+/* Admin in the same 1999–2000 laptop-era look: menu bar, blueberry desktop, one large platinum window. */
+.os9{--face:#dddddd;--hi:#fff;--sh:#8a8a8a;--ac:#2f6fd6;--ui:Charcoal,Chicago,Geneva,"Helvetica Neue",Arial,var(--jp);min-height:100svh;font-family:var(--ui);color:#000;background:
+  radial-gradient(40% 55% at 82% 88%,rgba(255,170,70,.45),transparent 70%),
+  radial-gradient(30% 40% at 10% 12%,rgba(140,220,255,.5),transparent 70%),
+  linear-gradient(150deg,#1d4fb0 0%,#2f78d8 45%,#4aa0ec 70%,#7cc4f6 100%) fixed}
+.os9-menu{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:16px;height:24px;padding:0 10px;background:linear-gradient(#fafafa,#e4e4e4);border-bottom:1px solid #000;font-size:12px}
+.os9-menu b{font-weight:700}
+.os9-gc svg{display:block;width:16px;height:16px}
+.os9-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+.os9 .os9-snd{display:grid;place-items:center;width:20px;height:18px;padding:0;border:0;background:none;cursor:pointer}
+.os9-snd svg{width:15px;height:15px}
+.os9 .os9-out{height:18px;padding:0 10px;border:1px solid #000;border-radius:4px;background:linear-gradient(#fff,#d6d6d6);font:inherit;font-size:11px;cursor:pointer}
+.os9-desk{padding:16px 10px 40px}
+@media (min-width:900px){.os9-desk{padding:28px 32px 60px}}
+.os9-win{max-width:1120px;margin:0 auto;background:var(--face);border:1px solid #000;box-shadow:inset 1px 1px var(--hi),inset -1px -1px var(--sh),3px 3px 0 rgba(0,0,0,.35)}
+.os9-title{display:flex;align-items:center;gap:6px;height:22px;padding:0 6px}
+.os9-ridge{flex:1;height:11px;background:repeating-linear-gradient(var(--hi) 0 1px,var(--sh) 1px 2px,transparent 2px 3px)}
+.os9-tt{font-weight:700;font-size:12px;white-space:nowrap}
+.os9-box{flex:none;width:13px;height:13px;border:1px solid #000;background:linear-gradient(135deg,#c8c8c8,#fff 45%,#bdbdbd)}
+.os9 .adm{margin:0 5px 5px;padding:16px 14px 28px;background:#ececec;border:1px solid var(--sh);border-right-color:var(--hi);border-bottom-color:var(--hi);font-family:var(--ui);gap:16px}
+.os9 .adm-tabs{gap:0;border-bottom:1px solid #000;padding-left:6px}
+.os9 .adm-tabs button{margin-bottom:-1px;padding:5px 14px 4px;border:1px solid #000;border-bottom-color:#000;border-radius:6px 6px 0 0;background:linear-gradient(#f2f2f2,#cfcfcf);font:inherit;font-size:12px;color:#000;cursor:pointer}
+.os9 .adm-tabs button+button{margin-left:-1px}
+.os9 .adm-tabs button[aria-pressed="true"]{position:relative;z-index:1;background:#ececec;border-bottom-color:#ececec;font-weight:700;color:#000}
+.os9 .sec{position:relative;background:transparent;border:1px solid var(--sh);box-shadow:1px 1px 0 var(--hi),inset 1px 1px 0 var(--hi);padding:18px 14px 14px;border-radius:2px}
+.os9 .sec h4{position:absolute;top:-9px;left:10px;margin:0;padding:0 6px;background:#ececec;font-size:12px;font-weight:700}
+.os9 .sec p{color:#333}
+.os9 .btn{border:1px solid #000;border-radius:5px;padding:5px 14px;background:linear-gradient(#fff,#d6d6d6);box-shadow:inset 1px 1px #fff,inset -1px -1px #9a9a9a;font-family:var(--ui);font-size:12px;color:#000;cursor:pointer}
+.os9 .btn.primary{background:linear-gradient(#fff,#d6d6d6);color:#000;font-weight:700;box-shadow:inset 1px 1px #fff,inset -1px -1px #9a9a9a,0 0 0 2px #ececec,0 0 0 4px #000;margin:3px}
+.os9 .btn.danger{color:#b00;border-color:#000}
+.os9 .btn:active:not(:disabled){background:#555;color:#fff}
+.os9 input[type=text],.os9 input[type=password],.os9 input[type=url],.os9 input[type=email],.os9 input[type=number],.os9 select,.os9 textarea{border:1px solid #000;border-radius:0;background:#fff;box-shadow:inset 1px 1px #8a8a8a;font-family:var(--ui)}
+.os9 input:focus,.os9 select:focus,.os9 textarea:focus{outline:2px solid #7fb4ff;outline-offset:0}
+.os9 .form label{color:#222;font-family:var(--ui)}
+.os9 table{background:#fff;border:1px solid #000}
+.os9 th{background:linear-gradient(#f4f4f4,#d8d8d8);color:#000;border-bottom:1px solid #000}
+.os9 tr:nth-child(even) td{background:#eef3fb}
+.os9 .status,.os9 .note{color:#333}
+.os9 .card .cap .nm{font-family:var(--ui)}
+.os9 .ph{border:1px solid #000;background:#fff}
+.os9 input[type=checkbox]{accent-color:var(--ac)}
