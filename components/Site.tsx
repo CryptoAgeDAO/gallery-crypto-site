@@ -1,24 +1,18 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase, photoUrl } from '@/lib/supabase';
 import { ERA_LABEL, certNo, usd, type Item, type Settings } from '@/lib/types';
 import BuyButton from '@/components/BuyButton';
-import Soon from '@/components/Soon';
+import { SelectScreen, TitleScreen } from '@/components/Arcade';
 import { CardBack, CardFront } from '@/components/Card';
 import { MusicBar, PlayButton } from '@/components/Music';
-import { flipFront, flipOver, startFlip, stopFlip, watchCards } from '@/lib/motion';
-import { onSfxChange, setSfx, sfx, sfxDeal, sfxEnabled } from '@/lib/sfx';
+import { flipFront, flipOver, startFlip, stopFlip } from '@/lib/motion';
+import { onSfxChange, setSfx, sfx, sfxEnabled } from '@/lib/sfx';
 
 type Props = { settings: Settings; items: Item[]; configured: boolean };
 type Status = { kind: 'idle' | 'busy' | 'ok' | 'err'; text?: string };
 
-const FILTERS: [string, string][] = [
-  ['all', 'All'],
-  ['80s', '80s'],
-  ['90s', '90s'],
-  ['00s', '2000s'],
-];
 
 // 管理者への通知（失敗しても画面には影響させない）
 function notify(kind: 'entry' | 'message', email: string) {
@@ -276,23 +270,8 @@ function Contact({ email }: { email: string }) {
 }
 
 export default function Site({ settings: s, items }: Props) {
-  const [flt, setFlt] = useState('all');
   const [open, setOpen] = useState<Item | null>(null);
-  const counts = useMemo(() => {
-    const c: Record<string, number> = { all: items.length, '80s': 0, '90s': 0, '00s': 0 };
-    items.forEach((it) => {
-      if (c[it.era] != null) c[it.era]++;
-    });
-    return c;
-  }, [items]);
-  const shown = flt === 'all' ? items : items.filter((it) => it.era === flt);
   const sample = items.find((it) => it.band && it.photos.length) || items[0];
-  const firstDeal = useRef(true);
-  useEffect(() => {
-    watchCards();
-    if (firstDeal.current) firstDeal.current = false;
-    else sfxDeal(shown.length);
-  }, [flt, items]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="site">
@@ -312,47 +291,9 @@ export default function Site({ settings: s, items }: Props) {
         </nav>
       </header>
 
-      <section className="intro">
-        <h1>{s.headline}</h1>
-        <p>{s.lead}</p>
-        <p className="launch">{s.launch}</p>
-      </section>
+      <TitleScreen s={s} />
 
-      <div id="archive">
-        {items.length ? (
-          <>
-            <nav className="bar" aria-label="Filter by decade">
-              <div className="filters">
-                {FILTERS.map(([k, l]) => (
-                  <button key={k} className="flt" aria-pressed={flt === k} onClick={() => setFlt(k)}>
-                    {l}
-                    <sup>{counts[k]}</sup>
-                  </button>
-                ))}
-              </div>
-              <span className="count">
-                {shown.length} {shown.length === 1 ? 'piece' : 'pieces'}
-              </span>
-            </nav>
-            <div className="grid tcg" key={flt}>
-              {shown.map((it, i) => (
-                <button
-                  key={it.id}
-                  className="tc"
-                  style={{ ['--i' as string]: Math.min(i, 10) }}
-                  aria-label={`${it.band || 'Untitled'} ${certNo(it)}`}
-                  onClick={() => setOpen(it)}
-                >
-                  <CardFront it={it} saleOpen={s.sale_open} />
-                </button>
-              ))}
-            </div>
-            {!shown.length && <p className="empty">No pieces from this decade yet.</p>}
-          </>
-        ) : (
-          <Soon instagram={s.instagram} />
-        )}
-      </div>
+      <SelectScreen items={items} s={s} onOpen={setOpen} />
 
       <section className="block" id="presale">
         <h2>Presale 2027</h2>
