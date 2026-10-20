@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { supabase, photoUrl } from '@/lib/supabase';
 import { ERA_LABEL, certNo, usd, type Item, type Settings } from '@/lib/types';
 import BuyButton from '@/components/BuyButton';
-import Platinum from '@/components/Platinum';
+import Win95 from '@/components/Win95';
 import { CardBack, CardFront } from '@/components/Card';
 import { MusicBar, PlayButton } from '@/components/Music';
 import { flipFront, flipOver, startFlip, stopFlip } from '@/lib/motion';
@@ -297,7 +297,7 @@ export default function Site({ settings: s, items }: Props) {
         <p className="launch">{s.launch}</p>
       </section>
 
-      <Platinum items={items} s={s} onOpen={setOpen} />
+      <Win95 items={items} s={s} onOpen={setOpen} />
 
       <section className="block" id="presale">
         <h2>Presale 2027</h2>
