@@ -2,7 +2,9 @@
 // 最初のタップのあとから鳴る（ブラウザの決まり）。ON/OFF は localStorage に保存。
 export type Sfx = 'tick' | 'select' | 'open' | 'flip' | 'close' | 'coin' | 'deal' | 'fanfare' | 'shade' | 'menu' | 'drop' | 'alert'
   // アーケード風（8ビットの矩形波）
-  | 'a-coin' | 'a-start' | 'a-move' | 'a-ok' | 'a-power';
+  | 'a-coin' | 'a-start' | 'a-move' | 'a-ok' | 'a-power'
+  // 機械（CDプレーヤー・SFの端末）
+  | 'thunk' | 'servo' | 'seek' | 'ping' | 'tray' | 'boot-hum';
 
 let AC: AudioContext | null = null;
 let on = true;
@@ -174,6 +176,62 @@ export function sfx(name: Sfx) {
       if (name === 'coin') [1, 2.76].forEach((m, i) => tone('sine', 1760 * m, 0, t + 0.09, i ? 0.4 : 1.0, V * (i ? 0.05 : 0.16), 0.003));
       break;
     }
+    case 'thunk':
+      // 重いボタンを押し込む「ガチッ」
+      noise(t, 0.02, V * 0.6, 2400, 0, 1, 'bandpass');
+      tone('sine', 150, 60, t, 0.06, V * 0.6);
+      noise(t + 0.05, 0.015, V * 0.3, 3200, 0, 1.2, 'highpass');
+      break;
+    case 'servo': {
+      // モーターが回る「ウィーン」
+      const a = AC!;
+      const o = a.createOscillator();
+      const f = a.createBiquadFilter();
+      const g = a.createGain();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(70, t);
+      o.frequency.exponentialRampToValueAtTime(190, t + 0.35);
+      o.frequency.exponentialRampToValueAtTime(120, t + 0.6);
+      f.type = 'lowpass';
+      f.frequency.value = 900;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(V * 0.12, t + 0.08);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.62);
+      o.connect(f);
+      f.connect(g);
+      g.connect(out());
+      o.start(t);
+      o.stop(t + 0.65);
+      noise(t, 0.6, V * 0.05, 3000, 1500, 3, 'bandpass', 0.08);
+      break;
+    }
+    case 'seek':
+      // 曲送りの電子音「ピピッ」
+      tone('square', 2350, 0, t, 0.025, V * 0.08);
+      tone('square', 2350, 0, t + 0.05, 0.025, V * 0.08);
+      click(t, V * 0.3, 0.7);
+      break;
+    case 'ping': {
+      // SFの探知機のような「ピーン…」（余韻つき）
+      tone('sine', 1180, 1150, t, 1.4, V * 0.16, 0.004);
+      tone('sine', 2360, 0, t, 0.35, V * 0.03, 0.004);
+      tone('sine', 1180, 1150, t + 0.32, 1.0, V * 0.05, 0.004);
+      break;
+    }
+    case 'tray':
+      // トレーが出入りする「ウィーン…ガコッ」
+      noise(t, 0.5, V * 0.08, 600, 1400, 2, 'bandpass', 0.05);
+      tone('sawtooth', 90, 140, t, 0.45, V * 0.05, 0.05);
+      tone('sine', 120, 50, t + 0.48, 0.12, V * 0.6);
+      noise(t + 0.48, 0.04, V * 0.4, 1800, 0, 1, 'bandpass');
+      break;
+    case 'boot-hum':
+      // 電源オンの「ブーン」とリレーの「カチッ」
+      click(t, V * 0.6, 0.6);
+      tone('sine', 60, 0, t + 0.04, 1.2, V * 0.12, 0.2);
+      tone('sine', 120, 0, t + 0.04, 1.0, V * 0.05, 0.2);
+      noise(t + 0.05, 1.0, V * 0.03, 8000, 0, 0.7, 'highpass', 0.3);
+      break;
     case 'a-move':
       if (t - lastTick < 0.05) return;
       lastTick = t;

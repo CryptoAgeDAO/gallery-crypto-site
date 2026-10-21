@@ -1,13 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase, photoUrl } from '@/lib/supabase';
 import { ERA_LABEL, certNo, usd, type Item, type Settings } from '@/lib/types';
 import BuyButton from '@/components/BuyButton';
-import { SelectScreen, TitleScreen } from '@/components/Arcade';
-import { CardBack, CardFront } from '@/components/Card';
+import Deck from '@/components/Deck';
 import { MusicBar, PlayButton } from '@/components/Music';
-import { flipFront, flipOver, startFlip, stopFlip } from '@/lib/motion';
 import { onSfxChange, setSfx, sfx, sfxEnabled } from '@/lib/sfx';
 
 type Props = { settings: Settings; items: Item[]; configured: boolean };
@@ -88,8 +86,7 @@ function DrawForm({ itemId }: { itemId: string | null }) {
 }
 
 function Detail({ it, onClose, saleOpen }: { it: Item; onClose: () => void; saleOpen: boolean }) {
-  const flipRef = useRef<HTMLDivElement>(null);
-  const [side, setSide] = useState(0);
+  const [shot, setShot] = useState(0);
   const close = () => {
     sfx('close');
     onClose();
@@ -100,9 +97,8 @@ function Detail({ it, onClose, saleOpen }: { it: Item; onClose: () => void; sale
     return () => document.removeEventListener('keydown', k);
   });
   useEffect(() => {
-    if (flipRef.current) startFlip(flipRef.current, setSide);
-    sfx('open');
-    return () => stopFlip();
+    sfx('tray');
+    setShot(0);
   }, [it.id]);
   const rows: [string, string][] = (
     [
@@ -121,38 +117,25 @@ function Detail({ it, onClose, saleOpen }: { it: Item; onClose: () => void; sale
         <button className="x" onClick={close} aria-label="Close" autoFocus>
           ×
         </button>
-        <div className="pv cardview">
-          <div className="flip" id="flip" ref={flipRef}>
-            <div className="flip-in">
-              <div className="tc big side">
-                <CardFront it={it} saleOpen={saleOpen} big />
-              </div>
-              <div className="tc big side backside">
-                <CardBack it={it} />
-              </div>
-            </div>
+        <div className="pv dk-view">
+          <div className="dk-vscr">
+            {it.photos.length ? <img src={photoUrl(it.photos[shot] || it.photos[0])} alt={`${it.band} ${it.title}`.trim()} /> : <span className="noimg">No image</span>}
+            <span className="dk-hud tl" aria-hidden>
+              REC ● {certNo(it)}
+            </span>
+            <span className="dk-hud br" aria-hidden>
+              IMG {Math.min(shot + 1, Math.max(1, it.photos.length))}/{Math.max(1, it.photos.length)}
+            </span>
           </div>
-          <div className="pv-ctl">
-            <button className="btn pub" onClick={flipOver}>
-              {side ? 'Flip · Front' : 'Flip · Certificate'}
-            </button>
-            {it.photos.length > 1 &&
-              it.photos.map((p) => (
-                <button
-                  key={p}
-                  className="thumb"
-                  aria-label="Show photo"
-                  onClick={() => {
-                    const m = document.getElementById('pv-main') as HTMLImageElement | null;
-                    if (m) m.src = photoUrl(p);
-                    flipFront();
-                  }}
-                >
-                  <img src={photoUrl(p)} alt="" />
+          {it.photos.length > 1 && (
+            <div className="dk-ph">
+              {it.photos.map((p, i) => (
+                <button key={p} aria-label={`Image ${i + 1}`} aria-pressed={i === shot} onClick={() => (sfx('seek'), setShot(i))}>
+                  {String(i + 1).padStart(2, '0')}
                 </button>
               ))}
-          </div>
-          <span className="flip-hint">Drag the card to turn it</span>
+            </div>
+          )}
         </div>
         <div className="info">
           <h2>{it.band || 'Untitled'}</h2>
@@ -291,9 +274,13 @@ export default function Site({ settings: s, items }: Props) {
         </nav>
       </header>
 
-      <TitleScreen s={s} count={items.length} />
+      <section className="intro">
+        <h1>{s.headline}</h1>
+        <p>{s.lead}</p>
+        <p className="launch">{s.launch}</p>
+      </section>
 
-      <SelectScreen items={items} s={s} onOpen={setOpen} />
+      <Deck items={items} s={s} onOpen={setOpen} />
 
       <section className="block" id="presale">
         <h2>Presale 2027</h2>
@@ -331,13 +318,8 @@ export default function Site({ settings: s, items }: Props) {
           Every piece carries a permanent record: where it was found, which dealer it came through, and who owns it now. Records are written on Solana first, with XRP Ledger support to follow.
         </p>
         {sample && (
-          <div className="pair">
-            <div className="tc">
-              <CardFront it={sample} saleOpen={s.sale_open} />
-            </div>
-            <div className="tc">
-              <CardBack it={sample} />
-            </div>
+          <div className="certcard dk-cert">
+            <Cert it={sample} />
           </div>
         )}
       </section>
