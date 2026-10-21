@@ -1,6 +1,8 @@
 // パソコンの操作音のような、本物らしい効果音（ブラウザで合成。音源ファイルは使わない）。
 // 最初のタップのあとから鳴る（ブラウザの決まり）。ON/OFF は localStorage に保存。
-export type Sfx = 'tick' | 'select' | 'open' | 'flip' | 'close' | 'coin' | 'deal' | 'fanfare' | 'shade' | 'menu' | 'drop' | 'alert';
+export type Sfx = 'tick' | 'select' | 'open' | 'flip' | 'close' | 'coin' | 'deal' | 'fanfare' | 'shade' | 'menu' | 'drop' | 'alert'
+  // アーケード風（8ビットの矩形波）
+  | 'a-coin' | 'a-start' | 'a-move' | 'a-ok' | 'a-power';
 
 let AC: AudioContext | null = null;
 let on = true;
@@ -170,6 +172,34 @@ export function sfx(name: Sfx) {
       const f = name === 'coin' ? 1318.5 : 987.8;
       [1, 2.76, 5.4].forEach((m, i) => tone('sine', f * m, 0, t, i ? 0.5 / i : 1.1, V * (i ? 0.08 / i : 0.22), 0.003));
       if (name === 'coin') [1, 2.76].forEach((m, i) => tone('sine', 1760 * m, 0, t + 0.09, i ? 0.4 : 1.0, V * (i ? 0.05 : 0.16), 0.003));
+      break;
+    }
+    case 'a-move':
+      if (t - lastTick < 0.05) return;
+      lastTick = t;
+      tone('square', 1568, 0, t, 0.035, V * 0.18);
+      break;
+    case 'a-ok':
+      tone('square', 988, 0, t, 0.05, V * 0.2);
+      tone('square', 1319, 0, t + 0.05, 0.09, V * 0.2);
+      break;
+    case 'a-coin':
+      tone('square', 988, 0, t, 0.07, V * 0.22);
+      tone('square', 1319, 0, t + 0.07, 0.42, V * 0.22);
+      break;
+    case 'a-start': {
+      let x = t;
+      ([[523, 0.08], [659, 0.08], [784, 0.08], [1047, 0.16], [784, 0.08], [1047, 0.4]] as [number, number][]).forEach(([f, d]) => {
+        tone('square', f, 0, x, d * 0.9, V * 0.2);
+        tone('triangle', f / 2, 0, x, d * 0.9, V * 0.3);
+        x += d;
+      });
+      break;
+    }
+    case 'a-power': {
+      // 隠しコマンド成功：上昇する音
+      for (let i = 0; i < 14; i++) tone('square', 330 * Math.pow(2, i / 6), 0, t + i * 0.035, 0.05, V * 0.18);
+      tone('triangle', 1319, 2637, t + 0.5, 0.5, V * 0.3);
       break;
     }
     case 'fanfare': {
