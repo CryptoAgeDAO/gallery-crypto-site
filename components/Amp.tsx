@@ -7,12 +7,11 @@ import { sfx } from '@/lib/sfx';
 import { musicSpectrum, musicTime, seekMusic, setMusicVolume, stopMusic, toggleMusic, useNowPlaying } from '@/components/Music';
 
 // アーカイブを、1990年代末のパソコン用音楽プレーヤー風に見せる。
-// 本体（時間表示・流れる曲名・スペクトラム・音量・再生キー）＋イコライザー＋プレイリストの3枚。
+// 本体（時間表示・流れる曲名・スペクトラム・音量・再生キー）＋プレイリスト。押して何も起きない飾りの部品は置かない。
 // 1着＝1曲。既存ソフトの名前・ロゴ・スキン画像は使わず、すべてこのサイト用。
 
 type Track = { it: Item | null; n: number };
 const pad = (n: number, w = 2) => String(n).padStart(w, '0');
-const BANDS = ['60', '170', '310', '600', '1K', '3K', '6K', '12K', '14K', '16K'];
 
 export default function Amp({ items, s, onOpen }: { items: Item[]; s: Settings; onOpen: (it: Item) => void }) {
   const tracks: Track[] = useMemo(() => {
@@ -22,13 +21,9 @@ export default function Amp({ items, s, onOpen }: { items: Item[]; s: Settings; 
   const [cur, setCur] = useState(0);
   const [msg, setMsg] = useState('');
   const [vol, setVol] = useState(0.8);
-  const [bal, setBal] = useState(0.5);
   const [shuffle, setShuffle] = useState(false);
-  const [repeat, setRepeat] = useState(false);
-  const [eq, setEq] = useState(true);
   const [pl, setPl] = useState(true);
   const [time, setTime] = useState({ t: 0, d: 0 });
-  const [gains] = useState(() => BANDS.map((_, i) => 0.5 + Math.sin(i * 0.9) * 0.22));
   const canvas = useRef<HTMLCanvasElement>(null);
   const now = useNowPlaying();
   const tr = tracks[cur];
@@ -104,10 +99,6 @@ export default function Amp({ items, s, onOpen }: { items: Item[]; s: Settings; 
     const ok = await toggleMusic(it);
     if (!ok) setMsg('*** ERROR OPENING FILE ***');
   };
-  const pause = () => {
-    sfx('tick');
-    if (playing) stopMusic();
-  };
   const stop = () => {
     sfx('tick');
     stopMusic();
@@ -121,7 +112,6 @@ export default function Amp({ items, s, onOpen }: { items: Item[]; s: Settings; 
   const title = msg || (it ? `${tr.n}. ${[it.band || 'Untitled', it.title].filter(Boolean).join(' - ')} (${it.year || '----'})` : `${tr.n}. *** Locked track — arriving 2027 — enter the free draw ***`);
   const mm = Math.floor(time.t / 60), ss = Math.floor(time.t % 60);
   const pos = time.d ? time.t / time.d : 0;
-  const listMin = (i: number) => (tracks[i].it?.audio_path ? '3:00' : '-:--');
 
   return (
     <section className="wa" id="archive" aria-label="Archive">
@@ -130,17 +120,12 @@ export default function Amp({ items, s, onOpen }: { items: Item[]; s: Settings; 
         <div className="wa-win wa-main">
           <div className="wa-title">
             <span className="wa-ttl">Gallery Crypto</span>
-            <span className="wa-tbtn" aria-hidden>
-              <i />
-              <i />
-              <i />
-            </span>
           </div>
           <div className="wa-body">
             <div className="wa-lcd">
               <div className="wa-left">
                 <span className="wa-state" aria-hidden>
-                  {playing ? '▶' : now ? '❚❚' : '■'}
+                  {playing ? '▶' : '■'}
                 </span>
                 <span className="wa-time" aria-label="Time">
                   {playing ? `${pad(mm)}:${pad(ss)}` : '00:00'}
@@ -151,24 +136,10 @@ export default function Amp({ items, s, onOpen }: { items: Item[]; s: Settings; 
                 <div className="wa-marq" aria-live="polite">
                   <span key={title}>{title}</span>
                 </div>
-                <div className="wa-info">
-                  <b>{it?.audio_path ? '128' : '---'}</b>
-                  <small>kbps</small>
-                  <b>{it?.audio_path ? '44' : '--'}</b>
-                  <small>kHz</small>
-                  <span className={`wa-ms${playing ? ' on' : ''}`}>mono</span>
-                  <span className={`wa-ms${playing ? ' on' : ''}`}>stereo</span>
-                </div>
                 <div className="wa-sliders">
                   <label className="wa-vol" aria-label="Volume">
                     <input type="range" min={0} max={1} step={0.01} value={vol} onChange={(e) => setVol(+e.target.value)} />
                   </label>
-                  <label className="wa-bal" aria-label="Balance">
-                    <input type="range" min={0} max={1} step={0.01} value={bal} onChange={(e) => setBal(+e.target.value)} />
-                  </label>
-                  <button className={`wa-tog${eq ? ' on' : ''}`} onClick={() => (sfx('tick'), setEq(!eq))}>
-                    EQ
-                  </button>
                   <button className={`wa-tog${pl ? ' on' : ''}`} onClick={() => (sfx('tick'), setPl(!pl))}>
                     PL
                   </button>
@@ -185,9 +156,6 @@ export default function Amp({ items, s, onOpen }: { items: Item[]; s: Settings; 
               <button onClick={play} aria-label="Play">
                 <i className="k-play" />
               </button>
-              <button onClick={pause} aria-label="Pause">
-                <i className="k-pause" />
-              </button>
               <button onClick={stop} aria-label="Stop">
                 <i className="k-stop" />
               </button>
@@ -197,63 +165,21 @@ export default function Amp({ items, s, onOpen }: { items: Item[]; s: Settings; 
               <button className="wa-ej" onClick={eject} aria-label={it ? 'Open details' : 'Enter the draw'}>
                 <i className="k-eject" />
               </button>
+              {items.length > 1 && (
               <button className={`wa-tog wide${shuffle ? ' on' : ''}`} onClick={() => (sfx('tick'), setShuffle(!shuffle))}>
                 Shuffle
               </button>
-              <button className={`wa-tog${repeat ? ' on' : ''}`} onClick={() => (sfx('tick'), setRepeat(!repeat))} aria-label="Repeat">
-                ⟲
-              </button>
-              <span className="wa-logo" aria-hidden>
-                GC
-              </span>
+              )}
             </div>
           </div>
         </div>
 
-        {/* イコライザー（見た目だけ） */}
-        {eq && (
-          <div className="wa-win wa-eq">
-            <div className="wa-title">
-              <span className="wa-ttl">Gallery Crypto Equalizer</span>
-              <span className="wa-tbtn" aria-hidden>
-                <i />
-              </span>
-            </div>
-            <div className="wa-body wa-eqb">
-              <div className="wa-eqtop">
-                <span className="wa-tog on">On</span>
-                <span className="wa-tog">Auto</span>
-                <span className="wa-curve" aria-hidden>
-                  <svg viewBox="0 0 100 20" preserveAspectRatio="none">
-                    <polyline points={gains.map((g, i) => `${(i / 9) * 100},${20 - g * 20}`).join(' ')} />
-                  </svg>
-                </span>
-                <span className="wa-tog">Presets</span>
-              </div>
-              <div className="wa-bands" aria-hidden>
-                <span className="wa-band pre">
-                  <i style={{ bottom: '50%' }} />
-                  <small>Preamp</small>
-                </span>
-                {BANDS.map((b, i) => (
-                  <span key={b} className="wa-band">
-                    <i style={{ bottom: `${gains[i] * 100}%` }} />
-                    <small>{b}</small>
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* プレイリスト */}
         {pl && (
           <div className="wa-win wa-pl">
             <div className="wa-title">
               <span className="wa-ttl">Gallery Crypto Playlist</span>
-              <span className="wa-tbtn" aria-hidden>
-                <i />
-              </span>
             </div>
             <div className="wa-body">
               <ol className="wa-list">
@@ -270,7 +196,6 @@ export default function Amp({ items, s, onOpen }: { items: Item[]; s: Settings; 
                       <span className="t">
                         {t.n}. {t.it ? [t.it.band || 'Untitled', t.it.title].filter(Boolean).join(' - ') : '[locked] arriving 2027'}
                       </span>
-                      <span className="d">{listMin(i)}</span>
                     </button>
                   </li>
                 ))}
