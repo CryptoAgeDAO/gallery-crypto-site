@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase, photoUrl } from '@/lib/supabase';
 import { ERA_LABEL, certNo, usd, type Item, type Settings } from '@/lib/types';
 import BuyButton from '@/components/BuyButton';
-import Deck from '@/components/Deck';
+import Amp from '@/components/Amp';
 import { MusicBar, PlayButton } from '@/components/Music';
 import { onSfxChange, setSfx, sfx, sfxEnabled } from '@/lib/sfx';
 
@@ -280,7 +280,7 @@ export default function Site({ settings: s, items }: Props) {
         <p className="launch">{s.launch}</p>
       </section>
 
-      <Deck items={items} s={s} onOpen={setOpen} />
+      <Amp items={items} s={s} onOpen={setOpen} />
 
       <section className="block" id="presale">
         <h2>Presale 2027</h2>

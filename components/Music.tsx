@@ -14,9 +14,43 @@ const emit = () => subs.forEach((f) => f(now));
 function audio(): HTMLAudioElement {
   if (!player) {
     player = new Audio();
+    player.crossOrigin = 'anonymous'; // スペクトラム表示のため（公開ストレージはCORS可）
     player.addEventListener('ended', stopMusic);
   }
   return player;
+}
+
+// プレーヤー画面用：再生位置・音量・周波数データ
+let ac: AudioContext | null = null;
+let an: AnalyserNode | null = null;
+export function musicTime(): { t: number; d: number } {
+  return player ? { t: player.currentTime || 0, d: player.duration || 0 } : { t: 0, d: 0 };
+}
+export function seekMusic(r: number) {
+  if (player && player.duration) player.currentTime = Math.max(0, Math.min(1, r)) * player.duration;
+}
+export function setMusicVolume(v: number) {
+  audio().volume = Math.max(0, Math.min(1, v));
+}
+export function musicSpectrum(out: Uint8Array): boolean {
+  if (!player || !now) return false;
+  try {
+    if (!ac) {
+      const C = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!C) return false;
+      ac = new C();
+      const src = ac.createMediaElementSource(player);
+      an = ac.createAnalyser();
+      an.fftSize = 64;
+      src.connect(an);
+      an.connect(ac.destination);
+    }
+    if (ac.state === 'suspended') ac.resume();
+    an!.getByteFrequencyData(out);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function stopMusic() {
