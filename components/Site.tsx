@@ -263,6 +263,11 @@ export default function Site({ settings: s, items }: Props) {
           </h1>
           <p className="mo-strap">{s.headline} · American band tees from the &apos;80s to the 2000s</p>
         </header>
+        <div className="mo-ribbon" aria-hidden>
+          <span>
+            {Array.from({ length: 3 }, () => '★ Free draw ★ 1 of 1 ★ Authentic ★ \'80s–\'00s ★ Presale 2027 ★ Tokyo ').join('')}
+          </span>
+        </div>
 
         <section className="mo-hero">
           <div className="mo-hero-l">
@@ -307,7 +312,7 @@ export default function Site({ settings: s, items }: Props) {
               return (
                 <button key={it.id} className="mo-item" onClick={() => (sfx('open'), setOpen(it))}>
                   {it.photos[0] ? <Halftone src={photoUrl(it.photos[0])} alt={`${it.band} ${it.title}`.trim()} /> : <TeeArt n={it.serial} />}
-                  {it.sold && <span className="mo-stamp">Sold</span>}
+                  {it.sold ? <span className="mo-stamp">Sold</span> : <span className="mo-sticker">1 of 1</span>}
                   <p className="mo-ino">#{certNo(it)}</p>
                   <p className="mo-iname">{it.band || 'Untitled'}</p>
                   <p className="mo-idesc">{[it.title, it.year].filter(Boolean).join(' · ') || 'Vintage band tee'}</p>
@@ -327,6 +332,11 @@ export default function Site({ settings: s, items }: Props) {
           <div className="mo-cbox">
             <div className="mo-cl">
               <h2>Order form</h2>
+              <span className="mo-burst2" aria-hidden>
+                Send no
+                <br />
+                money!
+              </span>
               <p className="mo-ctag">Presale 2027 — free draw</p>
               <ol className="mo-steps">
                 <li>

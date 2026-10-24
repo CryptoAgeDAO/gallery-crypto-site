@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import MoShell from '@/components/MoShell';
 
 export const metadata: Metadata = { title: 'Privacy — Gallery Crypto' };
 
@@ -14,12 +15,8 @@ const ROWS: [string, string][] = [
 
 export default function Privacy() {
   return (
-    <div className="site">
-      <header className="hd">
-        <a className="wm" href="/">Gallery Crypto</a>
-      </header>
-      <main className="legal">
-        <h1>Privacy · プライバシーポリシー</h1>
+    <MoShell title="Privacy · プライバシーポリシー" kicker="The fine print">
+      <div className="mo-legal">
         <dl>
           {ROWS.map(([k, v]) => (
             <div key={k} style={{ display: 'contents' }}>
@@ -28,10 +25,10 @@ export default function Privacy() {
             </div>
           ))}
         </dl>
-        <p className="note-pub" style={{ marginTop: 24 }}>
-          <a href="/#contact">Contact us</a>
-        </p>
-      </main>
-    </div>
+      </div>
+      <p className="mo-fine" style={{ marginTop: 18 }}>
+        <a href="/#contact">Contact us</a>
+      </p>
+    </MoShell>
   );
 }

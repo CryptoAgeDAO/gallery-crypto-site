@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import MoShell from '@/components/MoShell';
 
 export const metadata: Metadata = { title: 'Legal notice — Gallery Crypto', robots: { index: false } }; // 販売開始までは検索に出さない
 
@@ -21,12 +22,8 @@ const ROWS: [string, string][] = [
 
 export default function Legal() {
   return (
-    <div className="site">
-      <header className="hd">
-        <a className="wm" href="/">Gallery Crypto</a>
-      </header>
-      <main className="legal">
-        <h1>Legal notice · 特定商取引法に基づく表記</h1>
+    <MoShell title="Legal notice · 特定商取引法に基づく表記" kicker="The fine print">
+      <div className="mo-legal">
         <dl>
           {ROWS.map(([k, v]) => (
             <div key={k} style={{ display: 'contents' }}>
@@ -35,7 +32,7 @@ export default function Legal() {
             </div>
           ))}
         </dl>
-      </main>
-    </div>
+      </div>
+    </MoShell>
   );
 }

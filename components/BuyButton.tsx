@@ -8,7 +8,7 @@ export default function BuyButton({ itemId, token, label = 'Buy now' }: { itemId
   return (
     <div style={{ display: 'grid', gap: 8 }}>
       <button
-        className="btn primary pub full"
+        className="mo-btn"
         disabled={busy}
         onClick={async () => {
           setBusy(true);
@@ -33,8 +33,8 @@ export default function BuyButton({ itemId, token, label = 'Buy now' }: { itemId
       >
         {busy ? 'Opening checkout…' : label}
       </button>
-      <p className="note-pub">Card or Apple Pay · Secure checkout by Stripe</p>
-      {err && <p className="status-err">{err}</p>}
+      <p className="mo-fine">Card or Apple Pay · Secure checkout by Stripe</p>
+      {err && <p className="mo-err">{err}</p>}
     </div>
   );
 }

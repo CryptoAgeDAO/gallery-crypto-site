@@ -96,7 +96,7 @@ export function PlayButton({ it }: { it: Item }) {
   return (
     <>
       <button
-        className="btn pub"
+        className="mo-btn ghost"
         disabled={busy}
         onClick={async () => {
           setBusy(true);
@@ -106,7 +106,7 @@ export function PlayButton({ it }: { it: Item }) {
       >
         {busy ? 'Loading…' : playing ? '■ Stop' : '▶ Play'}
       </button>
-      {err && <span className="status-err">This track could not be played.</span>}
+      {err && <span className="mo-err">This track could not be played.</span>}
     </>
   );
 }
