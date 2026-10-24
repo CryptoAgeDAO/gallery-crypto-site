@@ -6,6 +6,7 @@ import { supabase, photoUrl, configured } from '@/lib/supabase';
 import { shrink } from '@/lib/image';
 import { onSfxChange, setSfx, sfx, sfxBoot, sfxEnabled } from '@/lib/sfx';
 import Ticket from '@/components/Ticket';
+import { EVENTS_SQL } from '@/lib/eventsSql';
 import { eventDate, type EventEntry, type GcEvent } from '@/lib/types';
 import { DEFAULT_SETTINGS, ERA_LABEL, certNo, eraOf, usd, type Item, type Settings } from '@/lib/types';
 
@@ -572,8 +573,41 @@ function EventsAdmin() {
   if (missing)
     return (
       <div className="sec">
-        <h4>Events need one database step</h4>
-        <p>Open Supabase → SQL Editor, paste the contents of supabase/004_events.sql from the repository, and press Run. Then reload this page.</p>
+        <h4>Set up events (one time)</h4>
+        <p>The events feature needs two new tables in the database. Tap the button below — it takes a few seconds.</p>
+        <div className="row" style={{ justifyContent: 'flex-start' }}>
+          <button
+            className="btn primary"
+            onClick={async () => {
+              setSt('Setting up…');
+              const { data } = await db.auth.getSession();
+              const r = await fetch('/api/admin/setup-events', { method: 'POST', headers: { authorization: `Bearer ${data.session?.access_token || ''}` } });
+              const j = await r.json().catch(() => ({}));
+              if (r.ok) {
+                setSt('Done — events are ready');
+                setMissing(false);
+                setTimeout(load, 800);
+              } else setSt(j.error === 'no-db-url' ? 'Automatic setup is not available. Use the manual steps below.' : 'Automatic setup failed: ' + (j.error || r.status) + ' — use the manual steps below.');
+            }}
+          >
+            Set up events
+          </button>
+        </div>
+        {st && <p className="status">{st}</p>}
+        <p style={{ marginTop: 10 }}><b>If the button does not work:</b></p>
+        <ol style={{ margin: 0, paddingLeft: 20, display: 'grid', gap: 6 }}>
+          <li>
+            <button className="btn" onClick={async () => { try { await navigator.clipboard.writeText(EVENTS_SQL); setSt('Setup code copied'); } catch { setSt('Could not copy — select the code below and copy it'); } }}>Copy setup code</button>
+          </li>
+          <li>
+            <a className="btn" href="https://supabase.com/dashboard/project/tgivhkjwibwekuvbcgcm/sql/new" target="_blank" rel="noopener noreferrer">Open Supabase SQL editor</a> — sign in if asked.
+          </li>
+          <li>Paste into the editor and press Run. Then reload this page.</li>
+        </ol>
+        <details style={{ marginTop: 8 }}>
+          <summary>Show the setup code</summary>
+          <textarea readOnly value={EVENTS_SQL} style={{ width: '100%', minHeight: 200, fontSize: 11 }} onFocus={(e) => e.currentTarget.select()} />
+        </details>
       </div>
     );
 
