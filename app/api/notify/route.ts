@@ -58,7 +58,7 @@ export async function POST(req: Request) {
     await send(
       to,
       `New draw entry — ${piece}`,
-      `<p>新しい抽選エントリーがありました。</p><p><b>Email:</b> ${esc(e.email)}<br><b>Piece:</b> ${esc(piece)}<br><b>Total entries:</b> ${count ?? '-'}</p><p><a href="${site}/admin">管理画面を開く</a></p>`,
+      `<p>New draw entry.</p><p><b>Email:</b> ${esc(e.email)}<br><b>Piece:</b> ${esc(piece)}<br><b>Total entries:</b> ${count ?? '-'}</p><p><a href="${site}/admin">Open admin</a></p>`,
     );
     return NextResponse.json({ ok: true });
   }
@@ -70,7 +70,7 @@ export async function POST(req: Request) {
     await send(
       to,
       `New message from ${m.name}`,
-      `<p>サイトから問い合わせがありました。</p><p><b>Name:</b> ${esc(m.name)}<br><b>Email:</b> ${esc(m.email)}</p><blockquote style="white-space:pre-wrap;border-left:3px solid #ccc;padding-left:12px">${esc(m.body)}</blockquote><p><a href="${site}/admin">管理画面を開く</a></p>`,
+      `<p>New message from the site.</p><p><b>Name:</b> ${esc(m.name)}<br><b>Email:</b> ${esc(m.email)}</p><blockquote style="white-space:pre-wrap;border-left:3px solid #ccc;padding-left:12px">${esc(m.body)}</blockquote><p><a href="${site}/admin">Open admin</a></p>`,
     );
     return NextResponse.json({ ok: true });
   }

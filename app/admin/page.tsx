@@ -18,7 +18,7 @@ const BLANK: Omit<Item, 'id' | 'serial' | 'created_at'> = {
   listen: '', audio_path: '', audio_name: '', audio_credit: '',
 };
 
-const fmt = (s: string) => new Date(s).toLocaleString('ja-JP', { dateStyle: 'short', timeStyle: 'short' });
+const fmt = (s: string) => new Date(s).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' });
 
 function csvDownload(name: string, rows: (string | number | null)[][]) {
   const esc = (v: string | number | null) => {
@@ -37,8 +37,8 @@ const AUDIO_EXT: Record<string, string> = { mp3: 'audio/mpeg', m4a: 'audio/mp4',
 async function uploadAudio(file: File): Promise<{ path: string; name: string }> {
   const ext = (file.name.split('.').pop() || '').toLowerCase();
   const type = AUDIO_EXT[ext];
-  if (!type) throw new Error('mp3・m4a・wav・aac のファイルを選んでください');
-  if (file.size > 20 * 1024 * 1024) throw new Error('20MB を超えています。短くするか圧縮してください');
+  if (!type) throw new Error('Choose an mp3, m4a, wav or aac file.');
+  if (file.size > 20 * 1024 * 1024) throw new Error('The file is over 20 MB. Shorten or compress it.');
   const path = `${crypto.randomUUID()}.${ext}`;
   const { error } = await supabase()!.storage.from('audio').upload(path, file, { contentType: type, cacheControl: '31536000' });
   if (error) throw error;
@@ -75,22 +75,22 @@ function Login() {
   };
   const sendLink = async () => {
     setBusy(true);
-    setSt('送信中…');
+    setSt('Sending…');
     const { error } = await supabase()!.auth.signInWithOtp({
       email: email.trim(),
       options: { shouldCreateUser: false, emailRedirectTo: `${location.origin}/admin` },
     });
     setBusy(false);
-    if (error) return setSt(/rate|seconds/i.test(error.message) ? '短い間に何度も送ったため、1分ほど待ってからもう一度お試しください。' : 'このメールアドレスではログインできません。管理者として登録されたメールか確認してください。');
+    if (error) return setSt(/rate|seconds/i.test(error.message) ? 'Too many requests. Wait a minute and try again.' : 'This email cannot sign in. Check that it is registered as an admin.');
     remember();
-    setSt('メールを送りました。iPhone の場合は、メールのリンクを長押しして「Safari で開く」を選ぶと確実です。');
+    setSt('Email sent. On iPhone, long-press the link and choose "Open in Safari".');
   };
   const signIn = async () => {
     setBusy(true);
-    setSt('ログイン中…');
+    setSt('Signing in…');
     const { error } = await supabase()!.auth.signInWithPassword({ email: email.trim(), password: pw });
     setBusy(false);
-    if (error) return setSt('メールアドレスかパスワードが違います。パスワードをまだ設定していない場合は「メールのリンクでログイン」から入って、サイト設定でパスワードを設定してください。');
+    if (error) return setSt('Wrong email or password. If you have not set a password yet, sign in with the email link and set one under Settings.');
     remember();
   };
   return (
@@ -103,22 +103,22 @@ function Login() {
         else sendLink();
       }}
     >
-      <h4>管理画面にログイン</h4>
+      <h4>Admin sign-in</h4>
       <div className="adm-tabs">
-        <button type="button" aria-pressed={mode === 'password'} onClick={() => { setMode('password'); setSt(''); }}>パスワード</button>
-        <button type="button" aria-pressed={mode === 'link'} onClick={() => { setMode('link'); setSt(''); }}>メールのリンク</button>
+        <button type="button" aria-pressed={mode === 'password'} onClick={() => { setMode('password'); setSt(''); }}>Password</button>
+        <button type="button" aria-pressed={mode === 'link'} onClick={() => { setMode('link'); setSt(''); }}>Email link</button>
       </div>
-      <input type="email" required autoComplete="username" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="メールアドレス" />
+      <input type="email" required autoComplete="username" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
       {mode === 'password' ? (
         <>
-          <input type="password" required autoComplete="current-password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="パスワード" />
-          <button className="btn primary" type="submit" disabled={busy}>ログイン</button>
-          <p>はじめての方・パスワードを忘れた方は「メールのリンク」から入り、サイト設定でパスワードを設定してください。</p>
+          <input type="password" required autoComplete="current-password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="Password" />
+          <button className="btn primary" type="submit" disabled={busy}>Sign in</button>
+          <p>First time, or forgot your password? Use the email link, then set a password under Settings.</p>
         </>
       ) : (
         <>
-          <button className="btn primary" type="submit" disabled={busy}>ログイン用リンクを送る</button>
-          <p>届いたメールのリンクを開くとログインできます。</p>
+          <button className="btn primary" type="submit" disabled={busy}>Send sign-in link</button>
+          <p>Open the link in the email to sign in.</p>
         </>
       )}
       {st && <p>{st}</p>}
@@ -136,23 +136,23 @@ function PasswordForm({ highlight }: { highlight?: boolean }) {
       style={highlight ? { borderColor: 'var(--fg)' } : undefined}
       onSubmit={async (e) => {
         e.preventDefault();
-        if (pw.length < 8) return setSt('8文字以上にしてください。');
-        if (pw !== pw2) return setSt('2回の入力が一致しません。');
-        setSt('保存中…');
+        if (pw.length < 8) return setSt('Use at least 8 characters.');
+        if (pw !== pw2) return setSt('The two entries do not match.');
+        setSt('Saving…');
         const { error } = await supabase()!.auth.updateUser({ password: pw });
-        if (error) return setSt('保存できませんでした：' + error.message);
+        if (error) return setSt('Could not save: ' + error.message);
         setPw(''); setPw2('');
-        setSt('パスワードを設定しました。次回から iPhone でもメールアドレスとパスワードでログインできます。');
+        setSt('Password set. You can now sign in with your email and password on any device.');
       }}
     >
-      <h4>ログイン用パスワード{highlight ? 'を設定してください' : ''}</h4>
-      <p>一度設定すると、iPhone でもパソコンでも、メールアドレスとこのパスワードですぐにログインできます。iPhone ではパスワードを保存しておくと便利です。</p>
+      <h4>{highlight ? 'Set your sign-in password' : 'Sign-in password'}</h4>
+      <p>Once set, sign in on iPhone or computer with your email and this password. Saving it on your iPhone is handy.</p>
       <div className="form">
-        <label>新しいパスワード（8文字以上）<input type="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} /></label>
-        <label>もう一度<input type="password" autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} /></label>
+        <label>New password (8+ characters)<input type="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} /></label>
+        <label>Again<input type="password" autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} /></label>
       </div>
       <div className="row" style={{ justifyContent: 'flex-start' }}>
-        <button className="btn primary" type="submit">パスワードを保存</button>
+        <button className="btn primary" type="submit">Save password</button>
         {st && <span className="status">{st}</span>}
       </div>
     </form>
@@ -165,7 +165,7 @@ function ItemForm({ init, onDone }: { init: Partial<Item> | null; onDone: (msg?:
   const set = (k: string, v: unknown) => setF((p) => ({ ...p, [k]: v }));
   const db = supabase()!;
   const save = async () => {
-    setBusy('保存中…');
+    setBusy('Saving…');
     const row = {
       photos: f.photos, band: f.band.trim(), title: f.title.trim(), year: f.year.trim(),
       era: f.era || eraOf(f.year), size: f.size, tag: f.tag.trim(), stitch: f.stitch, made_in: f.made_in.trim(),
@@ -176,88 +176,88 @@ function ItemForm({ init, onDone }: { init: Partial<Item> | null; onDone: (msg?:
     const { error } = init?.id ? await db.from('items').update(row).eq('id', init.id) : await db.from('items').insert(row);
     setBusy('');
     if (error) return alertMsg(error.message);
-    onDone('保存しました');
+    onDone('Saved');
   };
-  const alertMsg = (m: string) => setBusy('エラー: ' + m);
+  const alertMsg = (m: string) => setBusy('Error: ' + m);
   return (
     <div className="sec">
-      <h4>{init?.id ? `${certNo(init as Item)} を編集` : '新しく追加'}</h4>
+      <h4>{init?.id ? `Edit ${certNo(init as Item)}` : 'Add a piece'}</h4>
       <div className="photos">
         {f.photos.map((p) => (
           <figure key={p}>
             <img src={photoUrl(p)} alt="" />
-            <button type="button" onClick={() => set('photos', f.photos.filter((x) => x !== p))} aria-label="写真を外す">×</button>
+            <button type="button" onClick={() => set('photos', f.photos.filter((x) => x !== p))} aria-label="Remove photo">×</button>
           </figure>
         ))}
         <label className="btn" style={{ cursor: 'pointer' }}>
-          写真を追加
+          Add photos
           <input type="file" accept="image/*" multiple hidden onChange={async (e) => {
             if (!e.target.files?.length) return;
-            setBusy('アップロード中…');
+            setBusy('Uploading…');
             try { const p = await upload(e.target.files); set('photos', [...f.photos, ...p]); setBusy(''); }
             catch (err) { alertMsg((err as Error).message); }
           }} />
         </label>
       </div>
       <div className="form">
-        <label>バンド名<input value={f.band} onChange={(e) => set('band', e.target.value)} /></label>
-        <label>ツアー名・デザイン<input value={f.title} onChange={(e) => set('title', e.target.value)} /></label>
-        <label>年<input inputMode="numeric" value={f.year} onChange={(e) => set('year', e.target.value)} placeholder="1991" /></label>
-        <label>年代
+        <label>Band<input value={f.band} onChange={(e) => set('band', e.target.value)} /></label>
+        <label>Tour / design<input value={f.title} onChange={(e) => set('title', e.target.value)} /></label>
+        <label>Year<input inputMode="numeric" value={f.year} onChange={(e) => set('year', e.target.value)} placeholder="1991" /></label>
+        <label>Decade
           <select value={f.era} onChange={(e) => set('era', e.target.value)}>
-            <option value="">年から自動</option>
+            <option value="">Auto from year</option>
             {Object.entries(ERA_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
         </label>
-        <label>サイズ
+        <label>Size
           <select value={f.size} onChange={(e) => set('size', e.target.value)}>
             <option value="">—</option>
             {['xs', 's', 'm', 'l', 'xl', 'xxl'].map((s) => <option key={s} value={s}>{s.toUpperCase()}</option>)}
           </select>
         </label>
-        <label>タグ<input value={f.tag} onChange={(e) => set('tag', e.target.value)} placeholder="Brockum" /></label>
-        <label>製造国<input value={f.made_in} onChange={(e) => set('made_in', e.target.value)} /></label>
-        <label>状態<input value={f.cond} onChange={(e) => set('cond', e.target.value)} placeholder="Good — light fading" /></label>
-        <label>仕入れ先ディーラー<input value={f.dealer} onChange={(e) => set('dealer', e.target.value)} placeholder="空欄なら Founder's collection" /></label>
-        <label>価格（米ドル・公開）<input inputMode="numeric" value={f.price_usd ?? ''} onChange={(e) => set('price_usd', e.target.value.replace(/[^0-9]/g, '') || null)} placeholder="例 450" /></label>
-        <label>ランク（非公開）<input value={f.rank || ''} onChange={(e) => set('rank', e.target.value)} placeholder="A / B / C" /></label>
-        <label className="wide">試聴リンク（Spotify・Apple Music・YouTube の URL）<input type="url" value={f.listen} onChange={(e) => set('listen', e.target.value)} placeholder="https://open.spotify.com/track/..." /></label>
+        <label>Tag<input value={f.tag} onChange={(e) => set('tag', e.target.value)} placeholder="Brockum" /></label>
+        <label>Made in<input value={f.made_in} onChange={(e) => set('made_in', e.target.value)} /></label>
+        <label>Condition<input value={f.cond} onChange={(e) => set('cond', e.target.value)} placeholder="Good — light fading" /></label>
+        <label>Dealer (source)<input value={f.dealer} onChange={(e) => set('dealer', e.target.value)} placeholder="Blank = Founder's collection" /></label>
+        <label>Price (USD, public)<input inputMode="numeric" value={f.price_usd ?? ''} onChange={(e) => set('price_usd', e.target.value.replace(/[^0-9]/g, '') || null)} placeholder="e.g. 450" /></label>
+        <label>Rank (private)<input value={f.rank || ''} onChange={(e) => set('rank', e.target.value)} placeholder="A / B / C" /></label>
+        <label className="wide">Listen link (Spotify, Apple Music or YouTube URL)<input type="url" value={f.listen} onChange={(e) => set('listen', e.target.value)} placeholder="https://open.spotify.com/track/..." /></label>
         <div className="sec wide" style={{ gridColumn: '1/-1' }}>
-          <h4>音源ファイル（権利をお持ちの音源のみ）</h4>
-          <p>市販の CD や配信の曲をサイトで流すには、作詞・作曲の権利（JASRAC など）と原盤の権利（レーベル）の両方の許諾が必要です。許諾のない曲は上の試聴リンクを使ってください。ご自身で制作した音源や、利用許諾を得た BGM はここにアップロードできます（mp3・m4a・wav、20MB まで）。</p>
+          <h4>Audio file (only audio you have the rights to)</h4>
+          <p>Playing commercial recordings on the site needs permission for both the song (publishing, e.g. JASRAC) and the recording (label). For anything unlicensed, use the listen link above. Upload only audio you made or have a licence for (mp3, m4a, wav, up to 20 MB).</p>
           <div className="row" style={{ justifyContent: 'flex-start', alignItems: 'center' }}>
             {f.audio_path ? (
               <>
-                <span>♪ {f.audio_name || '音源'}</span>
-                <button type="button" className="btn" onClick={() => { set('audio_path', ''); set('audio_name', ''); }}>外す</button>
+                <span>♪ {f.audio_name || 'Audio'}</span>
+                <button type="button" className="btn" onClick={() => { set('audio_path', ''); set('audio_name', ''); }}>Remove</button>
               </>
             ) : (
-              <span className="note">音源はまだありません</span>
+              <span className="note">No audio yet</span>
             )}
             <label className="btn" style={{ cursor: 'pointer' }}>
-              音源を選ぶ
+              Choose audio
               <input type="file" accept="audio/*,.mp3,.m4a,.wav,.aac" hidden onChange={async (e) => {
                 const file = e.target.files?.[0];
                 e.target.value = '';
                 if (!file) return;
-                setBusy('音源をアップロード中…');
-                try { const a = await uploadAudio(file); set('audio_path', a.path); set('audio_name', a.name); setBusy('音源を追加しました（保存してください）'); }
+                setBusy('Uploading audio…');
+                try { const a = await uploadAudio(file); set('audio_path', a.path); set('audio_name', a.name); setBusy('Audio added — remember to save'); }
                 catch (err) { alertMsg((err as Error).message); }
               }} />
             </label>
           </div>
-          <label>曲名（公開）<input value={f.audio_name} onChange={(e) => set('audio_name', e.target.value)} /></label>
-          <label>クレジット（公開・例：Music by ○○ / Licensed）<input value={f.audio_credit} onChange={(e) => set('audio_credit', e.target.value)} /></label>
+          <label>Track name (public)<input value={f.audio_name} onChange={(e) => set('audio_name', e.target.value)} /></label>
+          <label>Credit (public, e.g. Music by … / Licensed)<input value={f.audio_credit} onChange={(e) => set('audio_credit', e.target.value)} /></label>
         </div>
-        <label className="wide">来歴（英語・公開）<textarea value={f.prov} onChange={(e) => set('prov', e.target.value)} /></label>
-        <label className="check"><input type="checkbox" checked={f.stitch} onChange={(e) => set('stitch', e.target.checked)} />シングルステッチ</label>
-        <label className="check"><input type="checkbox" checked={f.sold} onChange={(e) => set('sold', e.target.checked)} />売約済み</label>
-        <label className="check"><input type="checkbox" checked={f.published} onChange={(e) => set('published', e.target.checked)} />サイトに公開</label>
+        <label className="wide">Provenance (public)<textarea value={f.prov} onChange={(e) => set('prov', e.target.value)} /></label>
+        <label className="check"><input type="checkbox" checked={f.stitch} onChange={(e) => set('stitch', e.target.checked)} />Single stitch</label>
+        <label className="check"><input type="checkbox" checked={f.sold} onChange={(e) => set('sold', e.target.checked)} />Sold</label>
+        <label className="check"><input type="checkbox" checked={f.published} onChange={(e) => set('published', e.target.checked)} />Published on the site</label>
       </div>
-      <p className="note">ランクは管理画面だけに表示され、公開サイトからは読めません。仕入れ値などはここにも入れないでください。</p>
+      <p className="note">Rank is shown only here and cannot be read from the public site. Do not enter purchase costs anywhere.</p>
       <div className="row" style={{ justifyContent: 'flex-start' }}>
-        <button className="btn primary" disabled={!!busy && busy !== '' && !busy.startsWith('エラー')} onClick={save}>保存</button>
-        <button className="btn" onClick={() => onDone()}>閉じる</button>
+        <button className="btn primary" disabled={!!busy && busy !== '' && !busy.startsWith('Error')} onClick={save}>Save</button>
+        <button className="btn" onClick={() => onDone()}>Close</button>
         {busy && <span className="status">{busy}</span>}
       </div>
     </div>
@@ -271,7 +271,7 @@ function Items() {
   const [st, setSt] = useState('');
   const load = useCallback(async () => {
     const { data, error } = await db.from('items').select('*').order('serial', { ascending: false });
-    if (error) setSt('読み込めません: ' + error.message);
+    if (error) setSt('Could not load: ' + error.message);
     else setItems((data as Item[]) || []);
   }, [db]);
   useEffect(() => { load(); }, [load]);
@@ -279,39 +279,39 @@ function Items() {
   return (
     <>
       <div className="sec">
-        <h4>写真からまとめて追加</h4>
-        <p>1枚の写真につき1着として下書き登録します（非公開）。あとで1着ずつ情報を入れて公開してください。iPhone ならカメラで直接撮影もできます。</p>
+        <h4>Add from photos</h4>
+        <p>Each photo becomes one draft piece (not public). Fill in the details later and publish. On iPhone you can shoot straight from the camera.</p>
         <div className="row" style={{ justifyContent: 'flex-start' }}>
           <label className="btn primary" style={{ cursor: 'pointer' }}>
-            写真を選ぶ
+            Choose photos
             <input type="file" accept="image/*" multiple hidden onChange={async (e) => {
               const files = Array.from(e.target.files || []);
               e.target.value = '';
               if (!files.length) return;
               try {
                 for (let i = 0; i < files.length; i++) {
-                  setSt(`アップロード中 ${i + 1} / ${files.length}`);
+                  setSt(`Uploading ${i + 1} / ${files.length}`);
                   const [p] = await upload([files[i]]);
                   const { error } = await db.from('items').insert({ ...BLANK, photos: [p], published: false });
                   if (error) throw error;
                 }
-                setSt(`${files.length} 着を下書きで追加しました`);
+                setSt(`Added ${files.length} drafts`);
                 load();
-              } catch (err) { setSt('エラー: ' + (err as Error).message); }
+              } catch (err) { setSt('Error: ' + (err as Error).message); }
             }} />
           </label>
           <label className="btn" style={{ cursor: 'pointer' }}>
-            カメラで撮る
+            Take a photo
             <input type="file" accept="image/*" capture="environment" hidden onChange={async (e) => {
               const f = e.target.files?.[0];
               e.target.value = '';
               if (!f) return;
-              setSt('アップロード中…');
+              setSt('Uploading…');
               try { const [p] = await upload([f]); setEdit({ ...BLANK, photos: [p] }); setSt(''); }
-              catch (err) { setSt('エラー: ' + (err as Error).message); }
+              catch (err) { setSt('Error: ' + (err as Error).message); }
             }} />
           </label>
-          <button className="btn" onClick={() => setEdit(null)}>写真なしで追加</button>
+          <button className="btn" onClick={() => setEdit(null)}>Add without photo</button>
           <button className="btn" onClick={() => csvDownload('items.csv', [
             ['No.', 'band', 'title', 'year', 'era', 'size', 'tag', 'stitch', 'made_in', 'cond', 'dealer', 'rank', 'price_usd', 'sold', 'published', 'provenance'],
             ...items.map((it) => [certNo(it), it.band, it.title, it.year, it.era, it.size, it.tag, it.stitch ? 'yes' : '', it.made_in, it.cond, it.dealer, it.rank || '', it.price_usd, it.sold ? 'yes' : '', it.published ? 'yes' : 'no', it.prov]),
@@ -322,24 +322,24 @@ function Items() {
 
       {edit !== undefined && <ItemForm key={edit?.id || 'new' + (edit?.photos?.[0] || '')} init={edit} onDone={(m) => { setEdit(undefined); if (m) setSt(m); load(); }} />}
 
-      <p className="note">全 {items.length} 着 · 公開 {items.filter((i) => i.published).length} · 下書き {items.filter((i) => !i.published).length}</p>
+      <p className="note">{items.length} pieces · {items.filter((i) => i.published).length} published · {items.filter((i) => !i.published).length} drafts</p>
       <div className="adm-grid">
         {items.map((it) => (
           <div key={it.id} style={{ display: 'grid', gap: 6, alignContent: 'start' }}>
             <button className="card" onClick={() => setEdit(it)} style={{ opacity: it.published ? 1 : 0.5 }}>
               <div className="ph">{it.photos[0] ? <img src={photoUrl(it.photos[0])} alt="" loading="lazy" /> : <span className="noimg">No image</span>}</div>
               <div className="cap">
-                <span className="nm">{it.band || '（未入力）'}</span>
-                <span className="sub">{certNo(it)}{it.published ? '' : ' · 下書き'}{it.rank ? ` · ${it.rank}` : ''}{it.sold ? ' · SOLD' : it.price_usd ? ` · ${usd(it.price_usd)}` : ''}</span>
+                <span className="nm">{it.band || '(no band yet)'}</span>
+                <span className="sub">{certNo(it)}{it.published ? '' : ' · draft'}{it.rank ? ` · ${it.rank}` : ''}{it.sold ? ' · SOLD' : it.price_usd ? ` · ${usd(it.price_usd)}` : ''}</span>
               </div>
             </button>
             <button className="btn danger" style={{ fontSize: 11, padding: '4px 8px' }} onClick={async () => {
-              if (!confirm(`${certNo(it)} ${it.band} を削除しますか？`)) return;
+              if (!confirm(`Delete ${certNo(it)} ${it.band}?`)) return;
               await db.from('items').delete().eq('id', it.id);
               if (it.photos.length) await db.storage.from('photos').remove(it.photos);
               if (it.audio_path) await db.storage.from('audio').remove([it.audio_path]);
               load();
-            }}>削除</button>
+            }}>Delete</button>
           </div>
         ))}
       </div>
@@ -364,39 +364,39 @@ function Entries() {
     setNames(m);
   }, [db]);
   useEffect(() => { load(); }, [load]);
-  const label = (id: string | null) => (id ? names[id] || '（削除済み）' : '全体エントリー');
+  const label = (id: string | null) => (id ? names[id] || '(deleted)' : 'General entry');
   const link = (t: string | null) => (t ? `${location.origin}/buy/${t}` : '');
   const uniq = new Set(rows.map((r) => r.email)).size;
   const shown = onlyWon ? rows.filter((r) => r.won) : rows;
   const setWon = async (r: Entry, won: boolean) => {
     const { error } = await db.from('entries').update(won ? { won: true, token: r.token || crypto.randomUUID() } : { won: false, token: null }).eq('id', r.id);
-    setSt(error ? 'エラー: ' + error.message : won ? '当選にしました。購入リンクをコピーして当選者にメールしてください。' : '当選を取り消しました（リンクは無効になります）');
+    setSt(error ? 'Error: ' + error.message : won ? 'Marked as winner. Copy the purchase link and email it to them.' : 'Win cancelled (the link no longer works).');
     load();
   };
   return (
     <div className="sec">
-      <h4>抽選エントリー（{rows.length} 件 · {uniq} 人 · 当選 {rows.filter((r) => r.won).length}）</h4>
-      <p>当選にすると、その人だけが使える購入リンク（1回限り）ができます。一般販売を始める前でも、このリンクからは購入できます。</p>
+      <h4>Draw entries ({rows.length} · {uniq} people · {rows.filter((r) => r.won).length} winners)</h4>
+      <p>Marking a winner creates a one-time purchase link only they can use. It works even before general sale opens.</p>
       <div className="row" style={{ justifyContent: 'flex-start' }}>
-        <label className="check" style={{ fontSize: 12 }}><input type="checkbox" checked={onlyWon} onChange={(e) => setOnlyWon(e.target.checked)} />当選者だけ表示</label>
+        <label className="check" style={{ fontSize: 12 }}><input type="checkbox" checked={onlyWon} onChange={(e) => setOnlyWon(e.target.checked)} />Winners only</label>
         <button className="btn" onClick={() => csvDownload('entries.csv', [['email', 'item', 'entered', 'won', 'purchase_link', 'purchased'], ...rows.map((r) => [r.email, label(r.item_id), r.created_at, r.won ? 'yes' : '', link(r.token), r.used_at || ''])])}>CSV</button>
         {st && <span className="status">{st}</span>}
       </div>
       <div className="tablewrap">
         <table>
-          <thead><tr><th>メール</th><th>対象</th><th>日時</th><th>当選・購入リンク</th></tr></thead>
+          <thead><tr><th>Email</th><th>Piece</th><th>Date</th><th>Winner / link</th></tr></thead>
           <tbody>{shown.map((r) => (
             <tr key={r.id}>
               <td>{r.email}</td><td>{label(r.item_id)}</td><td>{fmt(r.created_at)}</td>
               <td>
-                {r.used_at ? '購入済み' : r.won ? (
+                {r.used_at ? 'Purchased' : r.won ? (
                   <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    <button className="btn" style={{ padding: '4px 8px', fontSize: 11 }} onClick={async () => { await navigator.clipboard.writeText(link(r.token)); setSt('リンクをコピーしました'); }}>リンクをコピー</button>
-                    <a className="btn" style={{ padding: '4px 8px', fontSize: 11 }} href={`mailto:${r.email}?subject=${encodeURIComponent('Gallery Crypto — You won the draw')}&body=${encodeURIComponent(`Congratulations — you won the Gallery Crypto presale draw.\n\nYou can buy your piece here (this link is for you only and works once):\n${link(r.token)}\n\nGallery Crypto`)}`}>メール作成</a>
-                    <button className="btn" style={{ padding: '4px 8px', fontSize: 11 }} onClick={() => setWon(r, false)}>取消</button>
+                    <button className="btn" style={{ padding: '4px 8px', fontSize: 11 }} onClick={async () => { await navigator.clipboard.writeText(link(r.token)); setSt('Link copied'); }}>Copy link</button>
+                    <a className="btn" style={{ padding: '4px 8px', fontSize: 11 }} href={`mailto:${r.email}?subject=${encodeURIComponent('Gallery Crypto — You won the draw')}&body=${encodeURIComponent(`Congratulations — you won the Gallery Crypto presale draw.\n\nYou can buy your piece here (this link is for you only and works once):\n${link(r.token)}\n\nGallery Crypto`)}`}>Write email</a>
+                    <button className="btn" style={{ padding: '4px 8px', fontSize: 11 }} onClick={() => setWon(r, false)}>Cancel</button>
                   </span>
                 ) : (
-                  <button className="btn" style={{ padding: '4px 8px', fontSize: 11 }} onClick={() => setWon(r, true)}>当選にする</button>
+                  <button className="btn" style={{ padding: '4px 8px', fontSize: 11 }} onClick={() => setWon(r, true)}>Mark winner</button>
                 )}
               </td>
             </tr>
@@ -426,22 +426,22 @@ function Orders() {
   const total = rows.reduce((n, r) => n + r.amount, 0) / 100;
   return (
     <div className="sec">
-      <h4>注文（{rows.length} 件 · 合計 {usd(total) || '$0'}）</h4>
-      <p>支払いが完了すると自動でここに入り、商品は「売約済み」になります。返金は Stripe の管理画面から行います。</p>
+      <h4>Orders ({rows.length} · total {usd(total) || '$0'})</h4>
+      <p>Paid orders appear here automatically and the piece is marked sold. Refunds are made in the Stripe dashboard.</p>
       <div className="row" style={{ justifyContent: 'flex-start' }}>
         <button className="btn" onClick={() => csvDownload('orders.csv', [['date', 'item', 'name', 'email', 'amount', 'currency', 'address', 'shipped'], ...rows.map((r) => [r.created_at, r.item_id ? names[r.item_id] || '' : '', r.name, r.email, r.amount / 100, r.currency, addr(r.shipping), r.shipped_at || ''])])}>CSV</button>
       </div>
       <div className="tablewrap">
         <table>
-          <thead><tr><th>日時</th><th>商品</th><th>購入者・配送先</th><th>金額</th><th>発送</th></tr></thead>
+          <thead><tr><th>Date</th><th>Piece</th><th>Buyer / ship to</th><th>Amount</th><th>Shipping</th></tr></thead>
           <tbody>{rows.map((r) => (
             <tr key={r.id}>
               <td>{fmt(r.created_at)}</td>
-              <td>{r.item_id ? names[r.item_id] || '（削除済み）' : ''}</td>
+              <td>{r.item_id ? names[r.item_id] || '(deleted)' : ''}</td>
               <td>{r.name}<br /><a href={`mailto:${r.email}`}>{r.email}</a><br />{addr(r.shipping)}</td>
               <td>{usd(r.amount / 100)}</td>
               <td>{r.shipped_at ? fmt(r.shipped_at) : (
-                <button className="btn" style={{ padding: '4px 8px', fontSize: 11 }} onClick={async () => { await db.from('orders').update({ shipped_at: new Date().toISOString() }).eq('id', r.id); load(); }}>発送済みにする</button>
+                <button className="btn" style={{ padding: '4px 8px', fontSize: 11 }} onClick={async () => { await db.from('orders').update({ shipped_at: new Date().toISOString() }).eq('id', r.id); load(); }}>Mark shipped</button>
               )}</td>
             </tr>
           ))}</tbody>
@@ -461,16 +461,16 @@ function Messages() {
   useEffect(() => { load(); }, [load]);
   return (
     <div className="sec">
-      <h4>問い合わせ（{rows.length} 件）</h4>
-      {!rows.length && <p>まだありません。</p>}
+      <h4>Messages ({rows.length})</h4>
+      {!rows.length && <p>None yet.</p>}
       {rows.map((m) => (
         <div key={m.id} style={{ borderTop: '1px solid var(--line)', paddingTop: 10, display: 'grid', gap: 6 }}>
           <p style={{ color: 'var(--fg)' }}><b>{m.name}</b> · <a href={`mailto:${m.email}`}>{m.email}</a> · {fmt(m.created_at)}</p>
           <p style={{ whiteSpace: 'pre-wrap', color: 'var(--fg)' }}>{m.body}</p>
           <div><button className="btn danger" style={{ fontSize: 11, padding: '4px 8px' }} onClick={async () => {
-            if (!confirm('この問い合わせを削除しますか？')) return;
+            if (!confirm('Delete this message?')) return;
             await db.from('messages').delete().eq('id', m.id); load();
-          }}>削除</button></div>
+          }}>Delete</button></div>
         </div>
       ))}
     </div>
@@ -487,23 +487,23 @@ function SettingsForm() {
   const set = (k: 'headline' | 'lead' | 'launch' | 'instagram' | 'email', v: string) => setS((p) => ({ ...p, [k]: v }));
   return (
     <div className="sec">
-      <h4>サイトの文言（英語）</h4>
+      <h4>Site text</h4>
       <div className="form">
-        <label className="wide">見出し<input value={s.headline} onChange={(e) => set('headline', e.target.value)} /></label>
-        <label className="wide">紹介文<textarea value={s.lead} onChange={(e) => set('lead', e.target.value)} /></label>
-        <label className="wide">発売の一行<input value={s.launch} onChange={(e) => set('launch', e.target.value)} /></label>
-        <label>Instagram の URL<input value={s.instagram} onChange={(e) => set('instagram', e.target.value)} placeholder="https://instagram.com/..." /></label>
-        <label>公開する連絡先メール<input value={s.email} onChange={(e) => set('email', e.target.value)} /></label>
-        <label>送料（米ドル・1注文）<input inputMode="numeric" value={s.shipping_usd} onChange={(e) => setS((p) => ({ ...p, shipping_usd: Number(e.target.value.replace(/[^0-9]/g, '')) || 0 }))} /></label>
-        <label className="check wide"><input type="checkbox" checked={s.sale_open} onChange={(e) => setS((p) => ({ ...p, sale_open: e.target.checked }))} />一般販売を開始する（オンにすると、価格を入れた商品に誰でも買える「Buy now」が出ます）</label>
+        <label className="wide">Headline<input value={s.headline} onChange={(e) => set('headline', e.target.value)} /></label>
+        <label className="wide">Intro<textarea value={s.lead} onChange={(e) => set('lead', e.target.value)} /></label>
+        <label className="wide">Launch line<input value={s.launch} onChange={(e) => set('launch', e.target.value)} /></label>
+        <label>Instagram URL<input value={s.instagram} onChange={(e) => set('instagram', e.target.value)} placeholder="https://instagram.com/..." /></label>
+        <label>Public contact email<input value={s.email} onChange={(e) => set('email', e.target.value)} /></label>
+        <label>Shipping (USD per order)<input inputMode="numeric" value={s.shipping_usd} onChange={(e) => setS((p) => ({ ...p, shipping_usd: Number(e.target.value.replace(/[^0-9]/g, '')) || 0 }))} /></label>
+        <label className="check wide"><input type="checkbox" checked={s.sale_open} onChange={(e) => setS((p) => ({ ...p, sale_open: e.target.checked }))} />Open general sale (every piece with a price gets a public "Buy now")</label>
       </div>
       <div className="row" style={{ justifyContent: 'flex-start' }}>
         <button className="btn primary" onClick={async () => {
           const { headline, lead, launch, instagram, email, sale_open, shipping_usd } = s;
-          if (sale_open && !confirm('一般販売を開始しますか？価格が入っている商品はすぐに誰でも購入できるようになります。')) return;
+          if (sale_open && !confirm('Open general sale? Anyone will be able to buy priced pieces right away.')) return;
           const { error } = await db.from('settings').update({ headline, lead, launch, instagram, email, sale_open, shipping_usd, updated_at: new Date().toISOString() }).eq('id', 1);
-          setSt(error ? 'エラー: ' + error.message : '保存しました（サイトへの反映は最大1分）');
-        }}>保存</button>
+          setSt(error ? 'Error: ' + error.message : 'Saved — it shows on the site right away');
+        }}>Save</button>
         {st && <span className="status">{st}</span>}
       </div>
     </div>
@@ -563,18 +563,18 @@ export default function Admin() {
 
   const head = (
     <header className="os9-menu">
-      <a className="os9-gc" href="/" aria-label="公開サイトへ">
+      <a className="os9-gc" href="/" aria-label="Go to the public site">
         <svg viewBox="0 0 16 16" aria-hidden shapeRendering="crispEdges">
           <path d="M4 1h3v1h2V1h3v1h1v1h1v1h1v2h-1v1h-2v8H4V7H2V6H1V4h1V3h1V2h1Z" fill="#000" />
           <path d="M5 2h1v1h4V2h1v1h1v1h1v1h-1v1h-1V5h-1v8H5V5H4v1H3V5H2V4h1V3h2Z" fill="#fff" />
         </svg>
       </a>
       <b>Gallery Crypto</b>
-      <span>管理画面</span>
+      <span>Admin</span>
       <span className="os9-right">
         <button
           className="os9-snd"
-          aria-label={sound ? '音をオフにする' : '音をオンにする'}
+          aria-label={sound ? 'Sound off' : 'Sound on'}
           aria-pressed={sound}
           onClick={() => {
             const v = !sound;
@@ -590,7 +590,7 @@ export default function Admin() {
         <span>{clock}</span>
         {session && (
           <button className="os9-out" onClick={() => (sfx('close'), supabase()!.auth.signOut())}>
-            ログアウト
+            Sign out
           </button>
         )}
       </span>
@@ -598,17 +598,17 @@ export default function Admin() {
   );
 
   let body: React.ReactNode;
-  if (!configured) body = <div className="sec"><h4>まだ接続されていません</h4><p>Vercel の環境変数に NEXT_PUBLIC_SUPABASE_URL と NEXT_PUBLIC_SUPABASE_ANON_KEY を設定してください（README 参照）。</p></div>;
-  else if (session === undefined) body = <p className="status">読み込み中…</p>;
+  if (!configured) body = <div className="sec"><h4>Not connected yet</h4><p>Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in the Vercel environment variables (see README).</p></div>;
+  else if (session === undefined) body = <p className="status">Loading…</p>;
   else if (!session) body = <Login />;
-  else if (isAdmin === null) body = <p className="status">確認中…</p>;
-  else if (!isAdmin) body = <div className="sec"><h4>管理者ではありません</h4><p>{session.user.email} は admins テーブルに登録されていません。</p></div>;
+  else if (isAdmin === null) body = <p className="status">Checking…</p>;
+  else if (!isAdmin) body = <div className="sec"><h4>Not an admin</h4><p>{session.user.email} is not in the admins table.</p></div>;
   else
     body = (
       <>
         {needPw && <PasswordForm highlight />}
         <div className="adm-tabs">
-          {([['items', 'アーカイブ'], ['entries', '抽選エントリー'], ['orders', '注文'], ['messages', '問い合わせ'], ['settings', 'サイト設定']] as [Tab, string][]).map(([k, l]) => (
+          {([['items', 'Archive'], ['entries', 'Draw entries'], ['orders', 'Orders'], ['messages', 'Messages'], ['settings', 'Settings']] as [Tab, string][]).map(([k, l]) => (
             <button key={k} aria-pressed={tab === k} onClick={() => setTab(k)}>{l}</button>
           ))}
         </div>
@@ -629,7 +629,7 @@ export default function Admin() {
           <div className="os9-title">
             <span className="os9-box" aria-hidden />
             <span className="os9-ridge" aria-hidden />
-            <span className="os9-tt">Gallery Crypto 管理画面</span>
+            <span className="os9-tt">Gallery Crypto Admin</span>
             <span className="os9-ridge" aria-hidden />
             <span className="os9-box" aria-hidden />
           </div>
