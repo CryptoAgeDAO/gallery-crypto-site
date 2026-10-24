@@ -40,8 +40,8 @@ export const PUBLIC_ITEM_COLUMNS =
 export const DEFAULT_SETTINGS: Settings = {
   headline: "Founder's Archive",
   lead:
-    "A personal archive of American band tees from the '80s to the 2000s, collected over the years by the founder of Gallery Crypto. Every piece is recorded with its provenance, and the whole collection goes on sale together in 2027.",
-  launch: 'On sale in 2027 · Lottery release',
+    "A personal archive of American band tees from the '80s to the 2000s, collected over the years by the founder of Gallery Crypto. Every piece is recorded with its provenance, and the whole collection is released together in 2027 — date to be announced.",
+  launch: 'Release 2027 · Date TBA',
   instagram: '',
   email: '',
   sale_open: false,

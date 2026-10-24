@@ -3,10 +3,10 @@ import type { Metadata, Viewport } from 'next';
 
 export const metadata: Metadata = {
   title: 'Gallery Crypto — Founder\'s Archive',
-  description: "American band tees from the '80s to the 2000s, each recorded with its provenance. Free presale draw — on sale in 2027.",
+  description: "American band tees from the '80s to the 2000s, each recorded with its provenance. Free presale draw — release 2027, date TBA.",
   openGraph: {
     title: "Gallery Crypto — Founder's Archive",
-    description: "American band tees from the '80s to the 2000s, each a 1-of-1 with its provenance. Free presale draw for 2027.",
+    description: "American band tees from the '80s to the 2000s, each a 1-of-1 with its provenance. Free presale draw — release 2027, date TBA.",
     type: 'website',
   },
 };

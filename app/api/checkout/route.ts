@@ -39,7 +39,7 @@ export async function POST(req: Request) {
     if (data.item_id && data.item_id !== itemId) return fail(403, 'This link is for a different piece.');
     entry = data;
   } else if (!settings?.sale_open) {
-    return fail(403, 'Sales open in 2027. Enter the draw for a chance to buy first.');
+    return fail(403, 'Sales open at the 2027 release (date TBA). Enter the draw for a chance to buy first.');
   }
 
   // 同時に2人が買えないよう、決済画面の有効時間だけ確保する

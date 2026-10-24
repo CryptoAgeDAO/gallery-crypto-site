@@ -25,7 +25,7 @@ async function enter(email: string, itemId: string | null): Promise<Status> {
   const { error } = await db.from('entries').insert({ email: email.trim().toLowerCase(), item_id: itemId });
   if (!error) {
     notify('entry', email);
-    return { kind: 'ok', text: 'You are entered. Winners are drawn in 2027 and contacted by email.' };
+    return { kind: 'ok', text: 'You are entered. Winners are drawn at the 2027 release (date TBA) and contacted by email.' };
   }
   if (error.code === '23505') return { kind: 'ok', text: 'You have already entered with this email.' };
   return { kind: 'err', text: 'Your entry could not be saved. Please try again in a moment.' };
@@ -183,7 +183,7 @@ function Detail({ it, onClose, saleOpen }: { it: Item; onClose: () => void; sale
             ) : (
               <>
                 <p className="mo-price">
-                  Price <span>announced 2027</span>
+                  Price <span>release 2027 · date TBA</span>
                 </p>
                 <DrawForm itemId={it.id} label="Enter the draw for this tee" />
               </>
@@ -267,7 +267,7 @@ export default function Site({ settings: s, items, events = [] }: Props) {
         </header>
         <div className="mo-ribbon" aria-hidden>
           <span>
-            {Array.from({ length: 3 }, () => '★ Free draw ★ 1 of 1 ★ Authentic ★ \'80s–\'00s ★ Presale 2027 ★ Tokyo ').join('')}
+            {Array.from({ length: 3 }, () => '★ Free draw ★ 1 of 1 ★ Authentic ★ \'80s–\'00s ★ Release 2027 · date TBA ★ Tokyo ').join('')}
           </span>
         </div>
 
@@ -286,7 +286,7 @@ export default function Site({ settings: s, items, events = [] }: Props) {
               Free
               <br />
               draw!
-              <small>{s.launch}</small>
+              <small>Release 2027 · date TBA</small>
             </span>
           </div>
         </section>
@@ -319,7 +319,7 @@ export default function Site({ settings: s, items, events = [] }: Props) {
                   <p className="mo-iname">{it.band || 'Untitled'}</p>
                   <p className="mo-idesc">{[it.title, it.year].filter(Boolean).join(' · ') || 'Vintage band tee'}</p>
                   <Sizes size={it.size} />
-                  <p className="mo-iprice">{it.sold ? 'Sold out' : s.sale_open && it.price_usd ? usd(it.price_usd) : 'Price 2027'}</p>
+                  <p className="mo-iprice">{it.sold ? 'Sold out' : s.sale_open && it.price_usd ? usd(it.price_usd) : 'Release 2027 · TBA'}</p>
                   <span className="mo-btn small">Order info</span>
                 </button>
               );
@@ -341,13 +341,13 @@ export default function Site({ settings: s, items, events = [] }: Props) {
                 <br />
                 money!
               </span>
-              <p className="mo-ctag">Presale 2027 — free draw</p>
+              <p className="mo-ctag">Release 2027 · date TBA — free draw</p>
               <ol className="mo-steps">
                 <li>
                   <b>1.</b> Fill in your email below.
                 </li>
                 <li>
-                  <b>2.</b> Winners are drawn in 2027 with verifiable randomness on Solana.
+                  <b>2.</b> Winners are drawn at the 2027 release (date to be announced) with verifiable randomness on Solana.
                 </li>
                 <li>
                   <b>3.</b> Winners buy at a fixed price by card or Apple Pay.
