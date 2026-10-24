@@ -420,3 +420,54 @@ body{background:radial-gradient(1100px 560px at 92% -8%,#edeffb 0%,rgba(237,239,
 .mo .mbar{background:var(--ink);color:var(--paper);font-family:var(--type);border-radius:0;box-shadow:4px 4px 0 rgba(0,0,0,.35)}
 .mo .mbar button{border-radius:0;font-family:var(--sans);font-stretch:62%;font-weight:900;text-transform:uppercase}
 @media (prefers-reduced-motion:reduce){.mo-ribbon span{animation:none}}
+
+/* Event ticket (admission-ticket style) */
+.tk{--tk-paper:#fff7e2;--tk-ink:#111;--tk-red:#d4231b;position:relative;display:grid;grid-template-columns:minmax(0,1fr) 128px;width:min(560px,100%);color:var(--tk-ink);font-family:"Courier Prime","Courier New",ui-monospace,monospace;filter:drop-shadow(4px 5px 0 rgba(0,0,0,.35))}
+.tk-main,.tk-stub{position:relative;background:var(--tk-paper);padding:14px 16px}
+.tk-main{border:3px solid var(--tk-ink);border-right:0;-webkit-mask:radial-gradient(circle 9px at 0 50%,transparent 98%,#000) left/100% 100% no-repeat;mask:radial-gradient(circle 9px at 0 50%,transparent 98%,#000) left/100% 100% no-repeat;background:repeating-linear-gradient(-45deg,transparent 0 10px,rgba(212,35,27,.05) 10px 11px),var(--tk-paper)}
+.tk-stub{display:grid;align-content:center;justify-items:center;gap:4px;border:3px solid var(--tk-ink);border-left:3px dashed var(--tk-ink);text-align:center;-webkit-mask:radial-gradient(circle 9px at 100% 50%,transparent 98%,#000);mask:radial-gradient(circle 9px at 100% 50%,transparent 98%,#000)}
+.tk-top{margin:0;font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
+.tk-title{margin:4px 0 0;font-family:var(--sans);font-stretch:62%;font-weight:900;font-size:clamp(26px,5vw,38px);line-height:.9;text-transform:uppercase;overflow-wrap:anywhere}
+.tk-meta{margin:6px 0 0;font-size:12px;font-weight:700}
+.tk-admit{display:inline-block;margin:10px 0 0;padding:2px 10px;background:var(--tk-ink);color:var(--tk-paper);font-family:var(--sans);font-stretch:62%;font-weight:900;font-size:18px;text-transform:uppercase}
+.tk-name{margin:6px 0 0;font-size:12px}
+.tk-lbl{margin:0;font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.tk-no{margin:0;font-family:var(--sans);font-stretch:62%;font-weight:900;font-size:40px;line-height:1;color:var(--tk-red)}
+.tk-bars{display:flex;align-items:stretch;gap:1px;height:34px;margin-top:6px;max-width:100%;overflow:hidden}
+.tk-main,.tk-stub{min-width:0}
+.tk-bars i{display:block;background:var(--tk-ink)}
+.tk-stamp{position:absolute;right:12px;top:50%;padding:2px 10px;border:4px solid currentColor;font-family:var(--sans);font-stretch:62%;font-weight:900;font-size:30px;text-transform:uppercase;transform:translateY(-50%) rotate(-12deg);background:rgba(255,247,226,.75)}
+.tk-stamp.win{color:var(--tk-red)}
+.tk-stamp.lose{color:#555}
+.tk-stamp.pend{font-size:15px;border-width:3px;color:#777;border-style:dashed}
+.tk-lose .tk-main,.tk-lose .tk-stub{filter:grayscale(1)}
+@media (max-width:460px){.tk{grid-template-columns:minmax(0,1fr) 92px}.tk-stub{padding:12px 8px}.tk-no{font-size:28px}.tk-main{padding-top:44px}.tk-stamp{top:8px;right:8px;transform:rotate(-6deg);font-size:18px;padding:0 8px;border-width:3px}.tk-stamp.pend{font-size:11px}}
+
+/* Events on the public page */
+.ev{margin-top:26px}
+.ev-ico{color:#f6d21c}
+.ev-list{display:grid;gap:0;border-left:2px solid var(--ink)}
+.ev-item{display:grid;gap:8px;padding:16px;border-right:2px solid var(--ink);border-bottom:2px solid var(--ink)}
+.ev-head{display:flex;flex-wrap:wrap;gap:8px}
+.ev-mode{padding:1px 8px;background:var(--ink);color:var(--paper);font-size:11px;font-weight:700;text-transform:uppercase}
+.ev-st{padding:1px 8px;border:2px solid var(--ink);font-size:11px;font-weight:700;text-transform:uppercase}
+.ev-st.open{border-color:var(--red);color:var(--red)}
+.ev-title{margin:0;font-family:var(--sans);font-stretch:62%;font-weight:900;font-size:clamp(34px,6vw,56px);line-height:.9;text-transform:uppercase}
+.ev-when{margin:0;font-weight:700}
+.ev-desc{margin:0;max-width:70ch}
+.ev-item .mo-form{max-width:460px}
+.ev-got{display:grid;gap:10px}
+.ev-link{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:12px;word-break:break-all}
+.mo-doc .tk{margin-top:6px}
+
+/* Admin: EVENT badge and event list */
+.ev-badge{display:inline-block;margin-right:6px;padding:1px 6px 0;background:#d4231b;color:#fff;font-family:var(--sans);font-stretch:62%;font-weight:900;font-size:13px;line-height:1.3;letter-spacing:.04em;vertical-align:middle;transform:rotate(-3deg)}
+.ev-badge.sm{font-size:11px}
+.ev-count{margin-left:4px;padding:0 5px;border-radius:9px;background:#f6d21c;color:#111;font-size:11px}
+.os9 .adm-tabs button[aria-pressed="true"] .ev-badge{background:#f6d21c;color:#111}
+.ev-adm-list{display:grid;gap:6px}
+.ev-adm-item{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;gap:10px;padding:8px 10px;border:2px solid #111;background:transparent;font:inherit;text-align:left;cursor:pointer}
+.ev-adm-item.on{background:#111;color:#efe9da}
+.ev-adm-item b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:640px){.ev-adm-item{grid-template-columns:auto minmax(0,1fr)}}
+.ev-adm-prev{margin:6px 0 4px}

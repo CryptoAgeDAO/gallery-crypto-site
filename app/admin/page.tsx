@@ -5,12 +5,14 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase, photoUrl, configured } from '@/lib/supabase';
 import { shrink } from '@/lib/image';
 import { onSfxChange, setSfx, sfx, sfxBoot, sfxEnabled } from '@/lib/sfx';
+import Ticket from '@/components/Ticket';
+import { eventDate, type EventEntry, type GcEvent } from '@/lib/types';
 import { DEFAULT_SETTINGS, ERA_LABEL, certNo, eraOf, usd, type Item, type Settings } from '@/lib/types';
 
 type Entry = { id: string; email: string; item_id: string | null; created_at: string; won: boolean; token: string | null; used_at: string | null };
 type Order = { id: string; item_id: string | null; email: string; name: string; amount: number; currency: string; shipping: Record<string, string> | null; shipped_at: string | null; created_at: string };
 type Msg = { id: string; name: string; email: string; body: string; created_at: string };
-type Tab = 'items' | 'entries' | 'orders' | 'messages' | 'settings';
+type Tab = 'items' | 'entries' | 'events' | 'orders' | 'messages' | 'settings';
 
 const BLANK: Omit<Item, 'id' | 'serial' | 'created_at'> = {
   photos: [], band: '', title: '', year: '', era: '', size: '', tag: '', stitch: false,
@@ -477,6 +479,196 @@ function Messages() {
   );
 }
 
+// イベント・抽選（入場券のようなチケット）。当たり外れ（lottery）か、入場順の抽選（order）。
+const EV_BLANK = { title: '', starts_at: '', venue: '', description: '', mode: 'lottery' as GcEvent['mode'], capacity: 10, published: true };
+const toLocal = (s: string | null) => (s ? new Date(new Date(s).getTime() + 9 * 3600_000).toISOString().slice(0, 16) : '');
+const fromLocal = (s: string) => (s ? new Date(s + ':00+09:00').toISOString() : null);
+function shuffle<T>(a: T[]): T[] {
+  const r = a.slice();
+  for (let i = r.length - 1; i > 0; i--) {
+    const u = new Uint32Array(1);
+    crypto.getRandomValues(u);
+    const j = u[0] % (i + 1);
+    [r[i], r[j]] = [r[j], r[i]];
+  }
+  return r;
+}
+
+function EventsAdmin() {
+  const db = supabase()!;
+  const [list, setList] = useState<GcEvent[]>([]);
+  const [sel, setSel] = useState<string | null>(null);
+  const [form, setForm] = useState<typeof EV_BLANK & { id?: string }>(EV_BLANK);
+  const [editing, setEditing] = useState(false);
+  const [rows, setRows] = useState<EventEntry[]>([]);
+  const [st, setSt] = useState('');
+  const [missing, setMissing] = useState(false);
+  const ev = list.find((e) => e.id === sel) || null;
+
+  const load = useCallback(async () => {
+    const { data, error } = await db.from('events').select('*').order('created_at', { ascending: false });
+    if (error) {
+      setMissing(/relation|does not exist|schema cache/i.test(error.message));
+      return setSt('Could not load: ' + error.message);
+    }
+    setList((data as GcEvent[]) || []);
+  }, [db]);
+  const loadRows = useCallback(async (id: string) => {
+    const { data } = await db.from('event_entries').select('*').eq('event_id', id).order('ticket_no', { ascending: true });
+    setRows((data as EventEntry[]) || []);
+  }, [db]);
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (sel) loadRows(sel); else setRows([]); }, [sel, loadRows]);
+
+  const save = async () => {
+    if (!form.title.trim()) return setSt('Give the event a title.');
+    const row = { title: form.title.trim(), starts_at: fromLocal(form.starts_at), venue: form.venue.trim(), description: form.description.trim(), mode: form.mode, capacity: Math.max(0, Number(form.capacity) || 0), published: form.published };
+    const r = form.id ? await db.from('events').update(row).eq('id', form.id).select('id').single() : await db.from('events').insert(row).select('id').single();
+    if (r.error) return setSt('Error: ' + r.error.message);
+    setSt('Saved');
+    setEditing(false);
+    await load();
+    setSel(r.data.id);
+  };
+  const setStatus = async (status: GcEvent['status']) => {
+    if (!ev) return;
+    const { error } = await db.from('events').update({ status }).eq('id', ev.id);
+    setSt(error ? 'Error: ' + error.message : status === 'open' ? 'Tickets reopened' : status === 'closed' ? 'Tickets closed' : 'Results published');
+    load();
+  };
+  const draw = async () => {
+    if (!ev || !rows.length) return;
+    const msg = ev.mode === 'lottery' ? `Draw ${Math.min(ev.capacity, rows.length)} winners from ${rows.length} tickets? Ticket holders see the result right away.` : `Draw the entry order for ${rows.length} tickets? Ticket holders see their number right away.`;
+    if (!confirm(msg)) return;
+    setSt('Drawing…');
+    const order = shuffle(rows);
+    for (let i = 0; i < order.length; i++) {
+      const patch = ev.mode === 'lottery' ? { result: i < ev.capacity ? 'win' : 'lose', position: null } : { position: i + 1, result: null };
+      const { error } = await db.from('event_entries').update(patch).eq('id', order[i].id);
+      if (error) return setSt('Error: ' + error.message);
+    }
+    await db.from('events').update({ status: 'drawn' }).eq('id', ev.id);
+    setSt('Draw complete — results are live on every ticket link');
+    await load();
+    loadRows(ev.id);
+  };
+  const reset = async () => {
+    if (!ev || !confirm('Clear the results and go back to "closed"?')) return;
+    await db.from('event_entries').update({ result: null, position: null }).eq('event_id', ev.id);
+    await db.from('events').update({ status: 'closed' }).eq('id', ev.id);
+    setSt('Results cleared');
+    await load();
+    loadRows(ev.id);
+  };
+  const remove = async () => {
+    if (!ev || !confirm(`Delete "${ev.title}" and all ${rows.length} tickets?`)) return;
+    await db.from('events').delete().eq('id', ev.id);
+    setSel(null);
+    load();
+  };
+  const link = (t: string) => `${location.origin}/ticket/${t}`;
+  const sorted = ev?.mode === 'order' && ev.status === 'drawn' ? rows.slice().sort((a, b) => (a.position || 0) - (b.position || 0)) : rows;
+
+  if (missing)
+    return (
+      <div className="sec">
+        <h4>Events need one database step</h4>
+        <p>Open Supabase → SQL Editor, paste the contents of supabase/004_events.sql from the repository, and press Run. Then reload this page.</p>
+      </div>
+    );
+
+  return (
+    <>
+      <div className="sec">
+        <h4><span className="ev-badge">EVENT</span> Events &amp; ticket draws</h4>
+        <p>Run a separate event or draw. Visitors get a numbered ticket like an admission ticket. Lottery: you draw winners and losers. Order: you draw the entry order. Each ticket has its own link where the result appears.</p>
+        <div className="row" style={{ justifyContent: 'flex-start' }}>
+          <button className="btn primary" onClick={() => { setForm(EV_BLANK); setEditing(true); setSel(null); }}>New event</button>
+        </div>
+        {list.length > 0 && (
+          <div className="ev-adm-list">
+            {list.map((e) => (
+              <button key={e.id} className={`ev-adm-item${sel === e.id ? ' on' : ''}`} onClick={() => { setSel(e.id); setEditing(false); }}>
+                <span className="ev-badge sm">{e.mode === 'lottery' ? 'LOTTERY' : 'ORDER'}</span>
+                <b>{e.title || 'Untitled'}</b>
+                <span>{eventDate(e.starts_at)}</span>
+                <span className={`ev-st ${e.status}`}>{e.status}{e.published ? '' : ' · hidden'}</span>
+              </button>
+            ))}
+          </div>
+        )}
+        {st && <p className="status">{st}</p>}
+      </div>
+
+      {editing && (
+        <div className="sec">
+          <h4>{form.id ? 'Edit event' : 'New event'}</h4>
+          <div className="form">
+            <label className="wide">Title<input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Pop-up at Harajuku" /></label>
+            <label>Date &amp; time (JST)<input type="datetime-local" value={form.starts_at} onChange={(e) => setForm({ ...form, starts_at: e.target.value })} /></label>
+            <label>Venue<input value={form.venue} onChange={(e) => setForm({ ...form, venue: e.target.value })} placeholder="Tokyo" /></label>
+            <label>Type
+              <select value={form.mode} onChange={(e) => setForm({ ...form, mode: e.target.value as GcEvent['mode'] })}>
+                <option value="lottery">Lottery — win or lose</option>
+                <option value="order">Order — draw the entry order</option>
+              </select>
+            </label>
+            {form.mode === 'lottery' && <label>Winners<input inputMode="numeric" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: Number(e.target.value.replace(/[^0-9]/g, '')) || 0 })} /></label>}
+            <label className="wide">Description (public)<textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></label>
+            <label className="check"><input type="checkbox" checked={form.published} onChange={(e) => setForm({ ...form, published: e.target.checked })} />Show on the site</label>
+          </div>
+          <div className="row">
+            <button className="btn" onClick={() => setEditing(false)}>Close</button>
+            <button className="btn primary" onClick={save}>Save</button>
+          </div>
+        </div>
+      )}
+
+      {ev && !editing && (
+        <div className="sec">
+          <h4><span className="ev-badge">EVENT</span> {ev.title}</h4>
+          <p>{eventDate(ev.starts_at)}{ev.venue ? ` · ${ev.venue}` : ''} · {ev.mode === 'lottery' ? `Lottery, ${ev.capacity} winners` : 'Entry order by draw'} · Status: <b>{ev.status}</b> · {rows.length} tickets</p>
+          <div className="row" style={{ justifyContent: 'flex-start' }}>
+            <button className="btn" onClick={() => { setForm({ id: ev.id, title: ev.title, starts_at: toLocal(ev.starts_at), venue: ev.venue, description: ev.description, mode: ev.mode, capacity: ev.capacity, published: ev.published }); setEditing(true); }}>Edit</button>
+            {ev.status === 'open' && <button className="btn" onClick={() => setStatus('closed')}>Close tickets</button>}
+            {ev.status === 'closed' && <button className="btn" onClick={() => setStatus('open')}>Reopen tickets</button>}
+            {ev.status !== 'drawn' && <button className="btn primary" disabled={!rows.length} onClick={draw}>{ev.mode === 'lottery' ? 'Draw winners' : 'Draw the order'}</button>}
+            {ev.status === 'drawn' && <button className="btn" onClick={reset}>Clear results</button>}
+            <button className="btn danger" onClick={remove}>Delete event</button>
+          </div>
+          <div className="ev-adm-prev">
+            <Ticket ev={ev} t={{ ticket_no: rows[0]?.ticket_no || 1, name: 'Sample', result: ev.status === 'drawn' && ev.mode === 'lottery' ? 'win' : null, position: ev.status === 'drawn' && ev.mode === 'order' ? 1 : null }} />
+          </div>
+          {rows.length > 0 ? (
+            <div className="tablewrap">
+              <table>
+                <thead><tr><th>Ticket</th><th>Name</th><th>Email</th><th>{ev.mode === 'order' ? 'Number' : 'Result'}</th><th>Date</th><th>Ticket link</th></tr></thead>
+                <tbody>
+                  {sorted.map((r) => (
+                    <tr key={r.id}>
+                      <td>#{String(r.ticket_no || 0).padStart(4, '0')}</td>
+                      <td>{r.name || '—'}</td>
+                      <td><a href={`mailto:${r.email}`}>{r.email}</a></td>
+                      <td>{ev.mode === 'order' ? (r.position ? String(r.position).padStart(3, '0') : '—') : r.result === 'win' ? <b style={{ color: 'var(--red)' }}>WIN</b> : r.result === 'lose' ? 'lose' : '—'}</td>
+                      <td>{fmt(r.created_at)}</td>
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        <button className="btn" style={{ padding: '4px 8px', fontSize: 13 }} onClick={async () => { await navigator.clipboard.writeText(link(r.token)); setSt('Link copied'); }}>Copy</button>{' '}
+                        <a className="btn" style={{ padding: '4px 8px', fontSize: 13 }} href={`mailto:${r.email}?subject=${encodeURIComponent(`Your ticket — ${ev.title}`)}&body=${encodeURIComponent(`Your ticket for ${ev.title} (#${r.ticket_no}).\n\nSee your ticket and result here:\n${link(r.token)}\n\nGallery Crypto`)}`}>Email</a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p>No tickets yet.</p>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
 function SettingsForm() {
   const db = supabase()!;
   const [s, setS] = useState<Settings>(DEFAULT_SETTINGS);
@@ -527,6 +719,13 @@ export default function Admin() {
     });
     return () => data.subscription.unsubscribe();
   }, []);
+
+  // 受付中のイベント数（タブのバッジ用）
+  const [openEvents, setOpenEvents] = useState(0);
+  useEffect(() => {
+    if (!isAdmin) return;
+    supabase()!.from('events').select('id', { count: 'exact', head: true }).neq('status', 'drawn').then(({ count }) => setOpenEvents(count || 0));
+  }, [isAdmin, tab]);
 
   useEffect(() => {
     if (!session) return setIsAdmin(null);
@@ -608,13 +807,14 @@ export default function Admin() {
       <>
         {needPw && <PasswordForm highlight />}
         <div className="adm-tabs">
-          {([['items', 'Archive'], ['entries', 'Draw entries'], ['orders', 'Orders'], ['messages', 'Messages'], ['settings', 'Settings']] as [Tab, string][]).map(([k, l]) => (
-            <button key={k} aria-pressed={tab === k} onClick={() => setTab(k)}>{l}</button>
+          {([['items', 'Archive'], ['entries', 'Draw entries'], ['events', 'Events'], ['orders', 'Orders'], ['messages', 'Messages'], ['settings', 'Settings']] as [Tab, string][]).map(([k, l]) => (
+            <button key={k} aria-pressed={tab === k} onClick={() => setTab(k)}>{k === 'events' && <span className="ev-badge">EVENT</span>}{l}{k === 'events' && openEvents > 0 && <sup className="ev-count">{openEvents}</sup>}</button>
           ))}
         </div>
         {tab === 'items' && <Items />}
         {tab === 'entries' && <Entries />}
         {tab === 'orders' && <Orders />}
+        {tab === 'events' && <EventsAdmin />}
         {tab === 'messages' && <Messages />}
         {tab === 'settings' && <SettingsForm />}
         {tab === 'settings' && !needPw && <PasswordForm />}

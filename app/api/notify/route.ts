@@ -75,5 +75,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   }
 
+  if (body.kind === 'event') {
+    const { data } = await d.from('event_entries').select('email,ticket_no,event_id,created_at').ilike('email', email).gte('created_at', since).order('created_at', { ascending: false }).limit(1);
+    const t = data?.[0];
+    if (!t) return NextResponse.json({ ok: true });
+    const { data: ev } = await d.from('events').select('title').eq('id', t.event_id).maybeSingle();
+    await send(
+      to,
+      `New ticket — ${ev?.title || 'Event'} #${t.ticket_no}`,
+      `<p>New event ticket.</p><p><b>Event:</b> ${esc(ev?.title || '')}<br><b>Ticket:</b> #${t.ticket_no}<br><b>Email:</b> ${esc(t.email)}</p><p><a href="${site}/admin">Open admin</a></p>`,
+    );
+    return NextResponse.json({ ok: true });
+  }
+
   return NextResponse.json({ ok: false }, { status: 400 });
 }

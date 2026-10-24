@@ -75,3 +75,34 @@ export function metaLine(it: Item): string {
 export function usd(n: number | null | undefined): string {
   return n ? '$' + n.toLocaleString('en-US') : '';
 }
+
+// イベント・抽選（入場券のようなチケット）
+export type EventMode = 'lottery' | 'order';
+export type GcEvent = {
+  id: string;
+  title: string;
+  starts_at: string | null;
+  venue: string;
+  description: string;
+  mode: EventMode;
+  capacity: number;
+  status: 'open' | 'closed' | 'drawn';
+  published: boolean;
+  created_at: string;
+};
+export type EventEntry = {
+  id: string;
+  event_id: string;
+  email: string;
+  name: string;
+  ticket_no: number | null;
+  token: string;
+  result: 'win' | 'lose' | null;
+  position: number | null;
+  created_at: string;
+};
+export const EVENT_COLUMNS = 'id,title,starts_at,venue,description,mode,capacity,status,published,created_at';
+export function eventDate(s: string | null): string {
+  if (!s) return 'Date TBA';
+  return new Date(s).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Tokyo' }) + ' JST';
+}

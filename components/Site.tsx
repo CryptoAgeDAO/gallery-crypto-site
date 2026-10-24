@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { supabase, photoUrl } from '@/lib/supabase';
-import { ERA_LABEL, certNo, usd, type Item, type Settings } from '@/lib/types';
+import { ERA_LABEL, certNo, usd, type GcEvent, type Item, type Settings } from '@/lib/types';
+import Events from '@/components/Events';
 import BuyButton from '@/components/BuyButton';
 import { MusicBar, PlayButton } from '@/components/Music';
 import { sfx } from '@/lib/sfx';
@@ -10,7 +11,7 @@ import { sfx } from '@/lib/sfx';
 // 公開サイト全体を「1980〜90年代のスケートボード雑誌の巻末にあった、Tシャツの通信販売ページ」風に。
 // 新聞紙のような生成り色の紙・黒インク・赤の差し色・網点の写真・切り取り線のついた申込券。
 
-type Props = { settings: Settings; items: Item[]; configured: boolean };
+type Props = { settings: Settings; items: Item[]; events?: GcEvent[]; configured: boolean };
 type Status = { kind: 'idle' | 'busy' | 'ok' | 'err'; text?: string };
 
 // 管理者への通知（失敗しても画面には影響させない）
@@ -235,7 +236,7 @@ function Contact({ email }: { email: string }) {
   );
 }
 
-export default function Site({ settings: s, items }: Props) {
+export default function Site({ settings: s, items, events = [] }: Props) {
   const [open, setOpen] = useState<Item | null>(null);
   // 商品がまだ少ないあいだは「COMING SOON」の枠で埋めて、誌面の升目を保つ
   const slots = Math.max(6, Math.ceil(items.length / 3) * 3);
@@ -248,6 +249,7 @@ export default function Site({ settings: s, items }: Props) {
             <span>Vol. 1 · Tokyo, Japan</span>
             <nav aria-label="Sections">
               <a href="#archive">Catalog</a>
+              {events.length > 0 && <a href="#events">★ Events</a>}
               <a href="#presale">Order form</a>
               <a href="#provenance">Guarantee</a>
               <a href="#contact">Write us</a>
@@ -324,6 +326,8 @@ export default function Site({ settings: s, items }: Props) {
             })}
           </div>
         </section>
+
+        <Events events={events} />
 
         <section className="mo-coupon" id="presale" aria-label="Order form">
           <p className="mo-cut" aria-hidden>
