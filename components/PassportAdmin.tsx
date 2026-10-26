@@ -457,6 +457,7 @@ export default function PassportAdmin() {
         <div className="row" style={{ justifyContent: 'flex-start' }}>
           <button className="btn primary" disabled={busy || !pending} onClick={anchor}>Anchor {pending || ''} to Solana</button>
           <a className="btn" href="/proof" target="_blank" rel="noreferrer">Open Proof Lab</a>
+          <a className="btn" href="/labels" target="_blank" rel="noreferrer">Print labels</a>
         </div>
         {funds && info && (
           <ol style={{ margin: '8px 0 0', paddingLeft: 20, display: 'grid', gap: 6 }}>
