@@ -222,3 +222,11 @@ export async function issuerBalance(): Promise<number | null> {
     return null;
   }
 }
+
+// 短時間だけ有効な印（パスキー登録の往復をサーバーに保存せずに確かめるため）
+export function serverMac(msg: string): string {
+  return sha256hex(`${bytesToHex(seed())}|${msg}`);
+}
+function sha256hex(s: string) {
+  return bytesToHex(sha256(utf8ToBytes(s)));
+}

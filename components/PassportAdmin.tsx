@@ -5,13 +5,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase, photoUrl } from '@/lib/supabase';
 import { PASSPORT_SQL } from '@/lib/passportSql';
 import { DPP_SECTIONS, EVENT_TYPES, cleanDpp, completeness, eventLabel, mergeDpp, prefill, type Composition, type Dpp, type PhotoHash } from '@/lib/dpp';
-import { canonical, explorerAddr, explorerTx, hashEntry, keyId, verifyKeyring, type GcppEntry, type KeyEntry, type SignedKey } from '@/lib/gcpp';
+import { canonical, explorerAddr, explorerTx, hashEntry, keyId, sha256hex, verifyKeyring, type GcppEntry, type KeyEntry, type SignedKey } from '@/lib/gcpp';
 import { useAal } from '@/components/TwoStep';
+import { startAuthentication, startRegistration } from '@simplewebauthn/browser';
 import { createDeviceKey, createRecoveryKey, deviceSupported, download, getDeviceKey, importRecoveryKey, signHash, type DeviceKey } from '@/lib/deviceKey';
 import { certNo, type Item } from '@/lib/types';
 
 type LogRow = { id: number; item_id: string; seq: number; kind: string; hash: string; anchor_id: number | null; created_at: string; entry: { data: Record<string, unknown> } };
-type Info = { issuer: string; permanent?: boolean; problem?: string; setup?: string; chain: string; balance: number | null; ring: { list: SignedKey[]; ok: boolean } | null };
+type Info = { issuer: string; permanent?: boolean; problem?: string; setup?: string; chain: string; balance: number | null; ring: { list: SignedKey[]; ok: boolean } | null; passkeys?: { id: number; label: string; created_at: string; last_used_at: string | null }[] };
 
 async function hashBytes(buf: ArrayBuffer) {
   const d = await crypto.subtle.digest('SHA-256', buf);
@@ -50,13 +51,56 @@ export default function PassportAdmin() {
   const devActive = mfa && Boolean(dev && ringV.keys.get(dev.pub) && !ringV.keys.get(dev.pub)!.revoked);
   const refreshInfo = () => call({ action: 'info' }).then(({ ok, j }) => ok && setInfo(j));
 
+  // ── 署名のたびの顔認証（Face ID / Touch ID） ──
+  const faces = info?.passkeys || [];
+  const [faceHere, setFaceHere] = useState(false);
+  useEffect(() => { try { setFaceHere(localStorage.getItem('gc-face-here') === '1'); } catch {} }, []);
+  const face = async (opts: unknown) => {
+    if (!opts) throw new Error('Register Face ID for signing first (Founder keys).');
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return await startAuthentication({ optionsJSON: opts as any });
+    } catch {
+      throw new Error('Face ID was cancelled or did not match.');
+    }
+  };
+  const registerFace = async (auth?: { pub: string; priv: CryptoKey }) => {
+    const o = await call({ action: 'passkey-options' });
+    if (!o.ok) throw new Error(o.j.error || 'failed');
+    let resp;
+    try {
+      resp = await startRegistration({ optionsJSON: o.j.options });
+    } catch (e) {
+      const m = String((e as Error & { code?: string }).code || (e as Error).message);
+      if (/PREVIOUSLY_REGISTERED|already|exclude/i.test(m)) {
+        // この端末の Face ID は登録済み（同期されたパスキーなど）
+        try { localStorage.setItem('gc-face-here', '1'); } catch {}
+        setFaceHere(true);
+        return;
+      }
+      throw new Error('Face ID setup was cancelled.');
+    }
+    const extra = auth ? { authKey: auth.pub, authSig: await signHash(auth.priv, sha256hex('passkey|' + resp.id)) } : {};
+    const label = /iPhone|iPad/.test(navigator.userAgent) ? 'Face ID · iPhone' : /Mac/.test(navigator.userAgent) ? 'Touch ID · Mac' : /Android/.test(navigator.userAgent) ? 'Biometrics · Android' : 'Biometrics';
+    const r = await call({ action: 'passkey-register', response: resp, challenge: o.j.challenge, exp: o.j.exp, token: o.j.token, label, ...extra });
+    if (!r.ok) throw new Error(r.j.error || 'failed');
+    try { localStorage.setItem('gc-face-here', '1'); } catch {}
+    setFaceHere(true);
+    await refreshInfo();
+  };
+  const addFaceHere = () => run('Registering Face ID on this device', async () => {
+    await registerFace(devActive && dev ? dev : undefined);
+    setSt('Face ID registered — every signature from now on needs your face.');
+  });
+
   // 端末は「自分が意図した内容か」を確かめてから署名する（サーバーが乗っ取られていても、別の内容には署名しない）
   const signKeyOp = async (kind: KeyEntry['kind'], key: string, label: string, signer: { pub: string; priv: CryptoKey }) => {
     const p = await call({ action: 'prepare-key', kind, key, label, signer: signer.pub });
     if (!p.ok) throw new Error(p.j.error || 'failed');
     const e = p.j.entry as KeyEntry;
     if (hashEntry(e) !== p.j.hash || e.kind !== kind || e.key !== key || e.signer !== signer.pub || e.label !== label.trim().slice(0, 60)) throw new Error('The server asked to sign something different — stopped.');
-    const c = await call({ action: 'commit-key', entry: e, cosig: await signHash(signer.priv, p.j.hash) });
+    const f = await face(p.j.face);
+    const c = await call({ action: 'commit-key', entry: e, cosig: await signHash(signer.priv, p.j.hash), face: f });
     if (!c.ok) throw new Error(c.j.error || 'failed');
   };
   const signRecord = async (kind: GcppEntry['kind'], expect: (e: GcppEntry) => boolean, extra: Record<string, unknown>) => {
@@ -65,7 +109,8 @@ export default function PassportAdmin() {
     if (!p.ok) throw Object.assign(new Error(p.j.error === 'missing' ? 'Missing: ' + (p.j.missing || []).join(' · ') : p.j.error || 'failed'), {});
     const e = p.j.entry as GcppEntry;
     if (hashEntry(e) !== p.j.hash || e.kind !== kind || e.signer !== dev.pub || e.cert !== certNo(item) || !expect(e)) throw new Error('The server asked to sign something different from what you entered — stopped.');
-    const c = await call({ action: 'commit', item_id: item.id, entry: e, cosig: await signHash(dev.priv, p.j.hash) });
+    const f = await face(p.j.face);
+    const c = await call({ action: 'commit', item_id: item.id, entry: e, cosig: await signHash(dev.priv, p.j.hash), face: f });
     if (!c.ok) throw new Error(c.j.error || 'failed');
     return c.j as { anchored: boolean };
   };
@@ -117,6 +162,7 @@ export default function PassportAdmin() {
     if (!f || !dev) return;
     run('Approving this device with the recovery key', async () => {
       const rk = await importRecoveryKey(await f.text());
+      if (!faceHere) await registerFace(rk);
       await signKeyOp('add', dev.pub, 'Founder device (recovered)', rk);
       await refreshInfo();
       setSt('This device is now active.');
@@ -300,10 +346,31 @@ export default function PassportAdmin() {
       )}
       {!deviceSupported() && <p className="status">This browser cannot hold a device key. Use Safari, Chrome or Edge.</p>}
       {info?.ring && !info.ring.ok && <p className="status status-err">The keyring does not verify — signing is locked. Contact support before doing anything else.</p>}
+      {info && mfa && (
+        <p>
+          Face ID for signing: {faces.length ? <b style={{ color: '#0b6b2c' }}>{faces.length} registered ✓</b> : <b>not set</b>}
+          {faces.length > 0 && <> ({faces.map((x) => x.label).join(', ')})</>} · this device {faceHere ? '✓' : '—'}
+        </p>
+      )}
       {info && info.permanent && mfa && ringList.length === 0 && (
-        <div className="row" style={{ justifyContent: 'flex-start' }}>
-          <button className="btn primary" disabled={busy} onClick={createFounder}>Create founder key on this device</button>
-          <span>Do this on the phone or computer you will use for the archive.</span>
+        <div className="pa-warn">
+          {!faces.length ? (
+            <>
+              <p><b>Step 1.</b> Register Face ID (or Touch ID / fingerprint) on this device. Every signature will need it.</p>
+              <button className="btn primary" disabled={busy} onClick={addFaceHere}>Register Face ID</button>
+            </>
+          ) : (
+            <>
+              <p><b>Step 2.</b> Create the founder key on this device. You will be asked for Face ID.</p>
+              <button className="btn primary" disabled={busy} onClick={createFounder}>Create founder key on this device</button>
+            </>
+          )}
+        </div>
+      )}
+      {devActive && !faceHere && (
+        <div className="pa-warn">
+          <p>This device is active but Face ID is not registered here yet. Signing needs it.</p>
+          <button className="btn primary" disabled={busy} onClick={addFaceHere}>Register Face ID on this device</button>
         </div>
       )}
       {ringList.length > 0 && (
