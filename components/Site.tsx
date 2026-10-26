@@ -11,7 +11,7 @@ import { sfx } from '@/lib/sfx';
 // 公開サイト全体を「1980〜90年代のスケートボード雑誌の巻末にあった、Tシャツの通信販売ページ」風に。
 // 新聞紙のような生成り色の紙・黒インク・赤の差し色・網点の写真・切り取り線のついた申込券。
 
-type Props = { settings: Settings; items: Item[]; events?: GcEvent[]; configured: boolean };
+type Props = { settings: Settings; items: Item[]; events?: GcEvent[]; sealed?: number[]; configured: boolean };
 type Status = { kind: 'idle' | 'busy' | 'ok' | 'err'; text?: string };
 
 // 管理者への通知（失敗しても画面には影響させない）
@@ -101,7 +101,7 @@ function DrawForm({ itemId, label = 'Enter the free draw' }: { itemId: string | 
   );
 }
 
-function Detail({ it, onClose, saleOpen }: { it: Item; onClose: () => void; saleOpen: boolean }) {
+function Detail({ it, onClose, saleOpen, sealed }: { it: Item; onClose: () => void; saleOpen: boolean; sealed: boolean }) {
   const [shot, setShot] = useState(0);
   const close = () => {
     sfx('close');
@@ -158,6 +158,11 @@ function Detail({ it, onClose, saleOpen }: { it: Item; onClose: () => void; sale
             ))}
           </dl>
           {it.prov && <p className="mo-prov">“{it.prov}”</p>}
+          {sealed && (
+            <a className="mo-btn ghost small" href={`/passport/${certNo(it)}`}>
+              ✓ Provenance passport →
+            </a>
+          )}
           {(it.audio_path || it.listen) && (
             <div className="mo-snd">
               {it.audio_path && <PlayButton it={it} />}
@@ -236,7 +241,7 @@ function Contact({ email }: { email: string }) {
   );
 }
 
-export default function Site({ settings: s, items, events = [] }: Props) {
+export default function Site({ settings: s, items, events = [], sealed = [] }: Props) {
   const [open, setOpen] = useState<Item | null>(null);
   // 商品がまだ少ないあいだは「COMING SOON」の枠で埋めて、誌面の升目を保つ
   const slots = Math.max(6, Math.ceil(items.length / 3) * 3);
@@ -252,6 +257,7 @@ export default function Site({ settings: s, items, events = [] }: Props) {
               {events.length > 0 && <a href="#events">★ Events</a>}
               <a href="#presale">Order form</a>
               <a href="#provenance">Guarantee</a>
+              <a href="/proof">Proof Lab</a>
               <a href="#contact">Write us</a>
               {s.instagram && (
                 <a href={s.instagram} target="_blank" rel="noopener noreferrer">
@@ -368,7 +374,10 @@ export default function Site({ settings: s, items, events = [] }: Props) {
           <div className="mo-box" id="provenance">
             <h2>Our guarantee</h2>
             <p>
-              Every piece carries a permanent record: where it was found, which dealer it came through, and who owns it now. Records are written on Solana first, with XRP Ledger support to follow.
+              Every piece carries a permanent record: where it was found, which dealer it came through, and who owns it now. Each record is signed, follows the EU Digital Product Passport, and is anchored on Solana — and it can be checked by anyone, even without a blockchain.
+            </p>
+            <p>
+              <a className="mo-btn small" href="/proof">See the proof →</a>
             </p>
             <p className="mo-seal" aria-hidden>
               100%
@@ -401,7 +410,7 @@ export default function Site({ settings: s, items, events = [] }: Props) {
         </footer>
       </div>
 
-      {open && <Detail it={open} saleOpen={s.sale_open} onClose={() => setOpen(null)} />}
+      {open && <Detail it={open} saleOpen={s.sale_open} sealed={sealed.includes(open.serial)} onClose={() => setOpen(null)} />}
       <MusicBar />
     </div>
   );

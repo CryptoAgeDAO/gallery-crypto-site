@@ -9,6 +9,7 @@ export default function MoShell({ kicker, title, children }: { kicker?: string; 
             <nav aria-label="Sections">
               <a href="/#archive">Catalog</a>
               <a href="/#presale">Order form</a>
+              <a href="/proof">Proof</a>
               <a href="/#contact">Write us</a>
             </nav>
           </div>

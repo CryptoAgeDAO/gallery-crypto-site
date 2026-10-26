@@ -2,11 +2,12 @@ import { NextResponse } from 'next/server';
 import { Client } from 'pg';
 import { createClient } from '@supabase/supabase-js';
 import { EVENTS_SQL } from '@/lib/eventsSql';
+import { PASSPORT_SQL } from '@/lib/passportSql';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-// 管理者だけが押せる「イベント機能の自動セットアップ」。Vercel の Supabase 連携が入れる POSTGRES_URL でデータベースに表を作る。
+// 管理者だけが押せる「自動セットアップ」（イベント機能と来歴パスポート）。Vercel の Supabase 連携が入れる POSTGRES_URL でデータベースに表を作る。
 export async function POST(req: Request) {
   const url = process.env.POSTGRES_URL_NON_POOLING || process.env.POSTGRES_URL;
   if (!url) return NextResponse.json({ error: 'no-db-url' }, { status: 501 });
@@ -22,6 +23,7 @@ export async function POST(req: Request) {
   try {
     await c.connect();
     await c.query(EVENTS_SQL);
+    await c.query(PASSPORT_SQL);
     await c.query("notify pgrst, 'reload schema'");
     return NextResponse.json({ ok: true });
   } catch (e) {

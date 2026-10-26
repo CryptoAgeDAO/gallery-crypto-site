@@ -471,3 +471,99 @@ body{background:radial-gradient(1100px 560px at 92% -8%,#edeffb 0%,rgba(237,239,
 .ev-adm-item b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media (max-width:640px){.ev-adm-item{grid-template-columns:auto minmax(0,1fr)}}
 .ev-adm-prev{margin:6px 0 4px}
+
+/* Provenance passport + Proof Lab (mail-order look) */
+.pp{display:grid;gap:14px;min-width:0}
+.pp-photo{max-width:260px;border:3px solid var(--ink);background:#fff}
+.pp-photo img{display:block;width:100%;aspect-ratio:4/5;object-fit:cover;filter:grayscale(1) contrast(1.3)}
+.pp-mono{font-family:var(--type);font-size:12px;overflow-wrap:anywhere}
+.pp-verdict{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;align-items:center;padding:14px;border:3px solid var(--ink);background:rgba(255,255,255,.4)}
+@media (min-width:700px){.pp-verdict{grid-template-columns:auto minmax(0,1fr) 110px}}
+.pp-verdict p{margin:0}
+.pp-stamp{justify-self:start;padding:6px 12px;border:4px double var(--ink);font-family:var(--cond);font-stretch:62%;font-weight:900;font-size:28px;line-height:1;text-transform:uppercase;transform:rotate(-4deg)}
+.pp-verdict.ok .pp-stamp{color:#0b6b2c;border-color:#0b6b2c}
+.pp-verdict.ng .pp-stamp{color:var(--red);border-color:var(--red)}
+.pp-cert{font-family:var(--cond);font-stretch:62%;font-weight:900;font-size:26px;text-transform:uppercase}
+.pp-qr{width:110px;height:110px;justify-self:start;background:#fff;padding:6px;border:2px solid var(--ink)}
+.pp-qr svg{display:block;width:100%;height:100%}
+.pp-mark{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 3px;font-weight:700;font-size:12px;border:1.5px solid currentColor;line-height:1}
+.pp-mark.ok{color:#0b6b2c}.pp-mark.ng{color:var(--red)}.pp-mark.wait{color:#888}
+.pp-checks{list-style:none;margin:0;padding:0;border-top:2px solid var(--ink)}
+.pp-checks li{display:grid;grid-template-columns:44px minmax(0,1fr);gap:2px 10px;padding:7px 4px;border-bottom:1px dotted var(--ink);font-size:13px;opacity:.45;transition:opacity .2s}
+.pp-checks li.ok,.pp-checks li.ng{opacity:1}
+.pp-checks li.ng{background:rgba(212,35,27,.08)}
+.pp-seq{font-weight:700}
+.pp-what{font-weight:700;text-transform:uppercase}
+.pp-tests{grid-column:2;display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px}
+.pp-why{grid-column:2;color:var(--red);font-size:12px;font-weight:700}
+.pp-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
+@media (min-width:900px){.pp-grid{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr)}}
+.pp-side{display:grid;gap:14px;align-content:start;min-width:0}
+.pp-box{position:relative;padding:14px;border:3px solid var(--ink);min-width:0}
+.pp-box h2{margin:0 0 8px;font-size:clamp(26px,4vw,36px)}
+.pp-box p{margin:0 0 8px}
+.pp-sub{font-size:12px;font-weight:700;text-transform:uppercase}
+.pp-sec{padding:8px 0;border-top:2px solid var(--ink)}
+.pp-sec h3{margin:0 0 4px;font-family:var(--cond);font-stretch:62%;font-weight:900;font-size:20px;text-transform:uppercase;line-height:1}
+.pp-sec h3 small{display:block;margin-top:2px;font-family:var(--type);font-stretch:100%;font-weight:400;font-size:11px;text-transform:none;color:#555}
+.pp-sec dl{margin:0;display:grid;gap:3px}
+.pp-sec dl div{display:grid;grid-template-columns:minmax(0,150px) minmax(0,1fr);gap:8px;font-size:13px}
+@media (max-width:520px){.pp-sec dl div{grid-template-columns:minmax(0,1fr)}.pp-sec dt{font-size:11px}}
+.pp-sec dt{font-weight:700;text-transform:uppercase;font-size:11px;padding-top:2px}
+.pp-sec dd{margin:0;overflow-wrap:anywhere}
+.pp-hashes{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.pp-time{list-style:none;margin:0;padding:0 0 0 14px;border-left:3px solid var(--ink);display:grid;gap:10px}
+.pp-time li{position:relative;display:grid;font-size:13px}
+.pp-time li::before{content:"";position:absolute;left:-21px;top:4px;width:11px;height:11px;background:var(--red);border:2px solid var(--ink)}
+.pp-time b{text-transform:uppercase}
+.pp-time p{margin:2px 0 0}
+.pp-anchor{padding:8px 0;border-top:2px solid var(--ink)}
+.pp-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.pp-row .mo-btn{margin-top:0}
+.pp-good{color:#0b6b2c;font-weight:700}
+.pp-bad{color:var(--red);font-weight:700}
+.pp-fine{font-size:11px;color:#444}
+.pp-label{display:grid;gap:4px;margin-bottom:8px;font-weight:700;text-transform:uppercase;font-size:11px}
+.pp-label input{font:inherit;font-size:15px;text-transform:none;padding:6px;border:0;border-bottom:2px solid var(--red);background:rgba(255,255,255,.6)}
+.pl-layers{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:minmax(0,1fr);border:3px solid var(--ink)}
+@media (min-width:800px){.pl-layers{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.pl-layers li{position:relative;padding:14px 14px 40px;border-bottom:2px solid var(--ink)}
+@media (min-width:800px){.pl-layers li{border-bottom:0;border-right:2px solid var(--ink)}.pl-layers li:last-child{border-right:0}}
+.pl-layers li:last-child{border-bottom:0}
+.pl-layers h3{margin:4px 0 6px;font-family:var(--cond);font-stretch:62%;font-weight:900;font-size:30px;text-transform:uppercase;line-height:.9}
+.pl-layers p{margin:0;font-size:13px}
+.pl-n{display:inline-grid;place-items:center;width:34px;height:34px;background:var(--ink);color:var(--paper);font-family:var(--cond);font-stretch:62%;font-weight:900;font-size:24px}
+.pl-tag{position:absolute;left:14px;bottom:12px;padding:1px 8px;background:var(--red);color:#fff;font-weight:700;font-size:11px;text-transform:uppercase}
+.mo .pl-h{margin:18px 0 0;padding:6px 10px;background:var(--ink);color:var(--paper);font-size:clamp(28px,5vw,44px)}
+.pl-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.pl-item{display:grid;gap:2px;padding:8px;border:2px solid var(--ink);text-decoration:none;font-size:12px}
+.pl-item img,.pl-noimg{display:block;width:100%;aspect-ratio:4/5;object-fit:cover;background:#fff;filter:grayscale(1)}
+.pl-item b{font-family:var(--cond);font-stretch:62%;font-weight:900;font-size:20px}
+.pl-v{color:var(--red);font-weight:700}
+.pl-table{width:100%;border-collapse:collapse;font-size:13px}
+.pl-table th,.pl-table td{text-align:left;padding:6px 8px;border-bottom:1px dotted var(--ink)}
+.pl-table th{border-bottom:2px solid var(--ink);text-transform:uppercase;font-size:11px}
+.pl-road{margin:0;padding:0;list-style:none;display:grid;gap:6px}
+.pl-road li{padding:8px 10px;border:2px solid var(--ink);font-size:13px}
+.pl-road li b{display:inline-block;min-width:56px;margin-right:6px;padding:0 6px;background:var(--ink);color:var(--paper);text-transform:uppercase}
+.pl-road li.done b{background:var(--red)}
+.pl-code{margin:0;padding:12px;overflow-x:auto;background:var(--ink);color:var(--paper);font-family:var(--type);font-size:12px;line-height:1.5;white-space:pre}
+/* admin passport */
+.os9 .pa-meter{height:12px;border:2px solid var(--ink);background:#fff}
+.os9 .pa-meter i{display:block;height:100%;background:var(--ink)}
+.os9 .pa-meter.full i{background:#0b6b2c}
+.os9 .pa-sec{margin-top:10px;padding-top:8px;border-top:2px solid var(--ink)}
+.os9 .pa-sec h5{margin:0 0 6px;font-family:var(--sans);font-stretch:62%;font-weight:900;font-size:17px;text-transform:uppercase}
+.os9 .pa-sec h5 small{font-family:var(--type);font-stretch:100%;font-weight:400;font-size:11px;text-transform:none;margin-left:6px}
+.os9 .pa-req{color:var(--red)}
+.os9 .pa-comp{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.os9 .pa-comp input{width:110px}
+.os9 .pa-comp input.pct{width:60px}
+.os9 .pa-hash{font-size:11px;overflow-wrap:anywhere}
+.os9 .pa-items{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px;margin-top:8px}
+.os9 .pa-item{display:grid;gap:2px;text-align:left;padding:6px 8px;border:2px solid var(--ink);background:var(--paper);font-family:var(--type);font-size:12px;cursor:pointer;min-width:0}
+.os9 .pa-item.on{background:var(--ink);color:var(--paper)}
+.os9 .pa-item b{font-family:var(--sans);font-stretch:62%;font-weight:900;font-size:16px}
+.os9 .pa-st{justify-self:start;padding:0 6px;border:1.5px solid currentColor;font-size:10px;text-transform:uppercase}
+.os9 .pa-st.sealed{background:#0b6b2c;color:#fff;border-color:#0b6b2c}
+.os9 .pa-log td{font-size:12px}
