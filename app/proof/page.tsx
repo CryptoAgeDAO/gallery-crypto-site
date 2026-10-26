@@ -23,7 +23,7 @@ for (const s of b.entries) {
 // optional: merkleRoot(anchor.leaves) is in a Solana memo`;
 
 export default async function ProofLab() {
-  const demo = demoPassport();
+  const demo = await demoPassport();
   const sealed = await listSealed();
   const url = `${siteUrl()}/passport/GC-DEMO`;
   const qr = await QRCode.toString(url, { type: 'svg', margin: 0, color: { dark: '#111111', light: '#00000000' } });

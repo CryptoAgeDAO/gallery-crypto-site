@@ -9,7 +9,7 @@ import { explorerAddr, explorerTx } from '@/lib/gcpp';
 import { certNo, type Item } from '@/lib/types';
 
 type LogRow = { id: number; item_id: string; seq: number; kind: string; hash: string; anchor_id: number | null; created_at: string; entry: { data: Record<string, unknown> } };
-type Info = { issuer: string; chain: string; balance: number | null };
+type Info = { issuer: string; permanent?: boolean; chain: string; balance: number | null };
 
 async function hashBytes(buf: ArrayBuffer) {
   const d = await crypto.subtle.digest('SHA-256', buf);
@@ -50,6 +50,22 @@ export default function PassportAdmin() {
     setLog((b.data as LogRow[]) || []);
   }, [db]);
   useEffect(() => { load(); }, [load]);
+
+  // 表がまだなければ、自動でセットアップする（1回だけ試す）
+  const [autoTried, setAutoTried] = useState(false);
+  useEffect(() => {
+    if (!missing || autoTried) return;
+    setAutoTried(true);
+    (async () => {
+      setSt('Setting up passports automatically…');
+      const { data } = await db.auth.getSession();
+      const r = await fetch('/api/admin/setup-events', { method: 'POST', headers: { authorization: `Bearer ${data.session?.access_token || ''}` } });
+      if (r.ok) {
+        setSt('Passports are ready');
+        setTimeout(() => { load(); call({ action: 'info' }).then(({ ok, j }) => ok && setInfo(j)); }, 800);
+      } else setSt('Automatic setup was not possible here — use the steps below once.');
+    })();
+  }, [missing, autoTried, db, load]);
   useEffect(() => { call({ action: 'info' }).then(({ ok, j }) => ok && setInfo(j)); }, []);
 
   useEffect(() => {
@@ -175,7 +191,7 @@ export default function PassportAdmin() {
         </p>
         {info && (
           <p className="pa-hash">
-            Issuer key (= Solana address): <a href={explorerAddr(info.issuer, info.chain)} target="_blank" rel="noopener noreferrer">{info.issuer}</a> · {info.chain === 'solana-mainnet' ? 'Solana mainnet' : 'Solana devnet (test network)'} · balance {info.balance == null ? '—' : `${info.balance} SOL`}
+            Issuer key (= Solana address): <a href={explorerAddr(info.issuer, info.chain)} target="_blank" rel="noopener noreferrer">{info.issuer}</a> · {info.chain === 'solana-mainnet' ? 'Solana mainnet' : 'Solana devnet (test network)'} · balance {info.balance == null ? '—' : `${info.balance} SOL`} · {info.permanent ? 'key stored permanently ✓' : 'temporary key (finishing setup)'} · auto-anchor daily 3:00 JST
           </p>
         )}
         <div className="row" style={{ justifyContent: 'flex-start' }}>

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/server';
-import { anchorPending, appendEntry, CHAIN, isAdminRequest, issuerAddress, issuerBalance, issuerConfigured } from '@/lib/passportServer';
+import { anchorPending, appendEntry, CHAIN, ensureIssuer, isAdminRequest, issuerAddress, issuerBalance, issuerConfigured, issuerPermanent } from '@/lib/passportServer';
 import { DPP_VERSION, EVENT_TYPES, cleanDpp, completeness, mergeDpp, prefill, type Dpp } from '@/lib/dpp';
 import { certNo, type Item } from '@/lib/types';
 
@@ -14,10 +14,11 @@ const clip = (v: unknown, n: number) => String(v ?? '').trim().slice(0, n);
 export async function POST(req: Request) {
   if (!(await isAdminRequest(req))) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   if (!issuerConfigured()) return NextResponse.json({ error: 'issuer-not-configured' }, { status: 501 });
+  await ensureIssuer();
   const body = await req.json().catch(() => ({}));
   try {
     if (body.action === 'info') {
-      return NextResponse.json({ issuer: issuerAddress(), chain: CHAIN, balance: await issuerBalance() });
+      return NextResponse.json({ issuer: issuerAddress(), permanent: issuerPermanent(), chain: CHAIN, balance: await issuerBalance() });
     }
     if (body.action === 'anchor') {
       const r = await anchorPending();

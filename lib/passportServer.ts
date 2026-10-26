@@ -7,12 +7,37 @@ import { createClient } from '@supabase/supabase-js';
 import { db } from './server';
 import { PROTOCOL, anchorMemo, b58encode, hashEntry, merkleRoot, sigMessage, type Anchor, type GcppEntry, type SignedEntry } from './gcpp';
 
-// 発行者の鍵。GC_ISSUER_SEED があればそれ、なければサーバーの秘密鍵から導く（どこにも保存しない）。
-// 本番では専用の鍵管理（KMS など）に移す。
+// 発行者の鍵。優先順位：
+//  1. 環境変数 GC_ISSUER_SEED（設定されていれば）
+//  2. データベースの gc_secrets に自動生成して保管した乱数（初回に1度だけ作り、二度と上書きしない）
+//  3. 表がまだない間だけ、サーバーの秘密鍵から導いた仮の鍵（デモ表示用）
+// 将来は専用の鍵管理（KMS など）に移す。
+let cached: Uint8Array | null = null;
+const derive = (base: string) => sha256(utf8ToBytes(`${PROTOCOL} issuer seed|${base}`));
+const serverBase = () => process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || '';
+
+export async function ensureIssuer(): Promise<void> {
+  if (cached) return;
+  if (process.env.GC_ISSUER_SEED) { cached = derive(process.env.GC_ISSUER_SEED); return; }
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !serverBase()) return;
+  const read = () => db().from('gc_secrets').select('value').eq('name', 'issuer_seed').maybeSingle();
+  let r = await read();
+  if (r.error) return; // 表がまだない
+  if (!r.data) {
+    const fresh = bytesToHex(crypto.getRandomValues(new Uint8Array(32)));
+    await db().from('gc_secrets').upsert({ name: 'issuer_seed', value: fresh }, { onConflict: 'name', ignoreDuplicates: true });
+    r = await read(); // 同時に作られても、先に保存された1つにそろう
+  }
+  const v = (r.data as { value: string } | null)?.value;
+  if (v && /^[0-9a-f]{64}$/.test(v)) cached = new Uint8Array((v.match(/../g) as string[]).map((h) => parseInt(h, 16)));
+}
+export const issuerPermanent = () => Boolean(cached);
+
 function seed(): Uint8Array {
-  const base = process.env.GC_ISSUER_SEED || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || '';
+  if (cached) return cached;
+  const base = serverBase();
   if (!base) throw new Error('issuer-not-configured');
-  return sha256(utf8ToBytes(`${PROTOCOL} issuer seed|${base}`));
+  return derive(base);
 }
 export const issuerConfigured = () => Boolean(process.env.GC_ISSUER_SEED || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY);
 export function issuerAddress(): string {
@@ -43,6 +68,8 @@ export async function loadLog(itemId: string): Promise<SignedEntry[]> {
 }
 
 export async function appendEntry(itemId: string, cert: string, kind: GcppEntry['kind'], data: Record<string, unknown>): Promise<SignedEntry> {
+  await ensureIssuer();
+  if (!cached) throw new Error('not-set-up');
   // 同時に押されても seq が重複しないよう、失敗したら読み直して1回だけやり直す
   for (let attempt = 0; attempt < 2; attempt++) {
     const log = await loadLog(itemId);
@@ -58,6 +85,7 @@ export async function appendEntry(itemId: string, cert: string, kind: GcppEntry[
 
 // まだ刻印していない全記録のハッシュを1つにまとめ、Solana のメモとして書き込む
 export async function anchorPending(): Promise<{ anchor?: Anchor; count: number; address: string; needFunds?: boolean; balance?: number }> {
+  await ensureIssuer();
   const web3 = await import('@solana/web3.js');
   const address = issuerAddress();
   const { data, error } = await db().from('passport_log').select('id,hash').is('anchor_id', null).order('id');

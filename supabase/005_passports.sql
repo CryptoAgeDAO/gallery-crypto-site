@@ -45,6 +45,15 @@ end $$;
 drop trigger if exists passport_log_guard on public.passport_log;
 create trigger passport_log_guard before update or delete on public.passport_log for each row execute function public.passport_log_guard();
 
+-- サーバー専用の秘密（発行者の鍵の元）。一般・管理者ともに読み書き不可、サーバー（service role）だけが使う
+create table if not exists public.gc_secrets (
+  name text primary key,
+  value text not null,
+  created_at timestamptz not null default now()
+);
+alter table public.gc_secrets enable row level security;
+revoke all on public.gc_secrets from anon, authenticated;
+
 -- ブロックチェーンへの刻印（まとめたハッシュの根）
 create table if not exists public.passport_anchors (
   id bigint generated always as identity primary key,

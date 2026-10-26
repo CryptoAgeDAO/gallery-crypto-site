@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: { params: { cert: string } })
 // NFC タグや QR から開く、一点ごとの来歴パスポート
 export default async function PassportPage({ params }: { params: { cert: string } }) {
   const cert = params.cert.toUpperCase();
-  const b = cert === 'GC-DEMO' ? demoPassport() : await getPassport(cert);
+  const b = cert === 'GC-DEMO' ? await demoPassport() : await getPassport(cert);
   if (!b)
     return (
       <MoShell title="Passport not found" kicker="Provenance">

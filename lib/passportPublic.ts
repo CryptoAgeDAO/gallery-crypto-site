@@ -1,6 +1,6 @@
 import 'server-only';
 import { db } from './server';
-import { issuerAddress, issuerConfigured, loadLog, signEntry, CHAIN } from './passportServer';
+import { ensureIssuer, issuerAddress, issuerConfigured, loadLog, signEntry, CHAIN } from './passportServer';
 import { PROTOCOL, type Anchor, type GcppEntry, type SignedEntry } from './gcpp';
 import { DPP_VERSION, cleanDpp, prefill } from './dpp';
 import { PUBLIC_ITEM_COLUMNS, certNo, type Item } from './types';
@@ -24,6 +24,7 @@ export function parseCert(cert: string): number | null {
 export async function getPassport(cert: string): Promise<PassportBundle | null> {
   const serial = parseCert(cert);
   if (!serial || !process.env.NEXT_PUBLIC_SUPABASE_URL || !issuerConfigured()) return null;
+  await ensureIssuer();
   const { data: it } = await db().from('items').select(PUBLIC_ITEM_COLUMNS).eq('serial', serial).eq('published', true).maybeSingle();
   if (!it) return null;
   const item = it as unknown as Item;
@@ -64,8 +65,9 @@ export async function listSealed(limit = 12): Promise<{ cert: string; band: stri
 }
 
 // 申請・説明用のデモ記録。保存せず、その場で本物の鍵で署名する（日時を固定しているので毎回同じ署名になる）
-export function demoPassport(): PassportBundle | null {
+export async function demoPassport(): Promise<PassportBundle | null> {
   if (!issuerConfigured()) return null;
+  await ensureIssuer();
   const demoItem = { band: 'Demo Band', title: 'World Tour', year: '1991', size: 'L', tag: 'Brockum', stitch: true, made_in: 'USA', cond: 'Excellent — light fade', dealer: 'Demo Dealer, Los Angeles', prov: 'Picked from a private collection in Pasadena.' } as Item;
   const d = prefill(demoItem);
   d.provenance.dealer_profile = 'Third-generation picker working the Rose Bowl and private estates.';
