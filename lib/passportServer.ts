@@ -39,6 +39,7 @@ export async function ensureIssuer(): Promise<void> {
   if (v && /^[0-9a-f]{64}$/.test(v)) cached = new Uint8Array((v.match(/../g) as string[]).map((h) => parseInt(h, 16)));
 }
 export const issuerPermanent = () => Boolean(cached);
+export const resetIssuerCache = () => { cached = null; };
 function seed(): Uint8Array {
   if (cached) return cached;
   const base = serverBase();
@@ -162,7 +163,7 @@ export async function commitKey(entry: KeyEntry, cosig: string): Promise<SignedK
 }
 
 // ── Solana への刻印：まだ刻んでいない記録と鍵の台帳をまとめて1つのハッシュにして書き込む ──
-export async function anchorPending(): Promise<{ anchor?: Anchor; count: number; address: string; needFunds?: boolean; balance?: number }> {
+export async function anchorPending(extraLeaves: string[] = []): Promise<{ anchor?: Anchor; count: number; address: string; needFunds?: boolean; balance?: number }> {
   await ensureIssuer();
   const web3 = await import('@solana/web3.js');
   const address = issuerAddress();
@@ -171,7 +172,7 @@ export async function anchorPending(): Promise<{ anchor?: Anchor; count: number;
   const k = await db().from('passport_keys').select('id,hash').is('anchor_id', null).order('id');
   const logRows = (a.data as { id: number; hash: string }[]) || [];
   const keyRows = (k.data as { id: number; hash: string }[]) || [];
-  const leaves = [...logRows, ...keyRows].map((r) => r.hash);
+  const leaves = [...logRows, ...keyRows].map((r) => r.hash).concat(extraLeaves);
   if (!leaves.length) return { count: 0, address };
   const root = merkleRoot(leaves);
 

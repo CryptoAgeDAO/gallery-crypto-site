@@ -584,3 +584,9 @@ body{background:radial-gradient(1100px 560px at 92% -8%,#edeffb 0%,rgba(237,239,
 .vf label.mo-btn{justify-self:start;cursor:pointer}
 .os9 .pa-warn{margin-top:8px;padding:8px 10px;border:2px dashed var(--red);display:grid;gap:6px}
 .os9 .pa-warn p{margin:0}
+.os9 .sc-list{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:6px}
+.os9 .sc-list li{display:grid;grid-template-columns:26px minmax(0,1fr) auto;gap:8px;align-items:center;padding:6px 8px;border:2px solid var(--ink);background:rgba(212,35,27,.06)}
+.os9 .sc-list li.ok{background:rgba(11,107,44,.06)}
+.os9 .sc-list small{font-size:12px}
+.os9 .sc-mark{display:grid;place-items:center;width:24px;height:24px;background:var(--red);color:#fff;font-weight:700}
+.os9 .sc-list li.ok .sc-mark{background:#0b6b2c}

@@ -7,6 +7,7 @@ import { shrink } from '@/lib/image';
 import { onSfxChange, setSfx, sfx, sfxBoot, sfxEnabled } from '@/lib/sfx';
 import Ticket from '@/components/Ticket';
 import PassportAdmin from '@/components/PassportAdmin';
+import SecurityCenter from '@/components/SecurityCenter';
 import { MfaChallenge, TwoStepSettings, useAal } from '@/components/TwoStep';
 import { EVENTS_SQL } from '@/lib/eventsSql';
 import { eventDate, type EventEntry, type GcEvent } from '@/lib/types';
@@ -15,7 +16,7 @@ import { DEFAULT_SETTINGS, ERA_LABEL, certNo, eraOf, usd, type Item, type Settin
 type Entry = { id: string; email: string; item_id: string | null; created_at: string; won: boolean; token: string | null; used_at: string | null };
 type Order = { id: string; item_id: string | null; email: string; name: string; amount: number; currency: string; shipping: Record<string, string> | null; shipped_at: string | null; created_at: string };
 type Msg = { id: string; name: string; email: string; body: string; created_at: string };
-type Tab = 'items' | 'entries' | 'events' | 'passport' | 'orders' | 'messages' | 'settings';
+type Tab = 'items' | 'entries' | 'events' | 'passport' | 'security' | 'orders' | 'messages' | 'settings';
 
 const BLANK: Omit<Item, 'id' | 'serial' | 'created_at'> = {
   photos: [], band: '', title: '', year: '', era: '', size: '', tag: '', stitch: false,
@@ -845,7 +846,7 @@ export default function Admin() {
       <>
         {needPw && <PasswordForm highlight />}
         <div className="adm-tabs">
-          {([['items', 'Archive'], ['entries', 'Draw entries'], ['events', 'Events'], ['passport', 'Passport'], ['orders', 'Orders'], ['messages', 'Messages'], ['settings', 'Settings']] as [Tab, string][]).map(([k, l]) => (
+          {([['items', 'Archive'], ['entries', 'Draw entries'], ['events', 'Events'], ['passport', 'Passport'], ['security', 'Security'], ['orders', 'Orders'], ['messages', 'Messages'], ['settings', 'Settings']] as [Tab, string][]).map(([k, l]) => (
             <button key={k} aria-pressed={tab === k} onClick={() => setTab(k)}>{k === 'events' && <span className="ev-badge">EVENT</span>}{l}{k === 'events' && openEvents > 0 && <sup className="ev-count">{openEvents}</sup>}</button>
           ))}
         </div>
@@ -854,6 +855,7 @@ export default function Admin() {
         {tab === 'orders' && <Orders />}
         {tab === 'events' && <EventsAdmin />}
         {tab === 'passport' && <PassportAdmin />}
+        {tab === 'security' && <SecurityCenter goto={setTab} />}
         {tab === 'messages' && <Messages />}
         {tab === 'settings' && <SettingsForm />}
         {tab === 'settings' && <TwoStepSettings />}

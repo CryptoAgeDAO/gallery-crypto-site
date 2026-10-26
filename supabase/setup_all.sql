@@ -379,4 +379,20 @@ alter table public.passport_passkeys enable row level security;
 drop policy if exists "passport passkeys: admin reads" on public.passport_passkeys;
 create policy "passport passkeys: admin reads" on public.passport_passkeys for select using (public.is_admin());
 grant select on public.passport_passkeys to authenticated;
-create or replace function public.gc_schema_version() returns integer language sql immutable as $$ select 3 $$;
+
+-- バックアップの履歴（暗号化ファイルのダウンロード・毎日の自動スナップショット・復元）
+create table if not exists public.passport_backups (
+  id bigint generated always as identity primary key,
+  kind text not null check (kind in ('download', 'snapshot', 'restore')),
+  sha256 text not null default '',
+  bytes integer not null default 0,
+  note text not null default '',
+  created_at timestamptz not null default now()
+);
+alter table public.passport_backups enable row level security;
+drop policy if exists "passport backups: admin reads" on public.passport_backups;
+create policy "passport backups: admin reads" on public.passport_backups for select using (public.is_admin());
+grant select on public.passport_backups to authenticated;
+-- 自動スナップショットの保管先（非公開）
+insert into storage.buckets (id, name, public) values ('backups', 'backups', false) on conflict (id) do nothing;
+create or replace function public.gc_schema_version() returns integer language sql immutable as $$ select 4 $$;

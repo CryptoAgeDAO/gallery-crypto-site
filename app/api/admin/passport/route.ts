@@ -5,8 +5,10 @@ import {
   issuerError, issuerPermanent, loadKeyring, prepareKey, prepareRecord,
 } from '@/lib/passportServer';
 import { runSetup } from '@/lib/setup';
+import { dailySnapshot, dumpAll, logBackup, restoreAll, verifyBackup, type BackupData } from '@/lib/backup';
+import { serverMac } from '@/lib/passportServer';
 import { assertionOptions, listPasskeys, registerPasskey, registrationOptions, requireFace } from '@/lib/passkey';
-import { hashEntry, validP256, verifyKeyring, type GcppEntry, type KeyEntry } from '@/lib/gcpp';
+import { canonical, sha256hex, hashEntry, validP256, verifyKeyring, type GcppEntry, type KeyEntry } from '@/lib/gcpp';
 import type { Item } from '@/lib/types';
 
 export const runtime = 'nodejs';
@@ -35,7 +37,7 @@ export async function POST(req: Request) {
       // 鍵がまだ保管されていなければ、その場で表を作り直して再挑戦（自動）
       let setup: string | undefined;
       const ver = await db().rpc('gc_schema_version');
-      if (!issuerPermanent() || ver.error || Number(ver.data) < 3) {
+      if (!issuerPermanent() || ver.error || Number(ver.data) < 4) {
         const r = await runSetup();
         setup = r.ok ? 'ran' : r.error;
         await new Promise((res) => setTimeout(res, 1200));
@@ -49,14 +51,47 @@ export async function POST(req: Request) {
         const v = verifyKeyring(list, issuerAddress());
         ring = { list, ok: v.ok || !list.length, checks: v.checks };
       } catch {}
-      return NextResponse.json({ issuer: issuerAddress(), permanent: issuerPermanent(), problem: issuerPermanent() ? '' : issuerError(), setup, chain: CHAIN, balance: await issuerBalance(), ring, passkeys });
+      const lastOf = async (kind: string) => (await db().from('passport_backups').select('created_at').eq('kind', kind).order('id', { ascending: false }).limit(1).maybeSingle()).data?.created_at || null;
+      const pend = async (t: string) => (await db().from(t).select('id', { count: 'exact', head: true }).is('anchor_id', null)).count || 0;
+      let backups = null;
+      try {
+        backups = { download: await lastOf('download'), snapshot: await lastOf('snapshot'), restore: await lastOf('restore'), pending: (await pend('passport_log')) + (await pend('passport_keys')) };
+      } catch {}
+      return NextResponse.json({ issuer: issuerAddress(), permanent: issuerPermanent(), problem: issuerPermanent() ? '' : issuerError(), setup, chain: CHAIN, balance: await issuerBalance(), ring, passkeys, backups });
     }
     if (body.action === 'anchor') return NextResponse.json(await anchorPending());
 
     // 署名（記録・鍵の操作）は、2段階認証を通ったログインのときだけ
-    if (/^(prepare|commit|passkey)/.test(String(body.action))) {
+    if (/^(prepare|commit|passkey|backup|restore|snapshot)/.test(String(body.action))) {
       if (jwtAal(req) !== 'aal2') return NextResponse.json({ error: 'mfa-required' }, { status: 403 });
     }
+
+    // ── バックアップ・復元（顔認証を登録していれば顔認証も必要） ──
+    if (body.action === 'backup-begin' || body.action === 'restore-begin') {
+      const nonce = crypto.randomUUID();
+      const exp = Date.now() + 5 * 60_000;
+      const what = body.action === 'backup-begin' ? 'backup' : 'restore';
+      const hash = sha256hex(`${what}|${nonce}|${exp}`);
+      return NextResponse.json({ nonce, exp, token: serverMac(`${what}|${nonce}|${exp}`), face: await assertionOptions(req, hash) });
+    }
+    if (body.action === 'backup-get' || body.action === 'restore') {
+      const what = body.action === 'backup-get' ? 'backup' : 'restore';
+      if (serverMac(`${what}|${body.nonce}|${body.exp}`) !== body.token || Date.now() > Number(body.exp)) return NextResponse.json({ error: 'This request expired — try again' }, { status: 400 });
+      if ((await listPasskeys()).length) await requireFace(req, sha256hex(`${what}|${body.nonce}|${body.exp}`), body.face);
+      if (what === 'backup') return NextResponse.json(await dumpAll());
+      const data = body.data as BackupData;
+      const v = verifyBackup(data);
+      if (body.dryRun) return NextResponse.json({ verify: v });
+      const counts = await restoreAll(data);
+      await logBackup('restore', sha256hex(canonical(data)), 0, JSON.stringify(counts));
+      return NextResponse.json({ ok: true, counts, verify: v });
+    }
+    if (body.action === 'backup-logged') {
+      if (!isHex(body.sha256, 64)) return NextResponse.json({ error: 'bad' }, { status: 400 });
+      await logBackup('download', body.sha256, Number(body.bytes) || 0, 'encrypted');
+      return NextResponse.json({ ok: true });
+    }
+    if (body.action === 'snapshot-now') return NextResponse.json(await dailySnapshot());
 
     // ── 署名用の顔認証（パスキー）の登録 ──
     if (body.action === 'passkey-options') return NextResponse.json(await registrationOptions(req, claims(req).email || 'admin'));

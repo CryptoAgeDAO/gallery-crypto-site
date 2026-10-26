@@ -135,7 +135,7 @@ export default async function ProofLab() {
       <pre className="pl-code">{SNIPPET}</pre>
       <p className="mo-fine">
         Public key: <a href="/.well-known/gc-issuer.json">/.well-known/gc-issuer.json</a> · Any passport as JSON: <a href="/api/passport/GC-DEMO">/api/passport/GC-DEMO</a> · Protocol GCPP/2
-        (SHA-256, Ed25519 + ECDSA P-256, canonical JSON). Keyring: <a href="/api/keyring">/api/keyring</a> · Offline verifier: <a href="/verify">/verify</a>
+        (SHA-256, Ed25519 + ECDSA P-256, canonical JSON). Keyring: <a href="/api/keyring">/api/keyring</a> · Offline verifier: <a href="/verify">/verify</a> · <a href="/spec">Read the full specification</a>
       </p>
     </MoShell>
   );
