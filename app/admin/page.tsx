@@ -7,6 +7,7 @@ import { shrink } from '@/lib/image';
 import { onSfxChange, setSfx, sfx, sfxBoot, sfxEnabled } from '@/lib/sfx';
 import Ticket from '@/components/Ticket';
 import PassportAdmin from '@/components/PassportAdmin';
+import { MfaChallenge, TwoStepSettings, useAal } from '@/components/TwoStep';
 import { EVENTS_SQL } from '@/lib/eventsSql';
 import { eventDate, type EventEntry, type GcEvent } from '@/lib/types';
 import { DEFAULT_SETTINGS, ERA_LABEL, certNo, eraOf, usd, type Item, type Settings } from '@/lib/types';
@@ -742,6 +743,7 @@ export default function Admin() {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [tab, setTab] = useState<Tab>('items');
   const [needPw, setNeedPw] = useState(false);
+  const { aal, refresh: refreshAal } = useAal();
 
   useEffect(() => {
     const db = supabase();
@@ -835,6 +837,7 @@ export default function Admin() {
   if (!configured) body = <div className="sec"><h4>Not connected yet</h4><p>Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in the Vercel environment variables (see README).</p></div>;
   else if (session === undefined) body = <p className="status">Loading…</p>;
   else if (!session) body = <Login />;
+  else if (aal && aal.current === 'aal1' && aal.next === 'aal2') body = <MfaChallenge onDone={refreshAal} />;
   else if (isAdmin === null) body = <p className="status">Checking…</p>;
   else if (!isAdmin) body = <div className="sec"><h4>Not an admin</h4><p>{session.user.email} is not in the admins table.</p></div>;
   else
@@ -853,6 +856,7 @@ export default function Admin() {
         {tab === 'passport' && <PassportAdmin />}
         {tab === 'messages' && <Messages />}
         {tab === 'settings' && <SettingsForm />}
+        {tab === 'settings' && <TwoStepSettings />}
         {tab === 'settings' && !needPw && <PasswordForm />}
       </>
     );

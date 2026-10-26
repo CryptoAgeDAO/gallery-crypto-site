@@ -12,6 +12,14 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
+function jwtAal(req: Request): string {
+  try {
+    const t = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '').split('.')[1];
+    return JSON.parse(Buffer.from(t.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8')).aal || 'aal1';
+  } catch {
+    return 'aal1';
+  }
+}
 const isHex = (s: unknown, n: number) => typeof s === 'string' && new RegExp(`^[0-9a-f]{${n}}$`).test(s);
 
 // 管理者用。記録は2段階：prepare（サーバーが下書きを作る）→ 端末の鍵で署名 → commit（サーバーが全部確かめてから署名・保存）
@@ -24,7 +32,8 @@ export async function POST(req: Request) {
     if (body.action === 'info') {
       // 鍵がまだ保管されていなければ、その場で表を作り直して再挑戦（自動）
       let setup: string | undefined;
-      if (!issuerPermanent()) {
+      const ver = await db().rpc('gc_schema_version');
+      if (!issuerPermanent() || ver.error || Number(ver.data) < 2) {
         const r = await runSetup();
         setup = r.ok ? 'ran' : r.error;
         await new Promise((res) => setTimeout(res, 1200));
@@ -39,6 +48,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ issuer: issuerAddress(), permanent: issuerPermanent(), problem: issuerPermanent() ? '' : issuerError(), setup, chain: CHAIN, balance: await issuerBalance(), ring });
     }
     if (body.action === 'anchor') return NextResponse.json(await anchorPending());
+
+    // 署名（記録・鍵の操作）は、2段階認証を通ったログインのときだけ
+    if (String(body.action).startsWith('prepare') || String(body.action).startsWith('commit')) {
+      if (jwtAal(req) !== 'aal2') return NextResponse.json({ error: 'mfa-required' }, { status: 403 });
+    }
 
     // ── 鍵の台帳 ──
     if (body.action === 'prepare-key') {

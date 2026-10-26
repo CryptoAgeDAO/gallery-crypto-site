@@ -6,6 +6,7 @@ import { supabase, photoUrl } from '@/lib/supabase';
 import { PASSPORT_SQL } from '@/lib/passportSql';
 import { DPP_SECTIONS, EVENT_TYPES, cleanDpp, completeness, eventLabel, mergeDpp, prefill, type Composition, type Dpp, type PhotoHash } from '@/lib/dpp';
 import { canonical, explorerAddr, explorerTx, hashEntry, keyId, verifyKeyring, type GcppEntry, type KeyEntry, type SignedKey } from '@/lib/gcpp';
+import { useAal } from '@/components/TwoStep';
 import { createDeviceKey, createRecoveryKey, deviceSupported, download, getDeviceKey, importRecoveryKey, signHash, type DeviceKey } from '@/lib/deviceKey';
 import { certNo, type Item } from '@/lib/types';
 
@@ -44,7 +45,9 @@ export default function PassportAdmin() {
   useEffect(() => { getDeviceKey().then(setDev); }, []);
   const ringList = info?.ring?.list || [];
   const ringV = useMemo(() => verifyKeyring(ringList, info?.issuer || ''), [ringList, info?.issuer]);
-  const devActive = Boolean(dev && ringV.keys.get(dev.pub) && !ringV.keys.get(dev.pub)!.revoked);
+  const { aal } = useAal();
+  const mfa = aal?.current === 'aal2';
+  const devActive = mfa && Boolean(dev && ringV.keys.get(dev.pub) && !ringV.keys.get(dev.pub)!.revoked);
   const refreshInfo = () => call({ action: 'info' }).then(({ ok, j }) => ok && setInfo(j));
 
   // 端末は「自分が意図した内容か」を確かめてから署名する（サーバーが乗っ取られていても、別の内容には署名しない）
@@ -290,9 +293,14 @@ export default function PassportAdmin() {
         Every record needs <b>two signatures</b>: the server&apos;s and a founder device key that never leaves this device (it cannot be copied, even by this page). If the
         server or database is ever broken into, nobody can create a valid record without your device. New devices can only be added with an existing key or the offline recovery key.
       </p>
+      {aal && !mfa && (
+        <div className="pa-warn">
+          <p><b>Turn on two-step sign-in first.</b> Signing records and managing keys needs a login verified with a 6-digit code. Go to <b>Settings → Two-step sign-in</b>.</p>
+        </div>
+      )}
       {!deviceSupported() && <p className="status">This browser cannot hold a device key. Use Safari, Chrome or Edge.</p>}
       {info?.ring && !info.ring.ok && <p className="status status-err">The keyring does not verify — signing is locked. Contact support before doing anything else.</p>}
-      {info && info.permanent && ringList.length === 0 && (
+      {info && info.permanent && mfa && ringList.length === 0 && (
         <div className="row" style={{ justifyContent: 'flex-start' }}>
           <button className="btn primary" disabled={busy} onClick={createFounder}>Create founder key on this device</button>
           <span>Do this on the phone or computer you will use for the archive.</span>
@@ -339,7 +347,7 @@ export default function PassportAdmin() {
               </details>
             </>
           )}
-          {!devActive && (
+          {mfa && !devActive && (
             <div className="pa-warn">
               {!dev ? (
                 <button className="btn primary" disabled={busy} onClick={setupThisDevice}>Set up this device</button>
