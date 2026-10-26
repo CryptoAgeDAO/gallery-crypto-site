@@ -1,0 +1,11 @@
+{
+  "name": "Gallery Crypto Verify",
+  "short_name": "GC Verify",
+  "description": "Check a Gallery Crypto provenance proof — works offline.",
+  "start_url": "/verify",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#efe9da",
+  "theme_color": "#111111",
+  "icons": [{ "src": "/gc-verify.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

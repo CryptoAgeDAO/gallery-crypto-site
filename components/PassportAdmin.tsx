@@ -4,12 +4,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase, photoUrl } from '@/lib/supabase';
 import { PASSPORT_SQL } from '@/lib/passportSql';
-import { DPP_SECTIONS, EVENT_TYPES, completeness, eventLabel, mergeDpp, prefill, type Composition, type Dpp, type PhotoHash } from '@/lib/dpp';
-import { explorerAddr, explorerTx } from '@/lib/gcpp';
+import { DPP_SECTIONS, EVENT_TYPES, cleanDpp, completeness, eventLabel, mergeDpp, prefill, type Composition, type Dpp, type PhotoHash } from '@/lib/dpp';
+import { canonical, explorerAddr, explorerTx, hashEntry, keyId, verifyKeyring, type GcppEntry, type KeyEntry, type SignedKey } from '@/lib/gcpp';
+import { createDeviceKey, createRecoveryKey, deviceSupported, download, getDeviceKey, importRecoveryKey, signHash, type DeviceKey } from '@/lib/deviceKey';
 import { certNo, type Item } from '@/lib/types';
 
 type LogRow = { id: number; item_id: string; seq: number; kind: string; hash: string; anchor_id: number | null; created_at: string; entry: { data: Record<string, unknown> } };
-type Info = { issuer: string; permanent?: boolean; chain: string; balance: number | null };
+type Info = { issuer: string; permanent?: boolean; problem?: string; setup?: string; chain: string; balance: number | null; ring: { list: SignedKey[]; ok: boolean } | null };
 
 async function hashBytes(buf: ArrayBuffer) {
   const d = await crypto.subtle.digest('SHA-256', buf);
@@ -38,6 +39,95 @@ export default function PassportAdmin() {
   const [busy, setBusy] = useState(false);
   const item = items.find((i) => i.id === sel) || null;
 
+  // ── 創業者の端末の鍵 ──
+  const [dev, setDev] = useState<DeviceKey | null>(null);
+  useEffect(() => { getDeviceKey().then(setDev); }, []);
+  const ringList = info?.ring?.list || [];
+  const ringV = useMemo(() => verifyKeyring(ringList, info?.issuer || ''), [ringList, info?.issuer]);
+  const devActive = Boolean(dev && ringV.keys.get(dev.pub) && !ringV.keys.get(dev.pub)!.revoked);
+  const refreshInfo = () => call({ action: 'info' }).then(({ ok, j }) => ok && setInfo(j));
+
+  // 端末は「自分が意図した内容か」を確かめてから署名する（サーバーが乗っ取られていても、別の内容には署名しない）
+  const signKeyOp = async (kind: KeyEntry['kind'], key: string, label: string, signer: { pub: string; priv: CryptoKey }) => {
+    const p = await call({ action: 'prepare-key', kind, key, label, signer: signer.pub });
+    if (!p.ok) throw new Error(p.j.error || 'failed');
+    const e = p.j.entry as KeyEntry;
+    if (hashEntry(e) !== p.j.hash || e.kind !== kind || e.key !== key || e.signer !== signer.pub || e.label !== label.trim().slice(0, 60)) throw new Error('The server asked to sign something different — stopped.');
+    const c = await call({ action: 'commit-key', entry: e, cosig: await signHash(signer.priv, p.j.hash) });
+    if (!c.ok) throw new Error(c.j.error || 'failed');
+  };
+  const signRecord = async (kind: GcppEntry['kind'], expect: (e: GcppEntry) => boolean, extra: Record<string, unknown>) => {
+    if (!dev || !devActive || !item) throw new Error('This device has no active founder key');
+    const p = await call({ action: 'prepare', kind, item_id: item.id, signer: dev.pub, ...extra });
+    if (!p.ok) throw Object.assign(new Error(p.j.error === 'missing' ? 'Missing: ' + (p.j.missing || []).join(' · ') : p.j.error || 'failed'), {});
+    const e = p.j.entry as GcppEntry;
+    if (hashEntry(e) !== p.j.hash || e.kind !== kind || e.signer !== dev.pub || e.cert !== certNo(item) || !expect(e)) throw new Error('The server asked to sign something different from what you entered — stopped.');
+    const c = await call({ action: 'commit', item_id: item.id, entry: e, cosig: await signHash(dev.priv, p.j.hash) });
+    if (!c.ok) throw new Error(c.j.error || 'failed');
+    return c.j as { anchored: boolean };
+  };
+  const run = async (label: string, fn: () => Promise<unknown>) => {
+    setBusy(true);
+    setSt(label + '…');
+    try {
+      await fn();
+    } catch (e) {
+      setSt('Error: ' + (e as Error).message);
+      setBusy(false);
+      return false;
+    }
+    setBusy(false);
+    return true;
+  };
+  const createFounder = () => run('Creating the founder key on this device', async () => {
+    const k = await createDeviceKey();
+    setDev(k);
+    await signKeyOp('genesis', k.pub, 'Founder device 1', k);
+    await refreshInfo();
+    setSt('Founder key created. Next: make the offline recovery key.');
+  });
+  const makeRecovery = () => run('Creating the recovery key', async () => {
+    if (!dev) throw new Error('No device key');
+    const rk = await createRecoveryKey();
+    download(`gallery-crypto-recovery-key-${keyId(rk.pub)}.json`, rk.file);
+    await signKeyOp('add', rk.pub, 'Offline recovery key', dev);
+    await refreshInfo();
+    setSt('Recovery key saved as a file and registered. Move the file to a USB stick or print it, then delete it from this computer and its cloud folders.');
+  });
+  const [pairCode, setPairCode] = useState('');
+  const [pairLabel, setPairLabel] = useState('');
+  const approveDevice = () => run('Approving the new device', async () => {
+    if (!dev) throw new Error('No device key');
+    const code = pairCode.trim().toLowerCase();
+    await signKeyOp('add', code, pairLabel.trim() || 'Founder device', dev);
+    setPairCode('');
+    setPairLabel('');
+    await refreshInfo();
+    setSt('New device approved');
+  });
+  const setupThisDevice = () => run('Creating a key on this device', async () => {
+    const k = await createDeviceKey();
+    setDev(k);
+    setSt('Key created. Approve it from an active device (paste the code there) or with the recovery key file below.');
+  });
+  const approveWithRecovery = (f: File | undefined) => {
+    if (!f || !dev) return;
+    run('Approving this device with the recovery key', async () => {
+      const rk = await importRecoveryKey(await f.text());
+      await signKeyOp('add', dev.pub, 'Founder device (recovered)', rk);
+      await refreshInfo();
+      setSt('This device is now active.');
+    });
+  };
+  const revoke = (k: string, label: string) => {
+    if (!dev || !confirm(`Revoke "${label}" (#${keyId(k)})? Records it already signed stay valid; it cannot sign anything new.`)) return;
+    run('Revoking', async () => {
+      await signKeyOp('revoke', k, label, dev);
+      await refreshInfo();
+      setSt('Key revoked');
+    });
+  };
+
   const load = useCallback(async () => {
     const a = await db.from('items').select('*').order('serial');
     setItems((a.data as Item[]) || []);
@@ -46,6 +136,8 @@ export default function PassportAdmin() {
       setMissing(/relation|does not exist|schema cache/i.test(b.error.message));
       return setSt('Could not load: ' + b.error.message);
     }
+    const k = await db.from('passport_keys').select('id', { count: 'exact', head: true });
+    if (k.error && /relation|does not exist|schema cache/i.test(k.error.message)) return setMissing(true);
     setMissing(false);
     setLog((b.data as LogRow[]) || []);
   }, [db]);
@@ -95,21 +187,30 @@ export default function PassportAdmin() {
     if (comp.missing.length) return setSt('Fill the required fields first: ' + comp.missing.join(' · '));
     const n = mine.filter((l) => l.kind === 'seal').length;
     if (!confirm(`Seal ${certNo(item)} as version ${n + 1}?\n\nThis writes a signed, permanent record that anyone can verify. It can be superseded by a new version later, but never edited or erased.`)) return;
-    setBusy(true);
-    if (!(await saveDraft())) return setBusy(false);
-    const { ok, j } = await call({ action: 'seal', item_id: item.id });
-    setBusy(false);
-    if (!ok) return setSt(j.error === 'missing' ? 'Missing: ' + (j.missing || []).join(' · ') : 'Error: ' + (j.error || 'failed'));
-    setSt(`Sealed v${n + 1} — signed and live at /passport/${certNo(item)}`);
+    if (!(await saveDraft())) return;
+    const want = canonical(cleanDpp(dpp!));
+    let anchored = false;
+    const ok = await run('Signing with this device and the server', async () => {
+      const r = await signRecord('seal', (e) => canonical((e.data as { dpp: unknown }).dpp) === want, {});
+      anchored = r.anchored;
+    });
+    if (!ok) return;
+    setSt(`Sealed v${n + 1} — signed twice${anchored ? ' and anchored on Solana' : ''}. Live at /passport/${certNo(item)}`);
     load();
   };
   const addEvent = async () => {
     if (!item) return;
-    setBusy(true);
-    const { ok, j } = await call({ action: 'event', item_id: item.id, event: ev });
-    setBusy(false);
-    if (!ok) return setSt('Error: ' + (j.error || 'failed'));
-    setSt(`${eventLabel(ev.type)} recorded and signed`);
+    const t = (v: string, n: number) => v.trim().slice(0, n);
+    let anchored = false;
+    const ok = await run('Signing with this device and the server', async () => {
+      const r = await signRecord('event', (e) => {
+        const d = e.data as Record<string, string>;
+        return d.type === ev.type && d.actor === t(ev.actor, 120) && d.place === t(ev.place, 120) && d.note === t(ev.note, 1000) && (d.date || '') === ev.date;
+      }, { event: ev });
+      anchored = r.anchored;
+    });
+    if (!ok) return;
+    setSt(`${eventLabel(ev.type)} recorded — signed twice${anchored ? ' and anchored on Solana' : ''}`);
     setEv({ ...ev, note: '' });
     load();
   };
@@ -181,18 +282,102 @@ export default function PassportAdmin() {
       </div>
     );
 
+  const keysList = Array.from(ringV.keys.values());
+  const founderSec = (
+    <div className="sec">
+      <h4>Founder keys · two-key signing</h4>
+      <p>
+        Every record needs <b>two signatures</b>: the server&apos;s and a founder device key that never leaves this device (it cannot be copied, even by this page). If the
+        server or database is ever broken into, nobody can create a valid record without your device. New devices can only be added with an existing key or the offline recovery key.
+      </p>
+      {!deviceSupported() && <p className="status">This browser cannot hold a device key. Use Safari, Chrome or Edge.</p>}
+      {info?.ring && !info.ring.ok && <p className="status status-err">The keyring does not verify — signing is locked. Contact support before doing anything else.</p>}
+      {info && info.permanent && ringList.length === 0 && (
+        <div className="row" style={{ justifyContent: 'flex-start' }}>
+          <button className="btn primary" disabled={busy} onClick={createFounder}>Create founder key on this device</button>
+          <span>Do this on the phone or computer you will use for the archive.</span>
+        </div>
+      )}
+      {ringList.length > 0 && (
+        <>
+          <p>
+            This device: {dev ? <b>#{keyId(dev.pub)}</b> : 'no key'} {devActive ? <b style={{ color: '#0b6b2c' }}>· active — you can sign</b> : dev ? '· waiting for approval' : ''}
+          </p>
+          <div className="tablewrap">
+            <table>
+              <thead><tr><th>Key</th><th>Name</th><th>Since</th><th>Status</th><th /></tr></thead>
+              <tbody>
+                {keysList.map((k) => (
+                  <tr key={k.key}>
+                    <td className="pa-hash">#{keyId(k.key)}{dev?.pub === k.key ? ' (this device)' : ''}</td>
+                    <td>{k.label}</td>
+                    <td>{new Date(k.added).toLocaleDateString('en-US')}</td>
+                    <td>{k.revoked ? 'revoked' : 'active'}</td>
+                    <td>{!k.revoked && devActive && k.key !== dev?.pub && <button className="btn danger" style={{ padding: '2px 8px', fontSize: 13 }} onClick={() => revoke(k.key, k.label)}>Revoke</button>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {devActive && (
+            <>
+              {!keysList.some((k) => !k.revoked && /recovery/i.test(k.label)) && (
+                <div className="pa-warn">
+                  <p><b>Make an offline recovery key now.</b> If every device is lost, this file is the only way to approve a new one. Keep it on a USB stick or printed, never in the cloud.</p>
+                  <button className="btn primary" disabled={busy} onClick={makeRecovery}>Create recovery key file</button>
+                </div>
+              )}
+              {keysList.some((k) => !k.revoked && /recovery/i.test(k.label)) && <p>Offline recovery key registered ✓</p>}
+              <details style={{ marginTop: 8 }}>
+                <summary>Approve another device</summary>
+                <p>On the new device, open this tab and press “Set up this device”. Paste the code it shows here.</p>
+                <div className="form">
+                  <label className="wide">Device code<input type="text" value={pairCode} onChange={(e) => setPairCode(e.target.value)} placeholder="04…" /></label>
+                  <label>Name<input type="text" value={pairLabel} onChange={(e) => setPairLabel(e.target.value)} placeholder="iPhone" /></label>
+                </div>
+                <button className="btn" disabled={busy || !/^04[0-9a-fA-F]{128}$/.test(pairCode.trim())} onClick={approveDevice}>Approve</button>
+              </details>
+            </>
+          )}
+          {!devActive && (
+            <div className="pa-warn">
+              {!dev ? (
+                <button className="btn primary" disabled={busy} onClick={setupThisDevice}>Set up this device</button>
+              ) : (
+                <>
+                  <p>Approve this device from an active device by pasting this code there:</p>
+                  <p className="pa-hash"><b>{dev.pub}</b> <button className="btn" style={{ padding: '2px 8px', fontSize: 13 }} onClick={() => navigator.clipboard.writeText(dev.pub).then(() => setSt('Code copied'))}>Copy</button></p>
+                  <p>Or approve it with the offline recovery key file:</p>
+                  <label className="btn" style={{ padding: '4px 10px', fontSize: 14 }}>Use recovery key file<input type="file" accept=".json,application/json" hidden onChange={(e) => approveWithRecovery(e.target.files?.[0])} /></label>
+                </>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+
   return (
     <>
+      {founderSec}
       <div className="sec">
         <h4>Provenance passports</h4>
         <p>
-          Fill in each piece&apos;s record (aligned with the EU Digital Product Passport), then <b>Seal</b> it: the record is signed with Gallery Crypto&apos;s key and becomes permanent and
+          Fill in each piece&apos;s record (aligned with the EU Digital Product Passport), then <b>Seal</b> it: the record is signed by this device and the server and becomes permanent and
           public at /passport/GC-XXXX. Add events as the piece moves. <b>Anchor</b> writes all new records to Solana as one hash. Public demo: <a href="/proof" target="_blank" rel="noreferrer">/proof</a>
         </p>
         {info && (
           <p className="pa-hash">
-            Issuer key (= Solana address): <a href={explorerAddr(info.issuer, info.chain)} target="_blank" rel="noopener noreferrer">{info.issuer}</a> · {info.chain === 'solana-mainnet' ? 'Solana mainnet' : 'Solana devnet (test network)'} · balance {info.balance == null ? '—' : `${info.balance} SOL`} · {info.permanent ? 'key stored permanently ✓' : 'temporary key (finishing setup)'} · auto-anchor daily 3:00 JST
+            Issuer key (= Solana address): <a href={explorerAddr(info.issuer, info.chain)} target="_blank" rel="noopener noreferrer">{info.issuer}</a> · {info.chain === 'solana-mainnet' ? 'Solana mainnet' : 'Solana devnet (test network)'} · balance {info.balance == null ? '—' : `${info.balance} SOL`} · {info.permanent ? 'server key stored ✓' : 'server key not stored yet'} · records anchored right after signing, plus daily at 3:00 JST
           </p>
+        )}
+        {info && !info.permanent && (
+          <div className="pa-warn">
+            <p><b>Setup is not finished.</b> {info.setup === 'no-db-url' ? 'This server cannot create the tables by itself.' : info.setup && info.setup !== 'ran' ? `Automatic setup failed: ${info.setup}` : ''} {info.problem ? `(${info.problem})` : ''}</p>
+            <p>Do this once: <button className="btn" onClick={async () => { try { await navigator.clipboard.writeText(PASSPORT_SQL); setSt('Setup code copied — paste it in the Supabase SQL editor and press Run'); } catch { setSt('Could not copy'); } }}>Copy setup code</button>{' '}
+              <a className="btn" href="https://supabase.com/dashboard/project/tgivhkjwibwekuvbcgcm/sql/new" target="_blank" rel="noopener noreferrer">Open Supabase SQL editor</a> → paste → Run → reload this page.</p>
+          </div>
         )}
         <div className="row" style={{ justifyContent: 'flex-start' }}>
           <button className="btn primary" disabled={busy || !pending} onClick={anchor}>Anchor {pending || ''} to Solana</button>
@@ -287,7 +472,7 @@ export default function PassportAdmin() {
 
           <div className="row" style={{ marginTop: 12 }}>
             <button className="btn" disabled={busy} onClick={saveDraft}>Save draft</button>
-            <button className="btn primary" disabled={busy || comp.missing.length > 0} onClick={seal}>Seal record{mine.some((l) => l.kind === 'seal') ? ' (new version)' : ''}</button>
+            <button className="btn primary" disabled={busy || comp.missing.length > 0 || !devActive} onClick={seal}>Seal record{mine.some((l) => l.kind === 'seal') ? ' (new version)' : ''}</button>
           </div>
           {comp.missing.length > 0 && <p className="status">Still needed: {comp.missing.join(' · ')}</p>}
         </div>
@@ -309,7 +494,8 @@ export default function PassportAdmin() {
             <label className="wide">Note<textarea value={ev.note} onChange={(e) => setEv({ ...ev, note: e.target.value })} placeholder={EVENT_TYPES.find((t) => t.key === ev.type)?.hint} /></label>
           </div>
           <div className="row" style={{ justifyContent: 'flex-start' }}>
-            <button className="btn primary" disabled={busy} onClick={addEvent}>Sign &amp; add</button>
+            <button className="btn primary" disabled={busy || !devActive} onClick={addEvent}>Sign &amp; add</button>
+            {!devActive && <span>Needs an active founder key on this device (see Founder keys).</span>}
             {mine.length > 0 && <a className="btn" href={`/passport/${certNo(item)}`} target="_blank" rel="noreferrer">Open public passport</a>}
           </div>
           {mine.length > 0 && (

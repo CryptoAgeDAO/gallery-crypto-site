@@ -276,6 +276,7 @@ create table if not exists public.passport_log (
   created_at timestamptz not null default now(),
   unique (item_id, seq)
 );
+alter table public.passport_log add column if not exists cosig text not null default '';
 alter table public.passport_log enable row level security;
 drop policy if exists "passport log: public reads published" on public.passport_log;
 create policy "passport log: public reads published" on public.passport_log for select
@@ -286,7 +287,8 @@ create or replace function public.passport_log_guard() returns trigger language 
 begin
   if tg_op = 'DELETE' then raise exception 'passport records are permanent'; end if;
   if new.entry is distinct from old.entry or new.hash is distinct from old.hash or new.sig is distinct from old.sig
-     or new.issuer is distinct from old.issuer or new.seq is distinct from old.seq or new.item_id is distinct from old.item_id then
+     or new.issuer is distinct from old.issuer or new.seq is distinct from old.seq or new.item_id is distinct from old.item_id
+     or new.cosig is distinct from old.cosig then
     raise exception 'passport records are permanent';
   end if;
   return new;
@@ -316,3 +318,32 @@ alter table public.passport_anchors enable row level security;
 drop policy if exists "passport anchors: public reads" on public.passport_anchors;
 create policy "passport anchors: public reads" on public.passport_anchors for select using (true);
 grant select on public.passport_anchors to anon, authenticated;
+
+-- 創業者の鍵の台帳（端末の鍵・オフラインの復旧鍵）。追加・取り消しは、有効な鍵の署名がないとサーバーが受け付けない
+create table if not exists public.passport_keys (
+  id bigint generated always as identity primary key,
+  seq integer not null unique,
+  entry jsonb not null,
+  hash text not null unique,
+  sig text not null,
+  cosig text not null,
+  issuer text not null,
+  anchor_id bigint,
+  created_at timestamptz not null default now()
+);
+alter table public.passport_keys enable row level security;
+drop policy if exists "passport keys: public reads" on public.passport_keys;
+create policy "passport keys: public reads" on public.passport_keys for select using (true);
+grant select on public.passport_keys to anon, authenticated;
+
+create or replace function public.passport_keys_guard() returns trigger language plpgsql as $$
+begin
+  if tg_op = 'DELETE' then raise exception 'key records are permanent'; end if;
+  if new.entry is distinct from old.entry or new.hash is distinct from old.hash or new.sig is distinct from old.sig
+     or new.cosig is distinct from old.cosig or new.issuer is distinct from old.issuer or new.seq is distinct from old.seq then
+    raise exception 'key records are permanent';
+  end if;
+  return new;
+end $$;
+drop trigger if exists passport_keys_guard on public.passport_keys;
+create trigger passport_keys_guard before update or delete on public.passport_keys for each row execute function public.passport_keys_guard();

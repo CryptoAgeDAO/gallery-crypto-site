@@ -1,7 +1,9 @@
 import 'server-only';
 import { db } from './server';
-import { ensureIssuer, issuerAddress, issuerConfigured, loadLog, signEntry, CHAIN } from './passportServer';
-import { PROTOCOL, type Anchor, type GcppEntry, type SignedEntry } from './gcpp';
+import { p256 } from '@noble/curves/p256';
+import { sha256 } from '@noble/hashes/sha256';
+import { ensureIssuer, issuerAddress, issuerConfigured, loadKeyring, loadLog, serverSign, demoSeed, CHAIN } from './passportServer';
+import { PROTOCOL, bytesToHex, sigMessage, type Anchor, type GcppEntry, type KeyEntry, type SignedEntry, type SignedKey } from './gcpp';
 import { DPP_VERSION, cleanDpp, prefill } from './dpp';
 import { PUBLIC_ITEM_COLUMNS, certNo, type Item } from './types';
 
@@ -13,8 +15,20 @@ export type PassportBundle = {
   demo?: boolean;
   item: Pick<Item, 'band' | 'title' | 'year' | 'photos'> | null;
   entries: SignedEntry[];
+  keyring: SignedKey[];
   anchors: Anchor[];
 };
+
+// 公開の鍵の台帳（オフライン検証の元になる）
+export async function publicKeyring(): Promise<{ protocol: string; issuer: string; chain: string; keyring: SignedKey[]; anchors: Anchor[] } | null> {
+  if (!issuerConfigured()) return null;
+  await ensureIssuer();
+  let keyring: SignedKey[] = [];
+  try { keyring = await loadKeyring(); } catch {}
+  const ids = Array.from(new Set(keyring.map((k) => k.anchor_id).filter(Boolean))) as number[];
+  const { data: anchors } = ids.length ? await db().from('passport_anchors').select('*').in('id', ids) : { data: [] };
+  return { protocol: PROTOCOL, issuer: issuerAddress(), chain: CHAIN, keyring, anchors: (anchors as Anchor[]) || [] };
+}
 
 export function parseCert(cert: string): number | null {
   const m = /^GC-(\d{1,8})$/i.exec(cert.trim());
@@ -29,15 +43,17 @@ export async function getPassport(cert: string): Promise<PassportBundle | null> 
   if (!it) return null;
   const item = it as unknown as Item;
   let entries: SignedEntry[] = [];
+  let keyring: SignedKey[] = [];
   try {
     entries = await loadLog(item.id);
+    keyring = await loadKeyring();
   } catch {
     return null;
   }
   if (!entries.length) return null;
-  const ids = Array.from(new Set(entries.map((e) => e.anchor_id).filter(Boolean))) as number[];
+  const ids = Array.from(new Set([...entries, ...keyring].map((e) => e.anchor_id).filter(Boolean))) as number[];
   const { data: anchors } = ids.length ? await db().from('passport_anchors').select('*').in('id', ids) : { data: [] };
-  return { protocol: PROTOCOL, issuer: issuerAddress(), chain: CHAIN, cert: certNo(item), item: { band: item.band, title: item.title, year: item.year, photos: item.photos }, entries, anchors: (anchors as Anchor[]) || [] };
+  return { protocol: PROTOCOL, issuer: issuerAddress(), chain: CHAIN, cert: certNo(item), item: { band: item.band, title: item.title, year: item.year, photos: item.photos }, entries, keyring, anchors: (anchors as Anchor[]) || [] };
 }
 
 // 公開中で、確定済みの記録がある作品の番号（カタログからリンクするため）
@@ -82,10 +98,18 @@ export async function demoPassport(): Promise<PassportBundle | null> {
     ['event', '2027-02-02T03:30:00.000Z', { type: 'fingerprinted', actor: 'Gallery Crypto', place: 'Tokyo, JP', note: 'Two macro areas hashed. NFC tag sewn into the collar.' }],
     ['seal', '2027-02-02T04:00:00.000Z', { schema: DPP_VERSION, version: 1, dpp: cleanDpp(d) }],
   ];
+  // デモ用の創業者の鍵（本物の台帳とは別。サーバーの鍵から導くので毎回同じ）
+  const priv = demoSeed();
+  const founder = bytesToHex(p256.getPublicKey(priv, false));
+  const cosign = (hash: string) => p256.sign(sha256(sigMessage(hash)), priv).toCompactHex();
+  const g: KeyEntry = { protocol: PROTOCOL, seq: 1, kind: 'genesis', key: founder, label: 'Demo founder key', at: '2027-01-01T00:00:00.000Z', prev: null, signer: founder };
+  const gs = serverSign(g);
+  const keyring: SignedKey[] = [{ entry: g, ...gs, cosig: cosign(gs.hash) }];
   const entries: SignedEntry[] = [];
   steps.forEach(([kind, at, data], i) => {
-    const e: GcppEntry = { protocol: PROTOCOL, cert: 'GC-DEMO', seq: i + 1, kind, at, prev: entries[i - 1]?.hash ?? null, data };
-    entries.push(signEntry(e));
+    const e: GcppEntry = { protocol: PROTOCOL, cert: 'GC-DEMO', seq: i + 1, kind, at, prev: entries[i - 1]?.hash ?? null, signer: founder, data };
+    const sv = serverSign(e);
+    entries.push({ entry: e, ...sv, cosig: cosign(sv.hash) });
   });
-  return { protocol: PROTOCOL, issuer: issuerAddress(), chain: CHAIN, cert: 'GC-DEMO', demo: true, item: { band: 'Demo Band', title: 'World Tour', year: '1991', photos: [] }, entries, anchors: [] };
+  return { protocol: PROTOCOL, issuer: issuerAddress(), chain: CHAIN, cert: 'GC-DEMO', demo: true, item: { band: 'Demo Band', title: 'World Tour', year: '1991', photos: [] }, entries, keyring, anchors: [] };
 }

@@ -567,3 +567,20 @@ body{background:radial-gradient(1100px 560px at 92% -8%,#edeffb 0%,rgba(237,239,
 .os9 .pa-st{justify-self:start;padding:0 6px;border:1.5px solid currentColor;font-size:10px;text-transform:uppercase}
 .os9 .pa-st.sealed{background:#0b6b2c;color:#fff;border-color:#0b6b2c}
 .os9 .pa-log td{font-size:12px}
+.pp-qr.big{width:180px;height:180px;margin:4px 0 8px}
+.pp-keys{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-size:13px}
+.vf{display:grid;gap:14px}
+.vf-status{margin:0;font-size:12px;font-weight:700;text-transform:uppercase}
+.vf-dot{display:inline-block;width:9px;height:9px;border:1.5px solid var(--ink);background:#bbb;vertical-align:middle}
+.vf-dot.online{background:#0b6b2c}.vf-dot.offline{background:var(--red)}
+.vf-card,.vf-file{display:grid;gap:8px;padding:14px;border:3px solid var(--ink);min-width:0}
+.vf-card h2{margin:0;font-size:clamp(26px,5vw,40px)}
+.vf-card p{margin:0}
+.vf-card.ok,.vf-file.ok{border-color:#0b6b2c}
+.vf-card.ng,.vf-file.ng{border-color:var(--red)}
+.vf-card.ok .pp-stamp,.vf-file.ok .pp-stamp{color:#0b6b2c;border-color:#0b6b2c}
+.vf-card.ng .pp-stamp,.vf-file.ng .pp-stamp{color:var(--red);border-color:var(--red)}
+.vf-list{margin:0;padding-left:18px;display:grid;gap:3px;font-size:13px}
+.vf label.mo-btn{justify-self:start;cursor:pointer}
+.os9 .pa-warn{margin-top:8px;padding:8px 10px;border:2px dashed var(--red);display:grid;gap:6px}
+.os9 .pa-warn p{margin:0}

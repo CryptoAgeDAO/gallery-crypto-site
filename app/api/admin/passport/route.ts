@@ -1,16 +1,20 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/server';
-import { anchorPending, appendEntry, CHAIN, ensureIssuer, isAdminRequest, issuerAddress, issuerBalance, issuerConfigured, issuerPermanent } from '@/lib/passportServer';
-import { DPP_VERSION, EVENT_TYPES, cleanDpp, completeness, mergeDpp, prefill, type Dpp } from '@/lib/dpp';
-import { certNo, type Item } from '@/lib/types';
+import {
+  CHAIN, anchorPending, anchorSoon, commitKey, commitRecord, ensureIssuer, isAdminRequest, issuerAddress, issuerBalance, issuerConfigured,
+  issuerError, issuerPermanent, loadKeyring, prepareKey, prepareRecord,
+} from '@/lib/passportServer';
+import { runSetup } from '@/lib/setup';
+import { hashEntry, validP256, verifyKeyring, type GcppEntry, type KeyEntry } from '@/lib/gcpp';
+import type { Item } from '@/lib/types';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-const clip = (v: unknown, n: number) => String(v ?? '').trim().slice(0, n);
+const isHex = (s: unknown, n: number) => typeof s === 'string' && new RegExp(`^[0-9a-f]{${n}}$`).test(s);
 
-// 管理者用：記録の確定（署名）、出来事の追記、Solana への刻印、発行者情報
+// 管理者用。記録は2段階：prepare（サーバーが下書きを作る）→ 端末の鍵で署名 → commit（サーバーが全部確かめてから署名・保存）
 export async function POST(req: Request) {
   if (!(await isAdminRequest(req))) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   if (!issuerConfigured()) return NextResponse.json({ error: 'issuer-not-configured' }, { status: 501 });
@@ -18,39 +22,58 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
   try {
     if (body.action === 'info') {
-      return NextResponse.json({ issuer: issuerAddress(), permanent: issuerPermanent(), chain: CHAIN, balance: await issuerBalance() });
+      // 鍵がまだ保管されていなければ、その場で表を作り直して再挑戦（自動）
+      let setup: string | undefined;
+      if (!issuerPermanent()) {
+        const r = await runSetup();
+        setup = r.ok ? 'ran' : r.error;
+        await new Promise((res) => setTimeout(res, 1200));
+        await ensureIssuer();
+      }
+      let ring = null;
+      try {
+        const list = await loadKeyring();
+        const v = verifyKeyring(list, issuerAddress());
+        ring = { list, ok: v.ok || !list.length, checks: v.checks };
+      } catch {}
+      return NextResponse.json({ issuer: issuerAddress(), permanent: issuerPermanent(), problem: issuerPermanent() ? '' : issuerError(), setup, chain: CHAIN, balance: await issuerBalance(), ring });
     }
-    if (body.action === 'anchor') {
-      const r = await anchorPending();
-      return NextResponse.json(r);
+    if (body.action === 'anchor') return NextResponse.json(await anchorPending());
+
+    // ── 鍵の台帳 ──
+    if (body.action === 'prepare-key') {
+      const kind = body.kind as KeyEntry['kind'];
+      if (!['genesis', 'add', 'revoke'].includes(kind) || !validP256(String(body.key)) || !validP256(String(body.signer))) return NextResponse.json({ error: 'Bad key' }, { status: 400 });
+      const entry = await prepareKey(kind, body.key, String(body.label || ''), body.signer);
+      return NextResponse.json({ entry, hash: hashEntry(entry) });
     }
+    if (body.action === 'commit-key') {
+      if (!isHex(body.cosig, 128)) return NextResponse.json({ error: 'Bad signature' }, { status: 400 });
+      const s = await commitKey(body.entry as KeyEntry, body.cosig);
+      const anchored = await anchorSoon();
+      return NextResponse.json({ ok: true, entry: s, anchored: Boolean(anchored && 'anchor' in anchored && anchored.anchor) });
+    }
+
+    // ── 作品の記録 ──
     const { data: it } = await db().from('items').select('*').eq('id', String(body.item_id || '')).maybeSingle();
     if (!it) return NextResponse.json({ error: 'Piece not found' }, { status: 404 });
     const item = it as Item;
-    const cert = certNo(item);
-
-    if (body.action === 'seal') {
-      const { data: p } = await db().from('passports').select('dpp').eq('item_id', item.id).maybeSingle();
-      const d = cleanDpp(mergeDpp(prefill(item), (p?.dpp as Dpp) || null));
-      const c = completeness(d);
-      if (c.missing.length) return NextResponse.json({ error: 'missing', missing: c.missing }, { status: 422 });
-      const { count } = await db().from('passport_log').select('id', { count: 'exact', head: true }).eq('item_id', item.id).eq('kind', 'seal');
-      const s = await appendEntry(item.id, cert, 'seal', { schema: DPP_VERSION, version: (count || 0) + 1, dpp: d });
-      return NextResponse.json({ ok: true, entry: s });
+    if (body.action === 'prepare') {
+      if (!['seal', 'event'].includes(body.kind) || !validP256(String(body.signer))) return NextResponse.json({ error: 'Bad request' }, { status: 400 });
+      const entry = await prepareRecord(item, body.kind, body.event || {}, body.signer);
+      return NextResponse.json({ entry, hash: hashEntry(entry) });
     }
-
-    if (body.action === 'event') {
-      const ev = body.event || {};
-      const type = clip(ev.type, 30);
-      if (!EVENT_TYPES.some((t) => t.key === type)) return NextResponse.json({ error: 'Choose what happened' }, { status: 400 });
-      const data: Record<string, unknown> = { type, actor: clip(ev.actor, 120), place: clip(ev.place, 120), note: clip(ev.note, 1000) };
-      if (ev.date) data.date = clip(ev.date, 10);
-      const s = await appendEntry(item.id, cert, 'event', data);
-      return NextResponse.json({ ok: true, entry: s });
+    if (body.action === 'commit') {
+      if (!isHex(body.cosig, 128)) return NextResponse.json({ error: 'Bad signature' }, { status: 400 });
+      const s = await commitRecord(item, body.entry as GcppEntry, body.cosig);
+      const anchored = await anchorSoon();
+      return NextResponse.json({ ok: true, entry: s, anchored: Boolean(anchored && 'anchor' in anchored && anchored.anchor) });
     }
     return NextResponse.json({ error: 'unknown action' }, { status: 400 });
   } catch (e) {
-    const m = (e as Error).message || String(e);
+    const err = e as Error & { missing?: string[] };
+    if (err.missing) return NextResponse.json({ error: 'missing', missing: err.missing }, { status: 422 });
+    const m = err.message || String(e);
     return NextResponse.json({ error: /relation|does not exist|schema cache/i.test(m) ? 'not-set-up' : m }, { status: 500 });
   }
 }

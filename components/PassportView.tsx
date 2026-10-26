@@ -3,7 +3,7 @@
 // 来歴パスポートの表示と、ブラウザだけで行う検証（サーバーもブロックチェーンも信用しなくてよい）
 import { useEffect, useMemo, useState } from 'react';
 import { DPP_SECTIONS, eventLabel, type Composition, type PhotoHash } from '@/lib/dpp';
-import { explorerAddr, explorerTx, merkleRoot, rpcFor, verifyLog, type Anchor, type Check, type SignedEntry } from '@/lib/gcpp';
+import { checkOk, explorerAddr, explorerTx, keyId, merkleRoot, rpcFor, verifyKeyring, verifyLog, type Anchor, type Check, type KeyState, type SignedEntry } from '@/lib/gcpp';
 import type { PassportBundle } from '@/lib/passportPublic';
 
 const short = (h: string, n = 10) => (h.length > n * 2 ? `${h.slice(0, n)}…${h.slice(-6)}` : h);
@@ -13,9 +13,9 @@ function Mark({ ok }: { ok: boolean | null }) {
   return <span className={`pp-mark ${ok === null ? 'wait' : ok ? 'ok' : 'ng'}`}>{ok === null ? '…' : ok ? '✓' : '✕'}</span>;
 }
 
-function useVerify(entries: SignedEntry[], issuer: string) {
+function useVerify(entries: SignedEntry[], issuer: string, keys: Map<string, KeyState>) {
   const [shown, setShown] = useState(0);
-  const res = useMemo(() => verifyLog(entries, issuer), [entries, issuer]);
+  const res = useMemo(() => verifyLog(entries, issuer, keys), [entries, issuer, keys]);
   useEffect(() => {
     setShown(0);
     let i = 0;
@@ -36,17 +36,19 @@ function Checks({ checks, shown, entries }: { checks: Check[]; shown: number; en
         const vis = i < shown;
         const e = entries[i].entry;
         return (
-          <li key={i} className={vis ? (c.hashOk && c.sigOk && c.chainOk && c.issuerOk ? 'ok' : 'ng') : ''}>
+          <li key={i} className={vis ? (checkOk(c) ? 'ok' : 'ng') : ''}>
             <span className="pp-seq">#{String(e.seq).padStart(2, '0')}</span>
             <span className="pp-what">{e.kind === 'seal' ? `Record sealed v${(e.data as { version?: number }).version ?? 1}` : eventLabel(String((e.data as { type?: string }).type))}</span>
             <span className="pp-tests">
               <span>Contents <Mark ok={vis ? c.hashOk : null} /></span>
-              <span>Signature <Mark ok={vis ? c.sigOk && c.issuerOk : null} /></span>
+              <span>Server key <Mark ok={vis ? c.sigOk && c.issuerOk : null} /></span>
+              <span>Founder key <Mark ok={vis ? c.cosigOk : null} /></span>
               <span>Chain link <Mark ok={vis ? c.chainOk : null} /></span>
             </span>
             {vis && !c.hashOk && <span className="pp-why">The contents no longer match the hash that was signed — someone changed this record.</span>}
-            {vis && c.hashOk && !c.sigOk && <span className="pp-why">The signature does not belong to Gallery Crypto&apos;s published key.</span>}
-            {vis && c.hashOk && c.sigOk && !c.chainOk && <span className="pp-why">This record does not link to the one before it — something was removed or inserted.</span>}
+            {vis && c.hashOk && !(c.sigOk && c.issuerOk) && <span className="pp-why">The server signature does not belong to Gallery Crypto&apos;s published key.</span>}
+            {vis && c.hashOk && c.sigOk && !c.cosigOk && <span className="pp-why">Missing a valid signature from an active founder device key — a server alone cannot create records.</span>}
+            {vis && c.hashOk && c.sigOk && c.cosigOk && !c.chainOk && <span className="pp-why">This record does not link to the one before it — something was removed or inserted.</span>}
           </li>
         );
       })}
@@ -109,8 +111,22 @@ function Value({ v }: { v: unknown }) {
   return <>{s === '' ? '—' : s}</>;
 }
 
-export default function PassportView({ b, qr, url }: { b: PassportBundle; qr?: string; url?: string }) {
-  const { res, shown, done } = useVerify(b.entries, b.issuer);
+export default function PassportView({ b, qr, url, offlineQr, offlineUrl }: { b: PassportBundle; qr?: string; url?: string; offlineQr?: string; offlineUrl?: string }) {
+  const ring = useMemo(() => verifyKeyring(b.keyring || [], b.issuer), [b.keyring, b.issuer]);
+  const v = useVerify(b.entries, b.issuer, ring.keys);
+  const res = { ok: v.res.ok && ring.ok, checks: v.res.checks };
+  const { shown, done } = v;
+  // 台帳の起点（最初の鍵）をこの端末に記憶し、すり替えを検出する
+  const [pin, setPin] = useState<'new' | 'same' | 'changed' | null>(null);
+  useEffect(() => {
+    if (b.demo || !ring.genesis) return;
+    try {
+      const k = 'gc-genesis';
+      const prev = localStorage.getItem(k);
+      if (!prev) { localStorage.setItem(k, ring.genesis); setPin('new'); }
+      else setPin(prev === ring.genesis ? 'same' : 'changed');
+    } catch {}
+  }, [b.demo, ring.genesis]);
   const seal = [...b.entries].reverse().find((e) => e.entry.kind === 'seal');
   const dpp = (seal?.entry.data as { dpp?: Record<string, Record<string, unknown>> } | undefined)?.dpp;
   const [domainKey, setDomainKey] = useState<boolean | null>(null);
@@ -129,7 +145,7 @@ export default function PassportView({ b, qr, url }: { b: PassportBundle; qr?: s
     d.provenance.dealer = fakeDealer;
     return copy;
   }, [fake, fakeDealer, b.entries, sealIdx]);
-  const tv = useVerify(tampered || b.entries, b.issuer);
+  const tv = useVerify(tampered || b.entries, b.issuer, ring.keys);
 
   const download = () => {
     const blob = new Blob([JSON.stringify(b, null, 2)], { type: 'application/json' });
@@ -150,9 +166,11 @@ export default function PassportView({ b, qr, url }: { b: PassportBundle; qr?: s
         <div>
           <p className="pp-cert">{b.cert}{b.demo ? ' · demo' : ''}</p>
           <p>
-            {b.entries.length} signed records, checked here in your browser — not by our server. Key: <span className="pp-mono">{short(b.issuer, 8)}</span>{' '}
-            · published at our domain <Mark ok={domainKey} />
+            {b.entries.length} records, each signed twice (server key + founder device key), checked here in your browser — not by our server. Server key{' '}
+            <span className="pp-mono">{short(b.issuer, 8)}</span> · published at our domain <Mark ok={domainKey} /> · founder keyring <Mark ok={ring.ok} />
           </p>
+          {pin === 'changed' && <p className="pp-bad">Warning: the founder keyring&apos;s root is different from the one this device saw before. Treat this record as suspicious.</p>}
+          {pin === 'same' && <p className="pp-fine">Keyring root matches the one this device remembered.</p>}
         </div>
         {qr && <div className="pp-qr" aria-label="QR code for this passport" dangerouslySetInnerHTML={{ __html: qr }} />}
       </section>
@@ -228,12 +246,33 @@ export default function PassportView({ b, qr, url }: { b: PassportBundle; qr?: s
               <>
                 <label className="pp-label">Inherited from<input value={fakeDealer} onChange={(e) => setFakeDealer(e.target.value)} /></label>
                 <p className={tv.done ? (tv.res.ok ? 'pp-good' : 'pp-bad') : ''}>
-                  {!tv.done ? 'Checking…' : tv.res.ok ? 'Matches the original — the proof holds.' : `Broken at record #${tv.res.checks.findIndex((c) => !(c.hashOk && c.sigOk && c.chainOk)) + 1}. A fake copy can never pass, because only Gallery Crypto's private key can sign a new hash.`}
+                  {!tv.done ? 'Checking…' : tv.res.ok ? 'Matches the original — the proof holds.' : `Broken at record #${tv.res.checks.findIndex((c) => !checkOk(c)) + 1}. A fake copy can never pass: a new hash needs both Gallery Crypto's server key and a founder's device key.`}
                 </p>
                 <button className="mo-btn small ghost" onClick={() => setFake(false)}>Put it back</button>
               </>
             )}
           </section>
+
+          <section className="pp-box">
+            <h2>Founder keys</h2>
+            <p>Every record needs a signature from one of these device keys. Keys can only be added or revoked with an existing key&apos;s signature.</p>
+            <ul className="pp-keys">
+              {Array.from(ring.keys.values()).map((k) => (
+                <li key={k.key}>
+                  <b>{k.label || 'Key'}</b> <span className="pp-mono">#{keyId(k.key)}</span> · since {day(k.added)} {k.revoked ? <span className="pp-bad">· revoked {day(k.revoked)}</span> : <span className="pp-good">· active</span>}
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          {offlineQr && (
+            <section className="pp-box">
+              <h2>Offline proof</h2>
+              <p>This code carries the latest record&apos;s two signatures. The Gallery Crypto verifier checks it with no internet connection.</p>
+              <div className="pp-qr big" dangerouslySetInnerHTML={{ __html: offlineQr }} />
+              {offlineUrl && <a className="mo-btn small ghost" href={offlineUrl}>Open in the offline verifier</a>}
+            </section>
+          )}
 
           <section className="pp-box">
             <h2>Keep the proof</h2>
