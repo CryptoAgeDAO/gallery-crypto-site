@@ -145,6 +145,7 @@ function Detail({ it, onClose, saleOpen, sealed, demo }: { it: Item; onClose: ()
               <>
                 <p className="mo-price">Sample for the demonstration</p>
                 <a className="mo-btn" href="/demo">Experience the demo →</a>
+                <a className="mo-btn ghost small" href="/demo/3d">View in 3D</a>
               </>
             ) : it.sold ? (
               <p className="mo-price">Sold</p>
