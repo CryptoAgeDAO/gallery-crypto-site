@@ -251,7 +251,7 @@ body{background:radial-gradient(1100px 560px at 92% -8%,#edeffb 0%,rgba(237,239,
 .mo-page{max-width:1120px;margin:0 auto;padding:0 20px 24px}
 @media (min-width:900px){.mo-page{padding:0 40px 32px}}
 .mo-mast{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px 24px;padding:22px 0;border-bottom:1px solid var(--line)}
-.mo .mo-logo{margin:0;font-family:var(--mono);font-size:13px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;text-decoration:none}
+.mo .mo-logo{margin:0;font-family:"Cormorant Garamond",Georgia,serif;font-size:20px;font-weight:500;letter-spacing:.2em;text-transform:uppercase;text-decoration:none;line-height:1}
 .mo-nav{display:flex;flex-wrap:wrap;gap:4px 20px;font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase}
 .mo-nav a{text-decoration:none;color:var(--mute)}
 .mo-nav a:hover{color:var(--ink)}
@@ -460,7 +460,7 @@ body{background:radial-gradient(1100px 560px at 92% -8%,#edeffb 0%,rgba(237,239,
 /* ── Admin: same system ── */
 .os9{min-height:100svh;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.6}
 .os9-menu{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:14px;min-height:52px;padding:8px 20px;background:var(--paper);border-bottom:1px solid var(--line);font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase}
-.os9-menu b{font-weight:500}
+.os9-menu b{font-family:"Cormorant Garamond",Georgia,serif;font-size:17px;font-weight:500;letter-spacing:.2em}
 .os9-menu>span:not(.os9-right){color:var(--mute)}
 .os9-gc{display:none}
 .os9-right{margin-left:auto;display:flex;align-items:center;gap:14px;color:var(--mute)}
@@ -551,7 +551,7 @@ body{background:radial-gradient(1100px 560px at 92% -8%,#edeffb 0%,rgba(237,239,
 .lb-qrw{display:grid;justify-items:center;gap:0.8mm}
 .lb-qr svg{display:block;width:100%;height:100%}
 .lb-qrl{font-family:var(--mono);font-size:1.9mm;letter-spacing:.06em;text-transform:uppercase}
-.lb-bar{font-family:var(--mono);font-weight:500;letter-spacing:.2em;text-transform:uppercase}
+.lb-bar{font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;letter-spacing:.2em;text-transform:uppercase}
 .lb-cert{font-family:var(--mono);font-weight:500;letter-spacing:.04em;line-height:1}
 .lb-name{font-weight:500;line-height:1.15;overflow-wrap:anywhere}
 .lb-sub,.lb-meta,.lb-url,.lb-scan{font-family:var(--mono);line-height:1.35}
