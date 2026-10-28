@@ -87,16 +87,10 @@ function GetTicket({ ev }: { ev: GcEvent }) {
 export default function Events({ events }: { events: GcEvent[] }) {
   if (!events.length) return null;
   return (
-    <section className="ev" id="events" aria-label="Events">
-      <div className="mo-bar">
-        <h2>
-          <span className="ev-ico" aria-hidden>
-            ★
-          </span>{' '}
-          Events
-        </h2>
-        <span>Free tickets · {events.length === 1 ? '1 event' : `${events.length} events`}</span>
-      </div>
+    <section className="mo-sec ev" id="events" aria-label="Events">
+      <h2 className="mo-sh">
+        Events<span>Free tickets · {events.length === 1 ? '1 event' : `${events.length} events`}</span>
+      </h2>
       <div className="ev-list">
         {events.map((ev) => (
           <article key={ev.id} className="ev-item">

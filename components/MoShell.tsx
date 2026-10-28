@@ -1,21 +1,17 @@
-// 通信販売ページ風の外枠（購入・お礼・プライバシー・特商法のページ共通）
+// 共通の外枠（パスポート・Proof Lab・検証・仕様書・購入・お礼・プライバシー・特商法）。トップと同じ白黒の静かな見た目
 export default function MoShell({ kicker, title, children }: { kicker?: string; title: string; children: React.ReactNode }) {
   return (
     <div className="mo">
       <div className="mo-page">
-        <header className="mo-mast small">
-          <div className="mo-top">
-            <span>Vol. 1 · Tokyo, Japan</span>
-            <nav aria-label="Sections">
-              <a href="/#archive">Catalog</a>
-              <a href="/#presale">Order form</a>
-              <a href="/proof">Proof</a>
-              <a href="/#contact">Write us</a>
-            </nav>
-          </div>
-          <a className="mo-logo mo-logo-s" href="/">
-            Gallery Crypto <em>Mail Order</em>
-          </a>
+        <header className="mo-mast">
+          <a className="mo-logo" href="/">Gallery Crypto</a>
+          <nav className="mo-nav" aria-label="Sections">
+            <a href="/#archive">Archive</a>
+            <a href="/proof">Provenance</a>
+            <a href="/verify">Verify</a>
+            <a href="/spec">Spec</a>
+            <a href="/#contact">Contact</a>
+          </nav>
         </header>
         <main className="mo-doc">
           {kicker && <p className="mo-kicker">{kicker}</p>}
@@ -23,10 +19,10 @@ export default function MoShell({ kicker, title, children }: { kicker?: string; 
           {children}
         </main>
         <footer className="mo-foot">
-          <span>© Gallery Crypto. All pieces are one of a kind — when it&apos;s gone, it&apos;s gone.</span>
+          <span>© Gallery Crypto · Tokyo · Each piece is one of a kind.</span>
           <span>
             <a href="/privacy">Privacy</a>
-            <a href="/">Back to the catalog</a>
+            <a href="/">Archive</a>
           </span>
         </footer>
       </div>

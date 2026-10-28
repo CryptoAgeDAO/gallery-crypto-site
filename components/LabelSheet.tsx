@@ -37,7 +37,7 @@ function Label({ it, kind, host }: { it: LabelItem; kind: Kind; host: string }) 
       <div className="lb lb-tag">
         <span className="lb-hole" aria-hidden />
         <div className="lb-bar">Gallery Crypto</div>
-        <div className="lb-one">1 of 1</div>
+        <div className="lb-one">1 OF 1</div>
         <div className="lb-cert">{it.cert}</div>
         <div className="lb-name">{name}</div>
         {it.title && <div className="lb-sub">{it.title}</div>}
@@ -50,7 +50,7 @@ function Label({ it, kind, host }: { it: LabelItem; kind: Kind; host: string }) 
   return (
     <div className="lb lb-card">
       <div className="lb-left">
-        <div className="lb-bar">Certificate of provenance</div>
+        <div className="lb-bar">Gallery Crypto · Provenance</div>
         <div className="lb-cert">{it.cert}</div>
         <div className="lb-name">{name}</div>
         {it.title && <div className="lb-sub">{it.title}</div>}
