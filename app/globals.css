@@ -692,3 +692,7 @@ body{background:radial-gradient(1100px 560px at 92% -8%,#edeffb 0%,rgba(237,239,
 .tv-picks button{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);cursor:pointer;outline-offset:3px}
 .tv-picks button[aria-pressed="true"]{outline:1px solid var(--ink)}
 .tv-opts{display:grid;gap:8px}
+.tv-views{display:flex;gap:0;border:1px solid var(--line);margin:4px 0 18px}
+.tv-views button{flex:1;padding:9px 4px;background:transparent;border:0;border-right:1px solid var(--line);font:500 11px/1 var(--mono, 'JetBrains Mono', monospace);letter-spacing:.12em;text-transform:uppercase;color:var(--ink);cursor:pointer}
+.tv-views button:last-child{border-right:0}
+.tv-views button:hover{background:var(--soft)}
