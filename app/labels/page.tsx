@@ -44,11 +44,11 @@ export default async function LabelsPage() {
   // 作品がまだない間は、見本（デモ）を1枚出す
   const demo = await demoPassport();
   if (demo) {
-    const url = `${base}/passport/GC-DEMO`;
+    const url = `${base}/passport/${demo.cert}`;
     const last = demo.entries[demo.entries.length - 1];
     out.push({
-      cert: 'GC-DEMO', band: 'Demo Band', title: 'World Tour', year: '1991', size: 'L', dealer: 'Demo Dealer, Los Angeles', sealed: true, records: last.entry.seq, demo: true,
-      url, qr: await svg(url, 'M'), offlineQr: await svg(`${base}/verify#${compactOf(last, 0)}`, 'L'),
+      cert: demo.cert, band: demo.item?.band || '', title: demo.item?.title || '', year: demo.item?.year || '', size: 'L', dealer: 'Demo Dealer, Los Angeles', sealed: true, records: last.entry.seq, demo: true,
+      url, qr: await svg(url, 'M'), offlineQr: await svg(`${base}/verify#${compactOf(last, 9001)}`, 'L'),
     });
   }
   return <LabelSheet items={out} host={base.replace(/^https?:\/\//, '')} />;

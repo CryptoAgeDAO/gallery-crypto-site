@@ -64,11 +64,12 @@ export default function VerifyApp() {
   const compact = useMemo(() => unpackCompact(hash), [hash]);
   const cres = useMemo(() => {
     if (!compact || !ring) return null;
-    const r = compact.serial === 0 ? demo : real;
+    const isDemo = compact.serial === 0 || (compact.serial > 9000 && compact.serial <= 9006);
+    const r = isDemo ? demo : real;
     if (!r) return null;
     return { ...verifyCompact(compact, ring.issuer, r.keys), ringOk: r.ok };
   }, [compact, ring, real, demo]);
-  const cert = compact ? (compact.serial === 0 ? 'GC-DEMO' : 'GC-' + String(compact.serial).padStart(4, '0')) : '';
+  const cert = compact ? (compact.serial === 0 ? 'GC-DEMO' : compact.serial > 9000 && compact.serial <= 9006 ? `GC-DEMO-${compact.serial - 9000}` : 'GC-' + String(compact.serial).padStart(4, '0')) : '';
   const cOk = Boolean(cres && cres.sigOk && cres.cosigOk && cres.ringOk && !pinBroken);
 
   // つながっていれば、サイト上の記録とも照合する（任意）

@@ -10,7 +10,7 @@ import { sfx } from '@/lib/sfx';
 
 // 公開サイト：白と黒だけ、装飾なし。論文のように番号つきの節で並べる（匿名性・静けさ・読みやすさ）。
 
-type Props = { settings: Settings; items: Item[]; events?: GcEvent[]; sealed?: number[]; configured: boolean };
+type Props = { settings: Settings; items: Item[]; events?: GcEvent[]; sealed?: number[]; demo?: boolean; configured: boolean };
 type Status = { kind: 'idle' | 'busy' | 'ok' | 'err'; text?: string };
 
 // 管理者への通知（失敗しても画面には影響させない）
@@ -68,7 +68,7 @@ function DrawForm({ itemId, label = 'Enter the free draw' }: { itemId: string | 
   );
 }
 
-function Detail({ it, onClose, saleOpen, sealed }: { it: Item; onClose: () => void; saleOpen: boolean; sealed: boolean }) {
+function Detail({ it, onClose, saleOpen, sealed, demo }: { it: Item; onClose: () => void; saleOpen: boolean; sealed: boolean; demo?: boolean }) {
   const [shot, setShot] = useState(0);
   const close = () => {
     sfx('close');
@@ -112,7 +112,7 @@ function Detail({ it, onClose, saleOpen, sealed }: { it: Item; onClose: () => vo
           )}
         </div>
         <div className="mo-dinfo">
-          <p className="mo-no">{certNo(it)} · 1 of 1</p>
+          <p className="mo-no">{demo ? 'Demo piece' : certNo(it)} · 1 of 1</p>
           <h2 className="mo-dh">{it.band || 'Untitled'}</h2>
           {it.title && <p className="mo-dsub">{it.title}</p>}
           <dl className="mo-specs">
@@ -125,7 +125,7 @@ function Detail({ it, onClose, saleOpen, sealed }: { it: Item; onClose: () => vo
           </dl>
           {it.prov && <p className="mo-prov">{it.prov}</p>}
           {sealed && (
-            <a className="mo-btn ghost small" href={`/passport/${certNo(it)}`}>
+            <a className="mo-btn ghost small" href={demo ? `/passport/GC-DEMO-${it.serial - 9000}` : `/passport/${certNo(it)}`}>
               Provenance passport →
             </a>
           )}
@@ -141,7 +141,12 @@ function Detail({ it, onClose, saleOpen, sealed }: { it: Item; onClose: () => vo
             </div>
           )}
           <div className="mo-buy">
-            {it.sold ? (
+            {demo ? (
+              <>
+                <p className="mo-price">Sample for the demonstration</p>
+                <a className="mo-btn" href="/demo">Experience the demo →</a>
+              </>
+            ) : it.sold ? (
               <p className="mo-price">Sold</p>
             ) : saleOpen && it.price_usd ? (
               <>
@@ -202,12 +207,12 @@ function Contact({ email }: { email: string }) {
   );
 }
 
-export default function Site({ settings: s, items, events = [], sealed = [] }: Props) {
+export default function Site({ settings: s, items, events = [], sealed = [], demo = false }: Props) {
   const [open, setOpen] = useState<Item | null>(null);
   // 作品が少ないあいだは、番号だけの空き枠で列をそろえる
   const slots = Math.max(items.length, 3);
   const heroItem = items.find((i) => i.photos[0]);
-  const hero = heroItem ? photoUrl(heroItem.photos[0]) : '';
+  const hero = demo ? '/demo/hero.jpg' : heroItem ? photoUrl(heroItem.photos[0]) : '';
 
   return (
     <div className="mo">
@@ -221,6 +226,7 @@ export default function Site({ settings: s, items, events = [], sealed = [] }: P
           <a className="mo-logo" href="/">Gallery Crypto</a>
           <nav className="mo-nav r" aria-label="House">
             <a href="/proof">Provenance</a>
+            <a href="/demo">Demo</a>
             <a href="#contact">Contact</a>
             {s.instagram && (
               <a href={s.instagram} target="_blank" rel="noopener noreferrer">
@@ -236,6 +242,7 @@ export default function Site({ settings: s, items, events = [], sealed = [] }: P
           <p className="mo-kicker">{s.launch}</p>
           <h1>{s.headline}</h1>
           <a className="mo-heroa" href="#archive">Explore the archive</a>
+          {demo && <a className="mo-herob" href="/demo">Or try the provenance demo</a>}
         </div>
       </section>
 
@@ -244,7 +251,7 @@ export default function Site({ settings: s, items, events = [], sealed = [] }: P
 
         <section className="mo-sec" id="archive" aria-label="Archive">
           <h2 className="mo-sh">
-            The Archive<span>{items.length ? `${items.length} ${items.length === 1 ? 'piece' : 'pieces'}` : 'In preparation'}</span>
+            The Archive<span>{demo ? 'Demo — sample pieces, fictional bands' : items.length ? `${items.length} ${items.length === 1 ? 'piece' : 'pieces'}` : 'In preparation'}</span>
           </h2>
           <div className="mo-grid">
             {Array.from({ length: slots }, (_, i) => {
@@ -258,10 +265,10 @@ export default function Site({ settings: s, items, events = [], sealed = [] }: P
                   </div>
                 );
               return (
-                <button key={it.id} className="mo-item" onClick={() => (sfx('open'), setOpen(it))}>
+                <button key={it.id} className="mo-item" onClick={() => (sfx('open'), setOpen(it))} aria-label={`${it.band} ${it.title}`}>
                   <Photo src={it.photos[0] ? photoUrl(it.photos[0]) : undefined} alt={`${it.band} ${it.title}`.trim()} n={certNo(it)} />
                   <p className="mo-ino">
-                    <span>{certNo(it)}</span>
+                    <span>{demo ? 'Demo' : certNo(it)}</span>
                     <span>{it.sold ? 'Sold' : '1 of 1'}</span>
                   </p>
                   <p className="mo-iname">{it.band || 'Untitled'}</p>
@@ -322,7 +329,7 @@ export default function Site({ settings: s, items, events = [], sealed = [] }: P
         </footer>
       </div>
 
-      {open && <Detail it={open} saleOpen={s.sale_open} sealed={sealed.includes(open.serial)} onClose={() => setOpen(null)} />}
+      {open && <Detail it={open} demo={demo} saleOpen={s.sale_open} sealed={demo || sealed.includes(open.serial)} onClose={() => setOpen(null)} />}
       <MusicBar />
     </div>
   );

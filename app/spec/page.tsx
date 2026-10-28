@@ -60,7 +60,7 @@ active(k, t) = added(k) <= t  and  (not revoked  or  revoked(k) > t)`}</Code>
         <li><b>3</b> For each record of the object, in order: recompute the hash, check <i>sig</i> with the issuer key, check <i>cosig</i> with <i>signer</i>, check <i>signer</i> was active at <i>at</i>, check <i>prev</i> and <i>seq</i>.</li>
         <li><b>4</b> Optional: for each anchor, recompute the Merkle root of its leaves and find it in the Solana memo of its transaction.</li>
       </ol>
-      <p>Bundle for any object: <a href="/api/passport/GC-DEMO">/api/passport/&lt;cert&gt;</a> · keyring: <a href="/api/keyring">/api/keyring</a> · reference code: <span className="pp-mono">lib/gcpp.ts</span>.</p>
+      <p>Bundle for any object: <a href="/api/passport/GC-DEMO-1">/api/passport/&lt;cert&gt;</a> · keyring: <a href="/api/keyring">/api/keyring</a> · reference code: <span className="pp-mono">lib/gcpp.ts</span>.</p>
 
       <h2 className="pl-h">4 · Anchor (optional)</h2>
       <Code>{`leaves = hashes not yet anchored (records, keyring changes, daily snapshot fingerprint)

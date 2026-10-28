@@ -6,6 +6,7 @@ import { ensureIssuer, issuerAddress, issuerConfigured, loadKeyring, loadLog, se
 import { PROTOCOL, bytesToHex, sigMessage, type Anchor, type GcppEntry, type KeyEntry, type SignedEntry, type SignedKey } from './gcpp';
 import { DPP_VERSION, cleanDpp, prefill } from './dpp';
 import { PUBLIC_ITEM_COLUMNS, certNo, type Item } from './types';
+import { DEMO_ITEMS, demoCert } from './demoData';
 
 export type PassportBundle = {
   protocol: string;
@@ -81,21 +82,24 @@ export async function listSealed(limit = 12): Promise<{ cert: string; band: stri
 }
 
 // 申請・説明用のデモ記録。保存せず、その場で本物の鍵で署名する（日時を固定しているので毎回同じ署名になる）
-export async function demoPassport(): Promise<PassportBundle | null> {
+export function parseDemo(cert: string): number | null {
+  const m = /^GC-DEMO(?:-([1-6]))?$/i.exec(cert.trim());
+  return m ? Number(m[1] || 1) : null;
+}
+
+export async function demoPassport(n = 1): Promise<PassportBundle | null> {
   if (!issuerConfigured()) return null;
   await ensureIssuer();
-  const demoItem = { band: 'Demo Band', title: 'World Tour', year: '1991', size: 'L', tag: 'Brockum', stitch: true, made_in: 'USA', cond: 'Excellent — light fade', dealer: 'Demo Dealer, Los Angeles', prov: 'Picked from a private collection in Pasadena.' } as Item;
+  const demoItem = DEMO_ITEMS[Math.min(Math.max(n, 1), DEMO_ITEMS.length) - 1];
+  const cert = demoCert(demoItem.n);
   const d = prefill(demoItem);
   d.provenance.dealer_profile = 'Third-generation picker working the Rose Bowl and private estates.';
   d.condition.wear = 'Soft fade at the collar, small paint fleck on the left hem.';
-  d.fingerprint.photos = [
-    { label: 'Collar macro', sha256: 'a3f1c2e9b7d64e0f9a1b2c3d4e5f60718293a4b5c6d7e8f90123456789abcdef' },
-    { label: 'Print crack macro', sha256: '5be0d0f8a2c94d7e8b1f3a6c9e2d5b8a7c4f1e0d3b6a9c2e5f8b1d4a7c0e3f69' },
-  ];
+  d.fingerprint.photos = [{ label: 'Print macro (photo 2)', sha256: demoItem.macroHash }];
   const steps: [GcppEntry['kind'], string, Record<string, unknown>][] = [
-    ['event', '2027-01-18T19:20:00.000Z', { type: 'sourced', actor: 'Demo Dealer', place: 'Los Angeles, US', note: 'Inherited from the dealer. No price is recorded.' }],
+    ['event', '2027-01-18T19:20:00.000Z', { type: 'sourced', actor: 'Demo Dealer', place: 'Los Angeles, US', note: `${demoItem.band} ${demoItem.year} tee, inherited from the dealer. No price is recorded.` }],
     ['event', '2027-02-02T03:00:00.000Z', { type: 'catalogued', actor: 'Gallery Crypto', place: 'Tokyo, JP', note: 'Photographed and entered into the archive.' }],
-    ['event', '2027-02-02T03:30:00.000Z', { type: 'fingerprinted', actor: 'Gallery Crypto', place: 'Tokyo, JP', note: 'Two macro areas hashed. NFC tag sewn into the collar.' }],
+    ['event', '2027-02-02T03:30:00.000Z', { type: 'fingerprinted', actor: 'Gallery Crypto', place: 'Tokyo, JP', note: 'Print macro photographed and hashed. NFC tag sewn in.' }],
     ['seal', '2027-02-02T04:00:00.000Z', { schema: DPP_VERSION, version: 1, dpp: cleanDpp(d) }],
   ];
   // デモ用の創業者の鍵（本物の台帳とは別。サーバーの鍵から導くので毎回同じ）
@@ -107,9 +111,9 @@ export async function demoPassport(): Promise<PassportBundle | null> {
   const keyring: SignedKey[] = [{ entry: g, ...gs, cosig: cosign(gs.hash) }];
   const entries: SignedEntry[] = [];
   steps.forEach(([kind, at, data], i) => {
-    const e: GcppEntry = { protocol: PROTOCOL, cert: 'GC-DEMO', seq: i + 1, kind, at, prev: entries[i - 1]?.hash ?? null, signer: founder, data };
+    const e: GcppEntry = { protocol: PROTOCOL, cert, seq: i + 1, kind, at, prev: entries[i - 1]?.hash ?? null, signer: founder, data };
     const sv = serverSign(e);
     entries.push({ entry: e, ...sv, cosig: cosign(sv.hash) });
   });
-  return { protocol: PROTOCOL, issuer: issuerAddress(), chain: CHAIN, cert: 'GC-DEMO', demo: true, item: { band: 'Demo Band', title: 'World Tour', year: '1991', photos: [] }, entries, keyring, anchors: [] };
+  return { protocol: PROTOCOL, issuer: issuerAddress(), chain: CHAIN, cert, demo: true, item: { band: demoItem.band, title: demoItem.title, year: demoItem.year, photos: demoItem.photos }, entries, keyring, anchors: [] };
 }

@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import QRCode from 'qrcode';
 import MoShell from '@/components/MoShell';
 import PassportView from '@/components/PassportView';
-import { demoPassport, getPassport, parseCert } from '@/lib/passportPublic';
+import { demoPassport, getPassport, parseCert, parseDemo } from '@/lib/passportPublic';
 import { compactOf } from '@/lib/gcpp';
 import { siteUrl } from '@/lib/server';
 import { photoUrl } from '@/lib/supabase';
@@ -16,7 +16,8 @@ export async function generateMetadata({ params }: { params: { cert: string } })
 // NFC タグや QR から開く、一点ごとの来歴パスポート
 export default async function PassportPage({ params }: { params: { cert: string } }) {
   const cert = params.cert.toUpperCase();
-  const b = cert === 'GC-DEMO' ? await demoPassport() : await getPassport(cert);
+  const dn = parseDemo(cert);
+  const b = dn ? await demoPassport(dn) : await getPassport(cert);
   if (!b)
     return (
       <MoShell title="Passport not found" kicker="Provenance">
@@ -25,7 +26,7 @@ export default async function PassportPage({ params }: { params: { cert: string 
     );
   const url = `${siteUrl()}/passport/${b.cert}`;
   const qr = await QRCode.toString(url, { type: 'svg', margin: 0, color: { dark: '#111111', light: '#00000000' } });
-  const offlineUrl = `${siteUrl()}/verify#${compactOf(b.entries[b.entries.length - 1], b.demo ? 0 : parseCert(b.cert) || 0)}`;
+  const offlineUrl = `${siteUrl()}/verify#${compactOf(b.entries[b.entries.length - 1], dn ? 9000 + dn : parseCert(b.cert) || 0)}`;
   const offlineQr = await QRCode.toString(offlineUrl, { type: 'svg', margin: 0, errorCorrectionLevel: 'L', color: { dark: '#111111', light: '#00000000' } });
   const photo = b.item?.photos?.[0];
   return (

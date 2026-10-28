@@ -1,4 +1,5 @@
 import Site from '@/components/Site';
+import { DEMO_ITEMS } from '@/lib/demoData';
 import { supabase, configured } from '@/lib/supabase';
 import { DEFAULT_SETTINGS, EVENT_COLUMNS, PUBLIC_ITEM_COLUMNS, type GcEvent, type Item, type Settings } from '@/lib/types';
 
@@ -26,5 +27,7 @@ async function load(): Promise<{ settings: Settings; items: Item[]; events: GcEv
 
 export default async function Page() {
   const { settings, items, events, sealed } = await load();
-  return <Site settings={settings} items={items} events={events} sealed={sealed} configured={configured} />;
+  // 作品がまだない間は、見本のデモ作品を並べて体験できるようにする
+  const demo = items.length === 0;
+  return <Site settings={settings} items={demo ? DEMO_ITEMS : items} demo={demo} events={events} sealed={sealed} configured={configured} />;
 }

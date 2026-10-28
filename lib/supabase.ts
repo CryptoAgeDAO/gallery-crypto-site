@@ -15,8 +15,8 @@ export function supabase(): SupabaseClient | null {
 }
 
 export function photoUrl(path: string): string {
+  if (path.startsWith('http') || path.startsWith('/')) return path;
   if (!url) return '';
-  if (path.startsWith('http')) return path;
   return `${url}/storage/v1/object/public/photos/${path}`;
 }
 

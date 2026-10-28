@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 };
 
 const SNIPPET = `// verify any Gallery Crypto passport — no account, no wallet
-const b = await (await fetch('/api/passport/GC-DEMO')).json();
+const b = await (await fetch('/api/passport/GC-DEMO-1')).json();
 for (const s of b.entries) {
   const hash = sha256(canonicalJSON(s.entry));          // contents
   ed25519.verify(s.sig, 'GCPP/2:' + hash, b.issuer);   // server key
@@ -28,8 +28,8 @@ for (const s of b.entries) {
 export default async function ProofLab() {
   const demo = await demoPassport();
   const sealed = await listSealed();
-  const url = `${siteUrl()}/passport/GC-DEMO`;
-  const offlineUrl = demo ? `${siteUrl()}/verify#${compactOf(demo.entries[demo.entries.length - 1], 0)}` : '';
+  const url = `${siteUrl()}/passport/GC-DEMO-1`;
+  const offlineUrl = demo ? `${siteUrl()}/verify#${compactOf(demo.entries[demo.entries.length - 1], 9001)}` : '';
   const offlineQr = offlineUrl ? await QRCode.toString(offlineUrl, { type: 'svg', margin: 0, errorCorrectionLevel: 'L', color: { dark: '#111111', light: '#00000000' } }) : '';
   const qr = await QRCode.toString(url, { type: 'svg', margin: 0, color: { dark: '#111111', light: '#00000000' } });
   return (
@@ -61,6 +61,7 @@ export default async function ProofLab() {
       </ol>
 
       <h2 className="pl-h">Live demo — check it yourself</h2>
+      <p className="mo-links"><a href="/demo">Prefer a guided tour with images? Follow one piece →</a></p>
       <p className="mo-lead">
         This demo passport is signed right now with the real issuer key and checked in your browser. Scroll down to <b>Try to fake it</b>. Scan the QR code with a phone — that
         is what an NFC tap opens.
@@ -134,7 +135,7 @@ export default async function ProofLab() {
       <h2 className="pl-h">Verify without us</h2>
       <pre className="pl-code">{SNIPPET}</pre>
       <p className="mo-fine">
-        Public key: <a href="/.well-known/gc-issuer.json">/.well-known/gc-issuer.json</a> · Any passport as JSON: <a href="/api/passport/GC-DEMO">/api/passport/GC-DEMO</a> · Protocol GCPP/2
+        Public key: <a href="/.well-known/gc-issuer.json">/.well-known/gc-issuer.json</a> · Any passport as JSON: <a href="/api/passport/GC-DEMO-1">/api/passport/GC-DEMO-1</a> · Protocol GCPP/2
         (SHA-256, Ed25519 + ECDSA P-256, canonical JSON). Keyring: <a href="/api/keyring">/api/keyring</a> · Offline verifier: <a href="/verify">/verify</a> · <a href="/spec">Read the full specification</a>
       </p>
     </MoShell>
