@@ -205,17 +205,21 @@ function Contact({ email }: { email: string }) {
 export default function Site({ settings: s, items, events = [], sealed = [] }: Props) {
   const [open, setOpen] = useState<Item | null>(null);
   // 作品が少ないあいだは、番号だけの空き枠で列をそろえる
-  const slots = Math.max(items.length, Math.min(4, Math.ceil(Math.max(items.length, 1) / 4) * 4));
+  const slots = Math.max(items.length, 3);
+  const heroItem = items.find((i) => i.photos[0]);
+  const hero = heroItem ? photoUrl(heroItem.photos[0]) : '';
 
   return (
     <div className="mo">
       <div className="mo-page">
         <header className="mo-mast">
-          <a className="mo-logo" href="/">Gallery Crypto</a>
-          <nav className="mo-nav" aria-label="Sections">
+          <nav className="mo-nav l" aria-label="Collection">
             <a href="#archive">Archive</a>
             {events.length > 0 && <a href="#events">Events</a>}
             <a href="#draw">Draw</a>
+          </nav>
+          <a className="mo-logo" href="/">Gallery Crypto</a>
+          <nav className="mo-nav r" aria-label="House">
             <a href="/proof">Provenance</a>
             <a href="#contact">Contact</a>
             {s.instagram && (
@@ -225,16 +229,22 @@ export default function Site({ settings: s, items, events = [], sealed = [] }: P
             )}
           </nav>
         </header>
+      </div>
 
-        <section className="mo-hero">
+      <section className={`mo-hero${hero ? ' img' : ''}`} style={hero ? { backgroundImage: `url(${hero})` } : undefined}>
+        <div className="mo-hero-in">
           <p className="mo-kicker">{s.launch}</p>
           <h1>{s.headline}</h1>
-          <p className="mo-lead">{s.lead}</p>
-        </section>
+          <a className="mo-heroa" href="#archive">Explore the archive</a>
+        </div>
+      </section>
+
+      <div className="mo-page">
+        <p className="mo-intro">{s.lead}</p>
 
         <section className="mo-sec" id="archive" aria-label="Archive">
           <h2 className="mo-sh">
-            01 — Archive<span>{items.length ? `${items.length} ${items.length === 1 ? 'piece' : 'pieces'}` : 'In preparation'}</span>
+            The Archive<span>{items.length ? `${items.length} ${items.length === 1 ? 'piece' : 'pieces'}` : 'In preparation'}</span>
           </h2>
           <div className="mo-grid">
             {Array.from({ length: slots }, (_, i) => {
@@ -267,7 +277,7 @@ export default function Site({ settings: s, items, events = [], sealed = [] }: P
 
         <section className="mo-sec" id="draw" aria-label="Draw">
           <h2 className="mo-sh">
-            02 — Draw<span>Free · no purchase necessary</span>
+            The Draw<span>Free · no purchase necessary</span>
           </h2>
           <div className="mo-two">
             <ol className="mo-steps">
@@ -281,7 +291,7 @@ export default function Site({ settings: s, items, events = [], sealed = [] }: P
         </section>
 
         <section className="mo-sec" id="provenance" aria-label="Provenance">
-          <h2 className="mo-sh">03 — Provenance</h2>
+          <h2 className="mo-sh">Provenance</h2>
           <div className="mo-two">
             <p className="mo-lead">
               Every piece carries a permanent record: where it was found, which dealer it came through, and what happened to it since. Each record is signed twice, follows the EU Digital Product Passport, and can be checked by anyone — even without a blockchain, even offline.
@@ -295,7 +305,7 @@ export default function Site({ settings: s, items, events = [], sealed = [] }: P
         </section>
 
         <section className="mo-sec" id="contact" aria-label="Contact">
-          <h2 className="mo-sh">04 — Contact</h2>
+          <h2 className="mo-sh">Contact</h2>
           <div className="mo-two">
             <p className="mo-lead">Gallery Crypto, Tokyo.</p>
             <Contact email={s.email} />

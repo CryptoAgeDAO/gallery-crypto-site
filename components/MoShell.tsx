@@ -4,12 +4,13 @@ export default function MoShell({ kicker, title, children }: { kicker?: string; 
     <div className="mo">
       <div className="mo-page">
         <header className="mo-mast">
-          <a className="mo-logo" href="/">Gallery Crypto</a>
-          <nav className="mo-nav" aria-label="Sections">
+          <nav className="mo-nav l" aria-label="Collection">
             <a href="/#archive">Archive</a>
             <a href="/proof">Provenance</a>
+          </nav>
+          <a className="mo-logo" href="/">Gallery Crypto</a>
+          <nav className="mo-nav r" aria-label="House">
             <a href="/verify">Verify</a>
-            <a href="/spec">Spec</a>
             <a href="/#contact">Contact</a>
           </nav>
         </header>
