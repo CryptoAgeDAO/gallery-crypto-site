@@ -17,7 +17,9 @@ const A = 2.55; // 胴の半幅
 const B = 1.2; // 胴の半厚
 const NECK = 1.9; // 襟ぐりの半幅
 const PN = 3.4; // 断面の角ばり
-const yHem = (x: number) => wy(1030 + 12 * Math.max(0, 1 - (x / A) ** 2));
+// 着丈：肩から裾まで身幅の約1.45倍（実際のTシャツの比率）
+const HEM = -3.0;
+const yHem = (x: number) => HEM - 0.12 * Math.max(0, 1 - (x / A) ** 2);
 const yTop = (x: number, front: boolean) => {
   const d = Math.abs(x);
   if (d < NECK) return wy(70 + (front ? 88 : 24) * (1 - (d / NECK) ** 2));
@@ -169,8 +171,9 @@ export default function TeeViewer({ pieces }: { pieces: ViewerPiece[] }) {
     const pmrem = new THREE.PMREMGenerator(renderer);
     scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 200);
-    camera.position.set(0, 0.6, 26);
+    camera.position.set(0, 1.6, 26);
     const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 1.2, 0);
     controls.enableDamping = true;
     controls.dampingFactor = 0.07;
     // 一周ぐるりと回せる。上からのぞく・下から見上げるのも少しだけ
@@ -212,7 +215,7 @@ export default function TeeViewer({ pieces }: { pieces: ViewerPiece[] }) {
     })();
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), new THREE.ShadowMaterial({ opacity: 0.18 }));
     floor.rotation.x = -Math.PI / 2;
-    floor.position.y = -6.6;
+    floor.position.y = HEM - 1.6;
     floor.receiveShadow = true;
     scene.add(floor);
     const group = new THREE.Group();
@@ -353,7 +356,7 @@ export default function TeeViewer({ pieces }: { pieces: ViewerPiece[] }) {
             }, 200, 400),
           }),
         );
-        side.position.set(-2.82, -3.7, 0);
+        side.position.set(-2.82, HEM + 0.75, 0);
         tagGroup.add(side);
         setBusy(false);
       },
