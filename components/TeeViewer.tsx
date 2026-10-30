@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { makeInlay, makePhone, makeRings } from './nfcParts';
 
 export type ViewerPiece = { n: number; band: string; title: string; year: string; cert: string; fabric: string; qr: string };
 
@@ -148,12 +149,18 @@ async function svgImage(svg: string): Promise<HTMLImageElement> {
 
 export default function TeeViewer({ pieces }: { pieces: ViewerPiece[] }) {
   const host = useRef<HTMLDivElement>(null);
-  const api = useRef<{ load: (p: ViewerPiece) => Promise<void>; setTags: (v: boolean) => void; setSpin: (v: boolean) => void; setDark: (v: boolean) => void; view: (a: number) => void; shot: () => string } | null>(null);
+  const api = useRef<{ load: (p: ViewerPiece) => Promise<void>; setTags: (v: boolean) => void; setSpin: (v: boolean) => void; setDark: (v: boolean) => void; view: (a: number) => void; setScale: (v: number) => void; focus: () => void; reset: () => void; select: (k: string | null) => void; xray: (v: boolean) => void; tap: () => void; shot: () => string } | null>(null);
   const [cur, setCur] = useState(0);
   const [tags, setTags] = useState(true);
   const [spin, setSpin] = useState(true);
   const [dark, setDark] = useState(false);
   const [busy, setBusy] = useState(true);
+  const [sel, setSel] = useState<string | null>(null);
+  const [size, setSize] = useState(1);
+  const [xray, setXray] = useState(false);
+  const [tapping, setTapping] = useState(false);
+  const ui = useRef({ setSel, setSize, setSpin, setTapping });
+  ui.current = { setSel, setSize, setSpin, setTapping };
 
   useEffect(() => {
     const el = host.current!;
@@ -171,7 +178,9 @@ export default function TeeViewer({ pieces }: { pieces: ViewerPiece[] }) {
     const pmrem = new THREE.PMREMGenerator(renderer);
     scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 200);
-    camera.position.set(0, 1.6, 26);
+    const HOME_T = new THREE.Vector3(0, 1.2, 0);
+    let homeZ = 26;
+    camera.position.set(0, 1.6, homeZ);
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.target.set(0, 1.2, 0);
     controls.enableDamping = true;
@@ -182,8 +191,9 @@ export default function TeeViewer({ pieces }: { pieces: ViewerPiece[] }) {
     controls.minPolarAngle = 0.55;
     controls.maxPolarAngle = 2.15;
     let goAz: number | null = null;
+    let xrayOn = false;
     controls.addEventListener('start', () => { goAz = null; });
-    controls.minDistance = 9;
+    controls.minDistance = 3.5;
     controls.maxDistance = 40;
     controls.enablePan = false;
     const key = new THREE.DirectionalLight(0xffffff, 1.6);
@@ -223,11 +233,110 @@ export default function TeeViewer({ pieces }: { pieces: ViewerPiece[] }) {
     const tagGroup = new THREE.Group();
     group.add(tagGroup);
 
+    // 動かせるもの（首ラベル・下げ札・NFC ラベル）
+    const movables: THREE.Object3D[] = [];
+    let selObj: THREE.Object3D | null = null;
+    let box: THREE.BoxHelper | null = null;
+    let fly: { t: THREE.Vector3; p: THREE.Vector3 } | null = null;
+    let sideGroup: THREE.Object3D | null = null;
+    let sideInlay: THREE.Group | null = null;
+    let sideFace: THREE.Mesh | null = null;
+    let tapT0 = -1;
+    let certNow = '';
+    const phone = makePhone();
+    phone.group.rotation.y = -Math.PI / 2 + 0.5;
+    phone.group.visible = false;
+    const rings = makeRings(3, '#C47A45');
+    rings.group.rotation.y = 0;
+    scene.add(phone.group, rings.group);
+    const home = (o: THREE.Object3D) => { o.userData.home = { p: o.position.clone(), r: o.rotation.clone(), s: o.scale.clone() }; movables.push(o); };
+    const select = (o: THREE.Object3D | null) => {
+      selObj = o;
+      if (box) { scene.remove(box); box.dispose(); box = null; }
+      if (o) { box = new THREE.BoxHelper(o, 0xc47a45); scene.add(box); }
+      ui.current.setSel(o ? (o.userData.key as string) : null);
+      ui.current.setSize(o ? o.scale.x : 1);
+    };
+    const ray = new THREE.Raycaster();
+    const ndc = new THREE.Vector2();
+    const hit = (e: PointerEvent | WheelEvent) => {
+      if (!tagGroup.visible && !movables.some((m) => m.parent === group)) return null;
+      const r = el.getBoundingClientRect();
+      ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+      ray.setFromCamera(ndc, camera);
+      const vis = movables.filter((m) => m.visible && (m.parent !== tagGroup || tagGroup.visible));
+      const h = ray.intersectObjects(vis, true)[0];
+      if (!h) return null;
+      let o: THREE.Object3D | null = h.object;
+      while (o && !movables.includes(o)) o = o.parent;
+      return o ? { o, point: h.point } : null;
+    };
+    const plane = new THREE.Plane();
+    let drag: { o: THREE.Object3D; off: THREE.Vector3; id: number } | null = null;
+    const stop = () => { controls.autoRotate = false; goAz = null; ui.current.setSpin(false); };
+    const onDown = (e: PointerEvent) => {
+      const h = hit(e);
+      if (!h) { if (e.isPrimary) select(null); return; }
+      e.stopPropagation();
+      e.preventDefault();
+      stop();
+      select(h.o);
+      // 服の前に出して動かす（体の後ろに隠れないように）
+      const toCam = camera.getWorldDirection(new THREE.Vector3()).negate();
+      const depth = h.point.clone().sub(controls.target).dot(toCam);
+      const lift = h.o.userData.key === 'Neck label' ? 0 : Math.max(0, 1.9 - depth);
+      const anchor = h.point.clone().add(toCam.clone().multiplyScalar(lift));
+      plane.setFromNormalAndCoplanarPoint(toCam, anchor);
+      drag = { o: h.o, off: h.o.getWorldPosition(new THREE.Vector3()).sub(h.point), id: e.pointerId };
+      el.setPointerCapture(e.pointerId);
+      el.style.cursor = 'grabbing';
+    };
+    const onMove = (e: PointerEvent) => {
+      if (drag && e.pointerId === drag.id) {
+        e.stopPropagation();
+        const r = el.getBoundingClientRect();
+        ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+        ray.setFromCamera(ndc, camera);
+        const pt = ray.ray.intersectPlane(plane, new THREE.Vector3());
+        if (pt) drag.o.position.copy(drag.o.parent!.worldToLocal(pt.add(drag.off)));
+        return;
+      }
+      if (e.pointerType === 'mouse') el.style.cursor = hit(e) ? 'move' : '';
+    };
+    const onUp = (e: PointerEvent) => {
+      if (drag && e.pointerId === drag.id) { e.stopPropagation(); drag = null; el.style.cursor = ''; }
+    };
+    // 選んだラベルの上でホイール → そのラベルだけ拡大・縮小
+    const onWheel = (e: WheelEvent) => {
+      if (!selObj) return;
+      const h = hit(e);
+      if (!h || h.o !== selObj) return;
+      e.stopPropagation();
+      e.preventDefault();
+      const v = THREE.MathUtils.clamp(selObj.scale.x * Math.exp(-e.deltaY * 0.0015), 0.5, 4);
+      selObj.scale.setScalar(v);
+      ui.current.setSize(v);
+    };
+    el.addEventListener('pointerdown', onDown, { capture: true });
+    el.addEventListener('pointermove', onMove, { capture: true });
+    el.addEventListener('pointerup', onUp, { capture: true });
+    el.addEventListener('pointercancel', onUp, { capture: true });
+    el.addEventListener('wheel', onWheel, { capture: true, passive: false });
+    const flyTo = (o: THREE.Object3D) => {
+      const c = new THREE.Box3().setFromObject(o).getCenter(new THREE.Vector3());
+      const dir = camera.position.clone().sub(controls.target).normalize();
+      const size = new THREE.Box3().setFromObject(o).getSize(new THREE.Vector3()).length();
+      fly = { t: c, p: c.clone().add(dir.multiplyScalar(Math.max(3.8, size * 1.7))) };
+    };
+
+    let first = true;
     const resize = () => {
       const w = el.clientWidth, h = el.clientHeight;
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
-      camera.position.z = w < 600 ? 34 : 26;
+      homeZ = w < 600 ? 34 : 26;
+      if (first) camera.position.z = homeZ;
+      first = false;
       camera.updateProjectionMatrix();
     };
     resize();
@@ -237,8 +346,35 @@ export default function TeeViewer({ pieces }: { pieces: ViewerPiece[] }) {
     let raf = 0;
     const clock = new THREE.Clock();
     const loop = () => {
-      const t = clock.getElapsedTime();
-      void t;
+      const dt = Math.min(0.1, clock.getDelta());
+      const t = clock.elapsedTime;
+      const ease = 1 - Math.exp(-dt * 5);
+      if (fly) {
+        controls.target.lerp(fly.t, ease);
+        camera.position.lerp(fly.p, ease);
+        if (camera.position.distanceTo(fly.p) < 0.02) fly = null;
+      }
+      if (box && selObj) box.update();
+      // タップの実演：近づく → 電波 → 結果 → 離れる
+      if (tapT0 >= 0) {
+        const k = t - tapT0;
+        const lp = sideGroup ? sideGroup.getWorldPosition(new THREE.Vector3()) : new THREE.Vector3(-2.8, -2.2, 0);
+        const near = lp.clone().add(new THREE.Vector3(-0.98, 0.5, 0.7));
+        const far = lp.clone().add(new THREE.Vector3(-4.5, 1.5, -1.5));
+        const e = (x: number) => x * x * (3 - 2 * x);
+        const a = k < 1.3 ? e(Math.min(1, k / 1.3)) : k < 6 ? 1 : 1 - e(Math.min(1, (k - 6) / 1.2));
+        phone.group.position.copy(far).lerp(near, a);
+        phone.group.visible = true;
+        phone.set(k < 1.3 ? 'idle' : k < 2.6 ? 'reading' : 'ok', certNow);
+        rings.group.position.copy(lp).add(new THREE.Vector3(0, 0, 0.12));
+        rings.tick(t, k > 1.2 && k < 2.8);
+        if (sideInlay) {
+          const glow = k > 1.2 && k < 2.8 ? 0.6 + 0.4 * Math.sin(t * 12) : 0;
+          ((sideInlay.userData.coil as THREE.Mesh).material as THREE.MeshStandardMaterial).emissive.setRGB(glow * 0.9, glow * 0.45, glow * 0.2);
+          ((sideInlay.userData.chip as THREE.Mesh).material as THREE.MeshStandardMaterial).emissive.setRGB(glow * 0.5, glow * 0.5, glow * 0.5);
+        }
+        if (k > 7.3) { tapT0 = -1; phone.group.visible = false; rings.tick(0, false); ui.current.setTapping(false); }
+      }
       if (goAz !== null) {
         const cur = controls.getAzimuthalAngle();
         let d = goAz - cur;
@@ -270,6 +406,8 @@ export default function TeeViewer({ pieces }: { pieces: ViewerPiece[] }) {
         setBusy(true);
         [...group.children].forEach((c) => { if (c !== tagGroup) { group.remove(c); disposeGroup(c); } });
         [...tagGroup.children].forEach((c) => { tagGroup.remove(c); disposeGroup(c); });
+        movables.length = 0;
+        select(null);
         const [fi, bi] = await Promise.all([loadImage(`/demo/3d/front-${p.n}-hd.webp`), loadImage(`/demo/3d/back-${p.n}.webp`)]);
         const fab = new THREE.Color(p.fabric);
         const sheen = fab.clone().lerp(new THREE.Color('#ffffff'), 0.18);
@@ -321,9 +459,13 @@ export default function TeeViewer({ pieces }: { pieces: ViewerPiece[] }) {
             }, 256, 352),
           }),
         );
-        label.position.set(0, wy(24) - 0.55, -B * 0.55 + 0.12);
-        label.rotation.x = -0.12;
-        group.add(label);
+        const neck = new THREE.Group();
+        neck.add(label);
+        neck.position.set(0, wy(24) - 0.55, -B * 0.55 + 0.12);
+        neck.rotation.x = -0.12;
+        neck.userData.key = 'Neck label';
+        tagGroup.add(neck);
+        home(neck);
 
         // 下げ札（灰色の厚紙・QR は本物：読み取るとこの作品のパスポートが開く）
         const qrImg = await svgImage(p.qr);
@@ -337,18 +479,24 @@ export default function TeeViewer({ pieces }: { pieces: ViewerPiece[] }) {
           c.font = '500 20px monospace'; c.fillText('SCAN TO VERIFY', w / 2, 640);
         }, 400, 720);
         const tag = new THREE.Mesh(new THREE.BoxGeometry(1.4, 2.52, 0.03), new THREE.MeshStandardMaterial({ map: tagTex, roughness: 0.9 }));
-        tag.position.set(3.95, -0.4, 0.5);
-        tag.rotation.set(0, -0.35, 0.06);
         tag.castShadow = true;
-        tagGroup.add(tag);
-        const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(3.55, 1.72, 0.35), new THREE.Vector3(3.8, 1.3, 0.5), new THREE.Vector3(3.92, 0.78, 0.52)]);
-        tagGroup.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 24, 0.022, 6, false), new THREE.MeshStandardMaterial({ color: '#E9E3D6', roughness: 1 })));
+        const hang = new THREE.Group();
+        hang.add(tag);
+        // 紐は札の穴から上へ（札と一緒に動く）
+        const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(0, 1.0, 0), new THREE.Vector3(-0.1, 1.55, -0.05), new THREE.Vector3(-0.38, 2.12, -0.15)]);
+        hang.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 24, 0.022, 6, false), new THREE.MeshStandardMaterial({ color: '#E9E3D6', roughness: 1 })));
+        hang.position.set(3.95, -0.4, 0.5);
+        hang.rotation.set(0, -0.35, 0.06);
+        hang.userData.key = 'Hang tag';
+        tagGroup.add(hang);
+        home(hang);
 
         // 脇の記録ラベル（NFC 入り）
         const side = new THREE.Mesh(
           new THREE.BoxGeometry(0.5, 1.0, 0.02),
           new THREE.MeshStandardMaterial({
             roughness: 0.6,
+            transparent: true,
             map: textTexture((c, w, h) => {
               c.fillStyle = '#F4F1EA'; c.fillRect(0, 0, w, h);
               c.fillStyle = '#2B2A28'; c.font = '500 18px monospace';
@@ -356,13 +504,64 @@ export default function TeeViewer({ pieces }: { pieces: ViewerPiece[] }) {
             }, 200, 400),
           }),
         );
-        side.position.set(-2.82, HEM + 0.75, 0);
-        tagGroup.add(side);
+        const sideG = new THREE.Group();
+        sideG.add(side);
+        const inlay = makeInlay(0.34, 0.4);
+        inlay.position.set(0, -0.22, 0.016);
+        inlay.visible = xrayOn;
+        sideG.add(inlay);
+        sideG.position.set(-2.82, HEM + 0.75, 0.02);
+        sideG.userData.key = 'NFC label';
+        tagGroup.add(sideG);
+        home(sideG);
+        sideGroup = sideG;
+        sideInlay = inlay;
+        sideFace = side;
+        (side.material as THREE.MeshStandardMaterial).opacity = xrayOn ? 0.35 : 1;
+        certNow = p.cert;
         setBusy(false);
       },
       setTags(v) { tagGroup.visible = v; },
       setSpin(v) { controls.autoRotate = v; },
-      view(a) { controls.autoRotate = false; goAz = a; },
+      view(a) { controls.autoRotate = false; goAz = a; fly = null; },
+      select(k) { select(movables.find((m) => m.userData.key === k) || null); },
+      setScale(v) { if (selObj) selObj.scale.setScalar(v); },
+      focus() { if (selObj) { stop(); flyTo(selObj); } },
+      xray(v) {
+        xrayOn = v;
+        if (sideInlay) sideInlay.visible = v;
+        if (sideFace) (sideFace.material as THREE.MeshStandardMaterial).opacity = v ? 0.35 : 1;
+      },
+      tap() {
+        if (!sideGroup) return;
+        stop();
+        tagGroup.visible = true;
+        xrayOn = true;
+        if (sideInlay) sideInlay.visible = true;
+        if (sideFace) (sideFace.material as THREE.MeshStandardMaterial).opacity = 0.35;
+        const lp = sideGroup.getWorldPosition(new THREE.Vector3());
+        fly = { t: lp.clone().add(new THREE.Vector3(-0.6, 0.6, 0.3)), p: lp.clone().add(new THREE.Vector3(-4.2, 2.6, 9.5)) };
+        tapT0 = clock.elapsedTime;
+        ui.current.setTapping(true);
+      },
+      reset() {
+        movables.forEach((m) => { const h = m.userData.home; m.position.copy(h.p); m.rotation.copy(h.r); m.scale.copy(h.s); });
+        select(null);
+        goAz = null;
+        tapT0 = -1;
+        phone.group.visible = false;
+        rings.tick(0, false);
+        fly = { t: HOME_T.clone(), p: new THREE.Vector3(0, 1.6, homeZ) };
+        controls.autoRotate = true;
+        tagGroup.visible = true;
+        this.xray(false);
+        if (sideInlay) {
+          ((sideInlay.userData.coil as THREE.Mesh).material as THREE.MeshStandardMaterial).emissive.setRGB(0, 0, 0);
+          ((sideInlay.userData.chip as THREE.Mesh).material as THREE.MeshStandardMaterial).emissive.setRGB(0, 0, 0);
+        }
+        scene.background = bgLight;
+        floor.material.opacity = 0.18;
+      },
       setDark(v) { scene.background = v ? bgDark : bgLight; floor.material.opacity = v ? 0.4 : 0.18; },
       shot() { renderer.render(scene, camera); return renderer.domElement.toDataURL('image/png'); },
     };
@@ -371,6 +570,11 @@ export default function TeeViewer({ pieces }: { pieces: ViewerPiece[] }) {
     return () => {
       cancelAnimationFrame(raf);
       ro.disconnect();
+      el.removeEventListener('pointerdown', onDown, { capture: true });
+      el.removeEventListener('pointermove', onMove, { capture: true });
+      el.removeEventListener('pointerup', onUp, { capture: true });
+      el.removeEventListener('pointercancel', onUp, { capture: true });
+      el.removeEventListener('wheel', onWheel, { capture: true });
       controls.dispose();
       disposeGroup(scene);
       pmrem.dispose();
@@ -382,6 +586,10 @@ export default function TeeViewer({ pieces }: { pieces: ViewerPiece[] }) {
   }, []);
 
   const pick = (i: number) => { setCur(i); api.current?.load(pieces[i]); };
+  const resetAll = () => {
+    api.current?.reset();
+    setSpin(true); setTags(true); setDark(false); setXray(false); setTapping(false); setSel(null); setSize(1);
+  };
   const save = () => {
     const url = api.current?.shot();
     if (!url) return;
@@ -397,7 +605,8 @@ export default function TeeViewer({ pieces }: { pieces: ViewerPiece[] }) {
       <div className="tv-stage">
         <div ref={host} className="tv-canvas" aria-label={`3D model of ${p.band} ${p.title}. Drag to rotate, pinch or scroll to zoom.`} role="img" />
         {busy && <p className="tv-busy">Loading the model…</p>}
-        <p className="tv-hint">Drag to turn · pinch or scroll to zoom</p>
+        <p className="tv-hint">{sel ? `${sel} — drag to move · scroll on it to resize` : 'Drag to turn · scroll to zoom · drag a label to move it'}</p>
+        <button className="tv-reset" onClick={resetAll} aria-label="Reset to the starting view">Reset</button>
       </div>
       <div className="tv-side">
         <p className="mo-kicker">Demo piece · 3D</p>
@@ -411,6 +620,7 @@ export default function TeeViewer({ pieces }: { pieces: ViewerPiece[] }) {
         <div className="tv-opts">
           <label className="lb-check"><input type="checkbox" checked={tags} onChange={(e) => { setTags(e.target.checked); api.current?.setTags(e.target.checked); }} />Tags and labels</label>
           <label className="lb-check"><input type="checkbox" checked={spin} onChange={(e) => { setSpin(e.target.checked); api.current?.setSpin(e.target.checked); }} />Turn 360°</label>
+          <label className="lb-check"><input type="checkbox" checked={xray} onChange={(e) => { setXray(e.target.checked); api.current?.xray(e.target.checked); }} />See the NFC chip inside</label>
           <label className="lb-check"><input type="checkbox" checked={dark} onChange={(e) => { setDark(e.target.checked); api.current?.setDark(e.target.checked); }} />Dark studio</label>
         </div>
         <div className="tv-views" role="group" aria-label="Viewpoint">
@@ -418,10 +628,35 @@ export default function TeeViewer({ pieces }: { pieces: ViewerPiece[] }) {
             <button key={l} onClick={() => { setSpin(false); api.current?.view(a); }}>{l}</button>
           ))}
         </div>
+        <div className="tv-labels">
+          <p className="tv-lt">Labels</p>
+          <div className="tv-views" role="group" aria-label="Choose a label">
+            {['Neck label', 'Hang tag', 'NFC label'].map((k) => (
+              <button key={k} aria-pressed={sel === k} onClick={() => { setTags(true); api.current?.setTags(true); api.current?.select(sel === k ? null : k); }}>{k}</button>
+            ))}
+          </div>
+          {sel && (
+            <div className="tv-edit">
+              <label className="tv-size">
+                Size <span>{Math.round(size * 100)}%</span>
+                <input type="range" min={0.5} max={4} step={0.05} value={size} onChange={(e) => { const v = Number(e.target.value); setSize(v); api.current?.setScale(v); }} />
+              </label>
+              <div className="pp-row">
+                <button className="mo-btn ghost small" onClick={() => api.current?.focus()}>Zoom in</button>
+                <button className="mo-btn ghost small" onClick={() => api.current?.select(null)}>Done</button>
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="pp-row">
+          <button className="mo-btn small" onClick={() => { setXray(true); api.current?.tap(); }} disabled={busy || tapping}>{tapping ? 'Tapping…' : 'Tap the NFC tag'}</button>
+          <button className="mo-btn ghost small" onClick={resetAll}>Reset</button>
+        </div>
         <div className="pp-row">
           <button className="mo-btn small" onClick={save} disabled={busy}>Save image</button>
           <a className="mo-btn ghost small" href={`/passport/${p.cert}`}>Open its passport</a>
         </div>
+        <p className="mo-links"><a href="/demo/nfc">How the NFC tag and the system work — diagram and 3D →</a></p>
         <p className="mo-fine">The QR on the hang tag is real — scan it from the screen. Every finished piece will get its own 3D model from macro photogrammetry.</p>
       </div>
     </div>

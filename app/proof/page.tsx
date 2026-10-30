@@ -61,7 +61,7 @@ export default async function ProofLab() {
       </ol>
 
       <h2 className="pl-h">Live demo — check it yourself</h2>
-      <p className="mo-links"><a href="/demo">Prefer a guided tour with images? Follow one piece →</a></p>
+      <p className="mo-links"><a href="/demo">Prefer a guided tour with images? Follow one piece →</a><a href="/demo/nfc">How the NFC tag works — diagram and 3D →</a></p>
       <p className="mo-lead">
         This demo passport is signed right now with the real issuer key and checked in your browser. Scroll down to <b>Try to fake it</b>. Scan the QR code with a phone — that
         is what an NFC tap opens.

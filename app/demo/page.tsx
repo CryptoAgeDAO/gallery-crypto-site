@@ -39,7 +39,7 @@ export default async function Demo() {
             <p className="dm-n">01 — The piece</p>
             <h2>{it.band}, {it.title} {it.year}</h2>
             <p>A single-stitch tee found through a dealer in Los Angeles. There is only one. Everything that happens to it from here is written down — and signed.</p>
-            <a className="mo-btn ghost small" href="/demo/3d">Turn it in 3D →</a>
+            <a className="mo-btn ghost small" href="/demo/3d">Turn it in 3D →</a> <a className="mo-btn ghost small" href="/demo/nfc">How the NFC tag works →</a>
           </div>
         </li>
 

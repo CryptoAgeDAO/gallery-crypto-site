@@ -696,3 +696,28 @@ body{background:radial-gradient(1100px 560px at 92% -8%,#edeffb 0%,rgba(237,239,
 .tv-views button{flex:1;padding:9px 4px;background:transparent;border:0;border-right:1px solid var(--line);font:500 11px/1 var(--mono, 'JetBrains Mono', monospace);letter-spacing:.12em;text-transform:uppercase;color:var(--ink);cursor:pointer}
 .tv-views button:last-child{border-right:0}
 .tv-views button:hover{background:var(--soft)}
+.tv-reset{position:absolute;top:12px;right:12px;padding:8px 14px;background:rgba(250,250,248,.9);border:1px solid var(--line);font:500 10px/1 var(--sans);letter-spacing:.22em;text-transform:uppercase;color:var(--ink);cursor:pointer}
+.tv-reset:hover{background:#fff}
+.tv-labels{display:grid;gap:8px}
+.tv-lt{margin:0;font:500 10px/1 var(--sans);letter-spacing:.22em;text-transform:uppercase;color:var(--mute)}
+.tv-labels .tv-views{margin:0}
+.tv-views button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.tv-edit{display:grid;gap:10px;padding:12px 0 4px}
+.tv-size{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;align-items:center;font:500 11px/1 var(--sans);letter-spacing:.14em;text-transform:uppercase}
+.tv-size span{justify-self:end;font-family:var(--mono, monospace);letter-spacing:0}
+.tv-size input{grid-column:1/-1;width:100%;accent-color:#111}
+.nd{margin:8px 0 0}
+.nd svg{display:block;width:100%;height:auto}
+.nd-tall{display:none!important}
+@media (max-width:760px){.nd-wide{display:none!important}.nd-tall{display:block!important;max-width:420px;margin:0 auto}}
+.ns-list{list-style:none;margin:0;padding:0;display:grid;gap:12px;border-top:1px solid var(--line)}
+.ns-list li{display:grid;gap:4px;padding:12px 0;border-bottom:1px solid var(--line);font-size:14px;line-height:1.6}
+.ns-list b{font:500 11px/1.4 var(--sans);letter-spacing:.16em;text-transform:uppercase}
+.ns-list span{color:#4A4743}
+.ns-steps{display:grid;grid-template-columns:repeat(6,1fr);border:1px solid var(--line)}
+.ns-steps button{padding:12px 0;background:transparent;border:0;border-right:1px solid var(--line);font:500 13px/1 var(--mono, monospace);cursor:pointer;color:var(--ink)}
+.ns-steps button:last-child{border-right:0}
+.ns-steps button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.ns-detail{display:grid;gap:8px;font-size:14px;line-height:1.7}
+.ns-detail p{margin:0}
+.ns .tv-views{margin:0}
