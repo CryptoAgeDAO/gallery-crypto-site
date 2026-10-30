@@ -85,15 +85,18 @@ export type Composition = { fiber: string; pct: number }[];
 export type PhotoHash = { label: string; sha256: string };
 export type Dpp = Record<string, Record<string, string | number | Composition | PhotoHash[]>>;
 
-export function prefill(it: Item): Dpp {
+// 作品の種類ごとの既定（デモのキャップなどは item に category・composition などを持つ）
+type Extra = { category?: string; composition?: Composition; construction?: string; decoration?: string };
+export function prefill(it: Item & Extra): Dpp {
+  const cap = (it.category || '').toLowerCase() === 'cap';
   return {
-    product: { name: [it.band, it.title].filter(Boolean).join(' — '), category: 'T-shirt', original_label: it.tag || '', year: it.year || '', size: (it.size || '').toUpperCase(), issuer: 'Gallery Crypto, Tokyo, Japan' },
-    materials: { composition: [{ fiber: 'Cotton', pct: 100 }], reused_pct: 100, recycled_pct: 0, certifications: '' },
-    origin: { manufacture_country: it.made_in || '', construction: it.stitch ? 'Single stitch' : '', decoration: 'Screen print', remake: '', remake_country: '' },
+    product: { name: [it.band, it.title].filter(Boolean).join(' — '), category: it.category || 'T-shirt', original_label: it.tag || '', year: it.year || '', size: (it.size || '').toUpperCase(), issuer: 'Gallery Crypto, Tokyo, Japan' },
+    materials: { composition: it.composition || [{ fiber: 'Cotton', pct: 100 }], reused_pct: 100, recycled_pct: 0, certifications: '' },
+    origin: { manufacture_country: it.made_in || '', construction: it.construction || (it.stitch ? 'Single stitch' : ''), decoration: it.decoration || 'Screen print', remake: '', remake_country: '' },
     provenance: { dealer: it.dealer || '', dealer_profile: '', sourced_country: 'United States', story: it.prov || '' },
-    condition: { grade: it.cond || '', wear: '', care: 'Wash cold, inside out. Hang dry. Do not iron the print.', repairs: '' },
+    condition: { grade: it.cond || '', wear: '', care: cap ? 'Spot clean only. Keep the shape — do not machine wash or tumble dry.' : 'Wash cold, inside out. Hang dry. Do not iron the print.', repairs: '' },
     environment: { circularity: 'Reused garment kept in circulation — no new fibre produced for this piece.', substances: 'No new chemical treatment applied by Gallery Crypto.' },
-    end_of_life: { resale: 'Resale keeps this passport: the record transfers with the piece.', recycling: 'Cotton textile recycling' },
+    end_of_life: { resale: 'Resale keeps this passport: the record transfers with the piece.', recycling: cap ? 'Separate the strap and textile recycling' : 'Cotton textile recycling' },
     fingerprint: { chip: '', photos: [] },
   };
 }

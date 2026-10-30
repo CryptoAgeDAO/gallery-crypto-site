@@ -47,7 +47,7 @@ export default async function LabelsPage() {
     const url = `${base}/passport/${demo.cert}`;
     const last = demo.entries[demo.entries.length - 1];
     out.push({
-      cert: demo.cert, band: demo.item?.band || '', title: demo.item?.title || '', year: demo.item?.year || '', size: 'L', dealer: 'Demo Dealer, Los Angeles', sealed: true, records: last.entry.seq, demo: true,
+      cert: demo.cert, band: demo.item?.band || '', title: demo.item?.title || '', year: demo.item?.year || '', size: 'OS', dealer: 'Demo Dealer, Los Angeles', sealed: true, records: last.entry.seq, demo: true,
       url, qr: await svg(url, 'M'), offlineQr: await svg(`${base}/verify#${compactOf(last, 9001)}`, 'L'),
     });
   }

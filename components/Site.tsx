@@ -273,7 +273,7 @@ export default function Site({ settings: s, items, events = [], sealed = [], dem
                     <span>{it.sold ? 'Sold' : '1 of 1'}</span>
                   </p>
                   <p className="mo-iname">{it.band || 'Untitled'}</p>
-                  <p className="mo-idesc">{[it.title, it.year, it.size && it.size.toUpperCase()].filter(Boolean).join(' · ') || 'Vintage band tee'}</p>
+                  <p className="mo-idesc">{[it.title, it.year, it.size && it.size.toUpperCase()].filter(Boolean).join(' · ') || 'Vintage piece'}</p>
                   {s.sale_open && it.price_usd && !it.sold && <p className="mo-idesc">{usd(it.price_usd)}</p>}
                 </button>
               );

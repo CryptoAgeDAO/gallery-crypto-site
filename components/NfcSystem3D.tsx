@@ -419,7 +419,7 @@ export default function NfcSystem3D() {
         {mode === 'tag' ? (
           <>
             <h2 className="tv-name">The NFC label</h2>
-            <p className="tv-sub">Three layers, 36 × 50 mm, sewn into the back neck seam</p>
+            <p className="tv-sub">Three layers, 24 × 32 mm, sewn inside the back of the cap</p>
             <ol className="ns-list">
               {TAG_LAYERS.map((l, i) => (
                 <li key={l.k}><b>{String(i + 1).padStart(2, '0')} {l.title}</b><span>{l.body}</span></li>

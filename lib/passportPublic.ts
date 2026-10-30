@@ -94,12 +94,12 @@ export async function demoPassport(n = 1): Promise<PassportBundle | null> {
   const cert = demoCert(demoItem.n);
   const d = prefill(demoItem);
   d.provenance.dealer_profile = 'Third-generation picker working the Rose Bowl and private estates.';
-  d.condition.wear = 'Soft fade at the collar, small paint fleck on the left hem.';
-  d.fingerprint.photos = [{ label: 'Print macro (photo 2)', sha256: demoItem.macroHash }];
+  d.condition.wear = 'Soft fade on the crown, light wear on the brim edge.';
+  d.fingerprint.photos = [{ label: 'Embroidery macro (photo 2)', sha256: demoItem.macroHash }];
   const steps: [GcppEntry['kind'], string, Record<string, unknown>][] = [
-    ['event', '2027-01-18T19:20:00.000Z', { type: 'sourced', actor: 'Demo Dealer', place: 'Los Angeles, US', note: `${demoItem.band} ${demoItem.year} tee, inherited from the dealer. No price is recorded.` }],
+    ['event', '2027-01-18T19:20:00.000Z', { type: 'sourced', actor: 'Demo Dealer', place: 'Los Angeles, US', note: `${demoItem.band} ${demoItem.year} tour cap, inherited from the dealer. No price is recorded.` }],
     ['event', '2027-02-02T03:00:00.000Z', { type: 'catalogued', actor: 'Gallery Crypto', place: 'Tokyo, JP', note: 'Photographed and entered into the archive.' }],
-    ['event', '2027-02-02T03:30:00.000Z', { type: 'fingerprinted', actor: 'Gallery Crypto', place: 'Tokyo, JP', note: 'Print macro photographed and hashed. NFC tag sewn in.' }],
+    ['event', '2027-02-02T03:30:00.000Z', { type: 'fingerprinted', actor: 'Gallery Crypto', place: 'Tokyo, JP', note: 'Embroidery macro photographed and hashed. NFC tag sewn inside the back.' }],
     ['seal', '2027-02-02T04:00:00.000Z', { schema: DPP_VERSION, version: 1, dpp: cleanDpp(d) }],
   ];
   // デモ用の創業者の鍵（本物の台帳とは別。サーバーの鍵から導くので毎回同じ）

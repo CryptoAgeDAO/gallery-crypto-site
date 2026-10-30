@@ -27,18 +27,18 @@ export default async function Demo() {
   return (
     <MoShell title="Follow one piece" kicker="Demo · about two minutes">
       <p className="mo-lead">
-        One tee, start to finish. Everything below is live: scan the codes with your phone, open the record, check the photo and try to fake it. No account, no wallet. The band and the
+        One cap, start to finish. Everything below is live: scan the codes with your phone, open the record, check the photo and try to fake it. No account, no wallet. The band and the
         artwork are fictional.
       </p>
 
       <ol className="dm">
         <li className="dm-step">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img className="dm-img" src={it.photos[0]} alt={`${it.band} ${it.title} tee`} />
+          <img className="dm-img" src={it.photos[0]} alt={`${it.band} ${it.title} cap`} />
           <div className="dm-text">
             <p className="dm-n">01 — The piece</p>
             <h2>{it.band}, {it.title} {it.year}</h2>
-            <p>A single-stitch tee found through a dealer in Los Angeles. There is only one. Everything that happens to it from here is written down — and signed.</p>
+            <p>A 1991 tour cap found through a dealer in Los Angeles. There is only one. Everything that happens to it from here is written down — and signed.</p>
             <a className="mo-btn ghost small" href="/demo/3d">Turn it in 3D →</a> <a className="mo-btn ghost small" href="/demo/nfc">How the NFC tag works →</a>
           </div>
         </li>
@@ -55,7 +55,7 @@ export default async function Demo() {
           <div className="dm-text">
             <p className="dm-n">02 — The tag</p>
             <h2>Scan it now</h2>
-            <p>Point your phone camera at this code. In the shop, you tap the NFC chip sewn inside the label — it opens the same page, and the chip cannot be copied.</p>
+            <p>Point your phone camera at this code. In the shop, you tap the NFC tag sewn inside the back of the cap — it opens the same page, and the chip cannot be copied.</p>
             <a className="mo-btn ghost small" href="/passport/GC-DEMO-1">Or open it here →</a>
           </div>
         </li>
@@ -78,11 +78,11 @@ export default async function Demo() {
 
         <li className="dm-step">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img className="dm-img" src={it.photos[1]} alt="Close-up of the cracked print" />
+          <img className="dm-img" src={it.photos[1]} alt="Close-up of the embroidery" />
           <div className="dm-text">
             <p className="dm-n">04 — The fingerprint</p>
-            <h2>The print, photographed up close</h2>
-            <p>Cracks in an old print never repeat. This macro photo&apos;s fingerprint is sealed in the record. A copy of the tee would not match.</p>
+            <h2>The embroidery, photographed up close</h2>
+            <p>Thread, fade and wear never fall the same way twice. This macro photo&apos;s fingerprint is sealed in the record. A copy of the cap would not match.</p>
             <HashCheck src={it.photos[1]} expected={it.macroHash} />
           </div>
         </li>
