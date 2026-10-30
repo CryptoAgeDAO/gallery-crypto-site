@@ -32,7 +32,7 @@ export const DEMO_ITEMS: DemoItem[] = [
   "audio_credit": "",
   "n": 1,
   "fabric": "#1E1E1D",
-  "macroHash": "",
+  "macroHash": "5a03998b167c6d756cf816c8c2de6b484d1778456dc837a7aeb4902e182e4680",
   "category": "Cap",
   "composition": [
    {
@@ -87,7 +87,7 @@ export const DEMO_ITEMS: DemoItem[] = [
   "audio_credit": "",
   "n": 2,
   "fabric": "#ECE7DC",
-  "macroHash": "",
+  "macroHash": "1b31e6f72de8e0215c1c2076ac51625fa3375f4064476acf26bd898114c66e38",
   "category": "Cap",
   "composition": [
    {
@@ -138,7 +138,7 @@ export const DEMO_ITEMS: DemoItem[] = [
   "audio_credit": "",
   "n": 3,
   "fabric": "#2F3236",
-  "macroHash": "",
+  "macroHash": "ac5fdb680c45c63757859d4b32d35cdf7657ec7218f8781b9dda8cfb01cdaf20",
   "category": "Cap",
   "composition": [
    {
@@ -192,7 +192,7 @@ export const DEMO_ITEMS: DemoItem[] = [
   "audio_credit": "",
   "n": 4,
   "fabric": "#1F2A3A",
-  "macroHash": "",
+  "macroHash": "fd8e9c86203a8b921cf32b76ab08fa19e7266b2596a5bf447c87676364953ad0",
   "category": "Cap",
   "composition": [
    {
@@ -246,7 +246,7 @@ export const DEMO_ITEMS: DemoItem[] = [
   "audio_credit": "",
   "n": 5,
   "fabric": "#4A3A2E",
-  "macroHash": "",
+  "macroHash": "9f7fe9ae086c0407ba9f07066825d790a5b791470248fc775c33c551066b847d",
   "category": "Cap",
   "composition": [
    {
@@ -297,7 +297,7 @@ export const DEMO_ITEMS: DemoItem[] = [
   "audio_credit": "",
   "n": 6,
   "fabric": "#E4DFD3",
-  "macroHash": "",
+  "macroHash": "d7a45116e6ae3ca0770e92f1b96734b96e67075afd857de123dbeee850a05e7a",
   "category": "Cap",
   "composition": [
    {
