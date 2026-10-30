@@ -2,6 +2,9 @@ import type { Metadata } from 'next';
 import MoShell from '@/components/MoShell';
 import NfcDiagram from '@/components/NfcDiagram';
 import NfcSystem3DLazy from '@/components/NfcSystem3DLazy';
+import SolanaTree3DLazy from '@/components/SolanaTree3DLazy';
+import CapViewerLazy from '@/components/CapViewerLazy';
+import { DEMO_ITEMS, demoCert } from '@/lib/demoData';
 import GcIcon, { IconRow, SvgIcon } from '@/components/GcIcon';
 
 export const metadata: Metadata = {
@@ -77,6 +80,9 @@ export default function NfcPage() {
 
       <h2 className="pl-h" id="tag">Inside the tag</h2>
       <p className="mo-lead">A woven label about the size of a stamp, cut from the cap’s own fabric. Inside it sits an NFC inlay — a coil of copper and a chip thinner than paper.</p>
+      <div className="pp-3d">
+        <CapViewerLazy compact pieces={[{ n: 1, band: DEMO_ITEMS[0].band, title: DEMO_ITEMS[0].title, year: DEMO_ITEMS[0].year, cert: demoCert(1), cap: DEMO_ITEMS[0].cap, qr: '' }]} />
+      </div>
       <div className="sol-grid">
         <IconRow name="chip" tone="copper" title="NTAG 424 DNA chip">An NFC chip made for proving authenticity. It holds a secret AES-128 key that can be used but never read out — not even by us.</IconRow>
         <IconRow name="antenna" title="Copper antenna, no battery">The coil catches the phone’s field (13.56 MHz) and powers the chip for the instant it is read. Nothing to charge, nothing to wear out.</IconRow>
@@ -106,7 +112,11 @@ export default function NfcPage() {
 
       <h2 className="pl-h" id="solana">Solana, in plain words</h2>
       <p className="mo-lead">Solana is a public record-keeping network that nobody owns and nobody can rewrite. We use it for one thing only: a timestamp that proves our records existed, unchanged, at a certain moment.</p>
-      <div className="sol-figwrap"><TreeFigure /></div>
+      <SolanaTree3DLazy />
+      <details className="pp-more">
+        <summary>Show the same thing as a flat diagram</summary>
+        <div className="sol-figwrap"><TreeFigure /></div>
+      </details>
       <div className="sol-two">
         <div>
           <p className="sol-h"><GcIcon name="shield" size={30} tone="ok" /> On Solana</p>

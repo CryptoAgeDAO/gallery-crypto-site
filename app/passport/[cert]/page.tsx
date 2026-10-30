@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import QRCode from 'qrcode';
 import MoShell from '@/components/MoShell';
 import PassportView from '@/components/PassportView';
+import CapViewerLazy from '@/components/CapViewerLazy';
+import { DEMO_ITEMS } from '@/lib/demoData';
 import { demoPassport, getPassport, parseCert, parseDemo } from '@/lib/passportPublic';
 import { compactOf } from '@/lib/gcpp';
 import { siteUrl } from '@/lib/server';
@@ -31,7 +33,11 @@ export default async function PassportPage({ params }: { params: { cert: string 
   const photo = b.item?.photos?.[0];
   return (
     <MoShell title={b.item ? `${b.item.band}${b.item.title ? ` — ${b.item.title}` : ''}` : b.cert} kicker={`Provenance passport · ${b.cert}`}>
-      {photo && (
+      {dn ? (
+        <div className="pp-3d">
+          <CapViewerLazy compact pieces={[{ n: dn, band: b.item?.band || '', title: b.item?.title || '', year: b.item?.year || '', cert: b.cert, cap: DEMO_ITEMS[dn - 1].cap, qr }]} />
+        </div>
+      ) : photo && (
         <div className="pp-photo">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={photoUrl(photo)} alt="" />

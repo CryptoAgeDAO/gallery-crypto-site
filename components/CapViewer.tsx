@@ -34,7 +34,7 @@ function stitch(curve: THREE.Curve<THREE.Vector3>, color: string, dash: THREE.Te
 }
 const smooth01 = (x: number, a: number, b: number) => { const k = Math.min(1, Math.max(0, (x - a) / (b - a))); return k * k * (3 - 2 * k); };
 
-export default function CapViewer({ pieces }: { pieces: CapPiece[] }) {
+export default function CapViewer({ pieces, compact = false }: { pieces: CapPiece[]; compact?: boolean }) {
   const host = useRef<HTMLDivElement>(null);
   const api = useRef<Api | null>(null);
   const [cur, setCur] = useState(0);
@@ -493,6 +493,25 @@ export default function CapViewer({ pieces }: { pieces: CapPiece[] }) {
     a.click();
   };
   const styleName = { structured: 'Structured 6-panel', dad: 'Unstructured 6-panel', trucker: 'Trucker, foam and mesh', five: '5-panel' }[p.cap.style];
+
+  // パスポートの中に置く小さな版：回す・タグを分解・内側・リセットだけ
+  if (compact)
+    return (
+      <div className="tvc">
+        <div className="tv-stage">
+          <div ref={host} className="tv-canvas" role="img" aria-label={`3D model of this cap, with its NFC tag sewn inside the back. Drag to turn, scroll to zoom.`} />
+          {busy && <p className="tv-busy">Loading the model…</p>}
+          <p className="tv-hint">Drag to turn · scroll to zoom</p>
+          <button className="tv-reset" onClick={resetAll}>Reset</button>
+        </div>
+        <div className="tvc-bar">
+          <button className="mo-btn small" disabled={busy} onClick={() => { const v = !exploded; setExploded(v); setSpin(false); api.current?.explode(v); }}>{exploded ? 'Put the tag back' : 'Pull the NFC tag apart'}</button>
+          <button className="mo-btn ghost small" disabled={busy} onClick={() => { setSpin(false); setSee(true); api.current?.see(true); }}>Find the tag inside</button>
+          <button className="mo-btn ghost small" onClick={() => { const v = !spin; setSpin(v); api.current?.spin(v); }}>{spin ? 'Stop turning' : 'Turn 360°'}</button>
+          <a className="mo-btn ghost small" href="/demo/3d">Full 3D view →</a>
+        </div>
+      </div>
+    );
 
   return (
     <div className="tv">

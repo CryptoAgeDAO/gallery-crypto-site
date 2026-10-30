@@ -769,3 +769,20 @@ body{background:radial-gradient(1100px 560px at 92% -8%,#edeffb 0%,rgba(237,239,
 .sol-faq p{margin:0 0 18px;font-size:14px;line-height:1.75;color:#4A4743;max-width:720px}
 .sol-figwrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
 @media (max-width:640px){.sol-fig{min-width:640px}.ez{grid-template-columns:1fr 1fr;gap:8px}.ez-i{padding:14px}.ez-i span{font-size:12.5px}}
+.pp-3d{margin:0 0 28px}
+.tvc .tv-stage{aspect-ratio:4/3}
+@media (max-width:640px){.tvc .tv-stage{aspect-ratio:1/1}}
+.tvc-bar{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+/* Solana 3D */
+.st3{display:grid;grid-template-columns:minmax(0,1fr);gap:22px;margin:12px 0 18px}
+@media (min-width:960px){.st3{grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);align-items:start}}
+.st3-stage{position:relative;aspect-ratio:16/10;background:#EFEDE8;overflow:hidden;min-height:300px}
+@media (max-width:640px){.st3-stage{aspect-ratio:4/5}}
+.st3-steps{list-style:none;margin:0 0 14px;padding:0;display:grid;gap:0;border-top:1px solid var(--line)}
+.st3-steps li{padding:11px 0 11px 18px;border-bottom:1px solid var(--line);font:500 13.5px/1.45 var(--sans);color:var(--mute);position:relative}
+.st3-steps li::before{content:'';position:absolute;left:0;top:17px;width:8px;height:8px;border-radius:50%;background:var(--line)}
+.st3-steps li.done{color:var(--ink)}
+.st3-steps li.done::before{background:var(--ink)}
+.st3-steps li.on{color:var(--ink)}
+.st3-steps li.on::before{background:#C47A45}
+.st3-body{margin:0 0 14px;font-size:14.5px;line-height:1.7;min-height:5em}
