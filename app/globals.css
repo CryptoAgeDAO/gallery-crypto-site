@@ -721,3 +721,5 @@ body{background:radial-gradient(1100px 560px at 92% -8%,#edeffb 0%,rgba(237,239,
 .ns-detail{display:grid;gap:8px;font-size:14px;line-height:1.7}
 .ns-detail p{margin:0}
 .ns .tv-views{margin:0}
+.tv-tabs{max-width:420px;margin:0 0 18px}
+.tv-tabs button[aria-selected="true"]{background:var(--ink);color:var(--paper)}

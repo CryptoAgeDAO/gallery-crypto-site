@@ -3,8 +3,8 @@ export type NfcStep = { k: string; n: number; title: string; short: string; body
 
 export const NFC_STEPS: NfcStep[] = [
   {
-    k: 'piece', n: 1, title: 'The piece', short: 'NFC label in the side seam',
-    body: 'A small label is sewn into the side seam. Inside it: a copper antenna and an NTAG 424 DNA chip holding a secret key that can never be read out.',
+    k: 'piece', n: 1, title: 'The piece', short: 'NFC tag in the back neck',
+    body: 'A small woven tag is sewn into the back neck seam, under the collar. Inside it: a copper antenna and an NTAG 424 DNA chip holding a secret key that can never be read out.',
     tech: 'NTAG 424 DNA · AES-128 · 13.56 MHz',
   },
   {
@@ -35,7 +35,7 @@ export const NFC_STEPS: NfcStep[] = [
 ];
 
 export const TAG_LAYERS = [
-  { k: 'face', title: 'Woven face', body: 'Cut and stamped like the neck label. Sewn into the side seam.' },
+  { k: 'face', title: 'Woven face', body: 'Cut from the piece itself and stamped with its number. Its top edge is sewn into the collar seam.' },
   { k: 'inlay', title: 'Antenna + chip', body: 'Copper coil on a thin film, powered by the phone’s field. The chip’s key never leaves it.' },
   { k: 'back', title: 'Sealed backing', body: 'Heat-sealed. Pulling the label apart breaks the antenna, so a moved tag stops answering.' },
 ];

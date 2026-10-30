@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 export default function NfcPage() {
   return (
     <MoShell title="One tap, one proof" kicker="Demo · NFC tag and system">
-      <p className="mo-lead">Every piece carries a small NFC label in its side seam. Tap it with any phone and the piece proves itself — with a code the chip makes once, two signatures, and a public timestamp. No app, and it still works with no signal.</p>
+      <p className="mo-lead">Every piece carries a small NFC tag sewn into its back neck seam. Tap it with any phone and the piece proves itself — with a code the chip makes once, two signatures, and a public timestamp. No app, and it still works with no signal.</p>
 
       <h2 className="pl-h">The system at a glance</h2>
       <NfcDiagram />
