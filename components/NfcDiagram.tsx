@@ -1,5 +1,6 @@
 // NFC タグと証明の仕組みを1枚の図に（横長＝PC、縦長＝スマホ）
 import { NFC_STEPS, TAG_LAYERS, type NfcStep } from '@/lib/nfcSteps';
+import { SvgIcon, type IconName } from './GcIcon';
 
 const INK = '#111111', MUTE = '#6B6862', LINE = '#CFCAC0', PAPER = '#FAFAF8', CU = '#C47A45';
 const SANS = 'Archivo, "Noto Sans JP", sans-serif', SERIF = '"Cormorant Garamond", Georgia, serif', MONO = '"JetBrains Mono", monospace';
@@ -14,23 +15,9 @@ function wrap(t: string, max: number) {
   return out;
 }
 
+const ICON_OF: Record<string, IconName> = { piece: 'cap', tap: 'tap', chip: 'chip', record: 'shield', anchor: 'clock', offline: 'offline' };
 function Icon({ k, x, y }: { k: string; x: number; y: number }) {
-  const s = { fill: 'none', stroke: INK, strokeWidth: 1.2 } as const;
-  const g = (c: React.ReactNode) => <g transform={`translate(${x} ${y})`}>{c}</g>;
-  switch (k) {
-    case 'piece':
-      return g(<><path d="M6 2 L2 6 L5 9 L7 8 V22 H19 V8 L21 9 L24 6 L20 2 Q13 6 6 2 Z" {...s} /><rect x="6.5" y="15" width="3" height="5" fill={CU} /></>);
-    case 'tap':
-      return g(<><rect x="7" y="2" width="11" height="20" rx="2" {...s} /><path d="M2 8 Q0 12 2 16 M-1 6 Q-4 12 -1 18" {...s} stroke={CU} /></>);
-    case 'chip':
-      return g(<><rect x="6" y="6" width="12" height="12" {...s} /><path d="M9 3V6M12 3V6M15 3V6M9 18V21M12 18V21M15 18V21M3 9H6M3 12H6M3 15H6M18 9H21M18 12H21M18 15H21" {...s} /></>);
-    case 'record':
-      return g(<><rect x="1" y="7" width="9" height="10" {...s} /><rect x="14" y="7" width="9" height="10" {...s} /><path d="M10 12H14" {...s} /><circle cx="5.5" cy="12" r="1.6" fill={INK} /><circle cx="18.5" cy="12" r="1.6" fill={CU} /></>);
-    case 'anchor':
-      return g(<><ellipse cx="12" cy="6" rx="10" ry="3" {...s} /><path d="M2 6V11Q12 16 22 11V6M2 11V16Q12 21 22 16V11" {...s} /></>);
-    default:
-      return g(<><rect x="2" y="2" width="20" height="20" {...s} /><rect x="5" y="5" width="5" height="5" fill={INK} /><rect x="14" y="5" width="5" height="5" fill={INK} /><rect x="5" y="14" width="5" height="5" fill={INK} /><path d="M14 14h2v2h-2zM17 17h2v2h-2zM14 18h2" fill={INK} /></>);
-  }
+  return <SvgIcon name={ICON_OF[k] || 'qr'} x={x - 8} y={y - 4} size={40} tone={k === 'chip' ? 'copper' : 'soft'} />;
 }
 
 function Node({ s, x, y, w, h, techMax }: { s: NfcStep; x: number; y: number; w: number; h: number; techMax: number }) {

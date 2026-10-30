@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { DPP_SECTIONS, eventLabel, type Composition, type PhotoHash } from '@/lib/dpp';
 import { checkOk, explorerAddr, explorerTx, keyId, merkleRoot, rpcFor, verifyKeyring, verifyLog, type Anchor, type Check, type KeyState, type SignedEntry } from '@/lib/gcpp';
 import type { PassportBundle } from '@/lib/passportPublic';
+import GcIcon, { type IconName } from './GcIcon';
 
 const short = (h: string, n = 10) => (h.length > n * 2 ? `${h.slice(0, n)}…${h.slice(-6)}` : h);
 const day = (s: string) => new Date(s).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'Asia/Tokyo' });
@@ -53,6 +54,25 @@ function Checks({ checks, shown, entries }: { checks: Check[]; shown: number; en
         );
       })}
     </ol>
+  );
+}
+
+// ひと目でわかる確認：5つの問いに、アイコンと一言で答える
+type Easy = { icon: IconName; title: string; ok: boolean | null | 'next'; good: string; bad: string; next?: string };
+function EasyChecks({ items }: { items: Easy[] }) {
+  return (
+    <ul className="ez">
+      {items.map((it) => {
+        const st = it.ok === 'next' ? 'next' : it.ok === null ? 'wait' : it.ok ? 'ok' : 'ng';
+        return (
+          <li key={it.title} className={`ez-i ${st}`}>
+            <GcIcon name={it.icon} size={48} status={st} tone={st === 'ok' ? 'ok' : st === 'ng' ? 'ng' : 'soft'} />
+            <b>{it.title}</b>
+            <span>{st === 'wait' ? 'Checking…' : st === 'next' ? it.next : st === 'ok' ? it.good : it.bad}</span>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -175,7 +195,20 @@ export default function PassportView({ b, qr, url, offlineQr, offlineUrl }: { b:
         {qr && <div className="pp-qr" aria-label="QR code for this passport" dangerouslySetInnerHTML={{ __html: qr }} />}
       </section>
 
-      <Checks checks={res.checks} shown={shown} entries={b.entries} />
+      <EasyChecks
+        items={[
+          { icon: 'chip', title: 'The tag', ok: 'next', good: '', bad: '', next: 'Tapping the tag opens this page. Checking the chip’s one-time code comes next (GCPP/3).' },
+          { icon: 'server', title: 'Signed by Gallery Crypto', ok: done ? res.checks.every((c) => c.sigOk && c.issuerOk) && domainKey !== false : null, good: 'Every record carries our server signature, and the key matches the one published on our website.', bad: 'A signature does not match Gallery Crypto’s published key.' },
+          { icon: 'founder', title: 'Approved by a founder', ok: done ? res.checks.every((c) => c.cosigOk) && ring.ok : null, good: 'Every record was also signed on a founder’s own phone. A server alone cannot make a record.', bad: 'A record is missing a valid founder signature.' },
+          { icon: 'chain', title: 'Nothing changed or removed', ok: done ? res.checks.every((c) => c.hashOk && c.chainOk) : null, good: `All ${b.entries.length} records are exactly as signed, and each links to the one before.`, bad: 'A record was changed, removed or inserted.' },
+          { icon: 'clock', title: 'Public timestamp', ok: b.anchors.length ? (done ? true : null) : 'next', good: `Written to ${b.chain === 'solana-devnet' ? 'Solana (test network)' : 'Solana'}. Press “Check on Solana” below to see it yourself.`, bad: '', next: b.demo ? 'Demo records are not written to Solana. Real passports are, within a day.' : 'Waiting for the next daily anchor on Solana.' },
+        ]}
+      />
+
+      <details className="pp-more">
+        <summary>Show every check, record by record ({b.entries.length})</summary>
+        <Checks checks={res.checks} shown={shown} entries={b.entries} />
+      </details>
 
       <div className="pp-grid">
         <section className="pp-box">
