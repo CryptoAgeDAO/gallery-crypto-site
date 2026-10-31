@@ -7,6 +7,7 @@ export default function MoShell({ kicker, title, children }: { kicker?: string; 
           <nav className="mo-nav l" aria-label="Collection">
             <a href="/#archive">Archive</a>
             <a href="/proof">Provenance</a>
+            <a href="/ledger">Ledger</a>
           </nav>
           <a className="mo-logo" href="/">Gallery Crypto</a>
           <nav className="mo-nav r" aria-label="House">

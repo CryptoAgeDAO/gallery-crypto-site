@@ -2,7 +2,8 @@ import 'server-only';
 import { db } from './server';
 import { p256 } from '@noble/curves/p256';
 import { sha256 } from '@noble/hashes/sha256';
-import { ensureIssuer, issuerAddress, issuerConfigured, loadKeyring, loadLog, serverSign, demoSeed, CHAIN } from './passportServer';
+import { ensureIssuer, issuerAddress, issuerConfigured, loadKeyring, loadLog, serverSign, demoSeed } from './passportServer';
+import { getChains } from './chains';
 import { PROTOCOL, bytesToHex, sigMessage, type Anchor, type GcppEntry, type KeyEntry, type SignedEntry, type SignedKey } from './gcpp';
 import { DPP_VERSION, cleanDpp, prefill } from './dpp';
 import { PUBLIC_ITEM_COLUMNS, certNo, type Item } from './types';
@@ -28,7 +29,7 @@ export async function publicKeyring(): Promise<{ protocol: string; issuer: strin
   try { keyring = await loadKeyring(); } catch {}
   const ids = Array.from(new Set(keyring.map((k) => k.anchor_id).filter(Boolean))) as number[];
   const { data: anchors } = ids.length ? await db().from('passport_anchors').select('*').in('id', ids) : { data: [] };
-  return { protocol: PROTOCOL, issuer: issuerAddress(), chain: CHAIN, keyring, anchors: (anchors as Anchor[]) || [] };
+  return { protocol: PROTOCOL, issuer: issuerAddress(), chain: (await getChains()).solana, keyring, anchors: (anchors as Anchor[]) || [] };
 }
 
 export function parseCert(cert: string): number | null {
@@ -54,7 +55,7 @@ export async function getPassport(cert: string): Promise<PassportBundle | null> 
   if (!entries.length) return null;
   const ids = Array.from(new Set([...entries, ...keyring].map((e) => e.anchor_id).filter(Boolean))) as number[];
   const { data: anchors } = ids.length ? await db().from('passport_anchors').select('*').in('id', ids) : { data: [] };
-  return { protocol: PROTOCOL, issuer: issuerAddress(), chain: CHAIN, cert: certNo(item), item: { band: item.band, title: item.title, year: item.year, photos: item.photos }, entries, keyring, anchors: (anchors as Anchor[]) || [] };
+  return { protocol: PROTOCOL, issuer: issuerAddress(), chain: (await getChains()).solana, cert: certNo(item), item: { band: item.band, title: item.title, year: item.year, photos: item.photos }, entries, keyring, anchors: (anchors as Anchor[]) || [] };
 }
 
 // 公開中で、確定済みの記録がある作品の番号（カタログからリンクするため）
@@ -115,5 +116,5 @@ export async function demoPassport(n = 1): Promise<PassportBundle | null> {
     const sv = serverSign(e);
     entries.push({ entry: e, ...sv, cosig: cosign(sv.hash) });
   });
-  return { protocol: PROTOCOL, issuer: issuerAddress(), chain: CHAIN, cert, demo: true, item: { band: demoItem.band, title: demoItem.title, year: demoItem.year, photos: demoItem.photos }, entries, keyring, anchors: [] };
+  return { protocol: PROTOCOL, issuer: issuerAddress(), chain: (await getChains()).solana, cert, demo: true, item: { band: demoItem.band, title: demoItem.title, year: demoItem.year, photos: demoItem.photos }, entries, keyring, anchors: [] };
 }

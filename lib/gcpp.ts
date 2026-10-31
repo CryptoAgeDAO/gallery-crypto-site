@@ -37,7 +37,7 @@ export type KeyEntry = {
 export type Signed<T> = { entry: T; hash: string; sig: string; cosig: string; issuer: string; anchor_id?: number | null };
 export type SignedEntry = Signed<GcppEntry>;
 export type SignedKey = Signed<KeyEntry>;
-export type Anchor = { id: number; chain: string; root: string; leaves: string[]; tx: string; created_at: string };
+export type Anchor = { id: number; chain: string; root: string; leaves: string[]; tx: string; created_at: string; xrpl_tx?: string; xrpl_chain?: string };
 
 // キーを並べ替え、空白なしで書き出す（同じ内容なら必ず同じ文字列になる）
 export function canonical(v: unknown): string {
@@ -229,4 +229,6 @@ export function verifyCompact(c: Compact, issuer: string, keys: Map<string, KeyS
 export const anchorMemo = (root: string, n: number) => `${PROTOCOL} root:${root} n:${n}`;
 export const explorerTx = (tx: string, chain: string) => `https://explorer.solana.com/tx/${tx}${chain === 'solana-devnet' ? '?cluster=devnet' : ''}`;
 export const explorerAddr = (a: string, chain = 'solana-devnet') => `https://explorer.solana.com/address/${a}${chain === 'solana-devnet' ? '?cluster=devnet' : ''}`;
+export const explorerXrplTx = (tx: string, chain: string) => `https://${chain === 'xrpl-mainnet' ? 'livenet' : 'testnet'}.xrpl.org/transactions/${tx}`;
+export const explorerXrplAddr = (a: string, chain: string) => `https://${chain === 'xrpl-mainnet' ? 'livenet' : 'testnet'}.xrpl.org/accounts/${a}`;
 export const rpcFor = (chain: string) => (chain === 'solana-devnet' ? 'https://api.devnet.solana.com' : 'https://api.mainnet-beta.solana.com');

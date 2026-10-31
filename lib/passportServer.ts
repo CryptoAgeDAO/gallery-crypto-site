@@ -55,7 +55,9 @@ export function serverSign(entry: unknown): { hash: string; sig: string; issuer:
   return { hash, sig: bytesToHex(ed25519.sign(sigMessage(hash), seed())), issuer: issuerAddress() };
 }
 
+// 既定の表示用（実際の刻印先は lib/chains.ts の getChains() で決まる）
 export const CHAIN = process.env.GC_ANCHOR_CHAIN === 'solana-mainnet' ? 'solana-mainnet' : 'solana-devnet';
+export const issuerSeedForChains = () => seed();
 
 export async function isAdminRequest(req: Request): Promise<boolean> {
   const jwt = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
@@ -163,8 +165,11 @@ export async function commitKey(entry: KeyEntry, cosig: string): Promise<SignedK
 }
 
 // ── Solana への刻印：まだ刻んでいない記録と鍵の台帳をまとめて1つのハッシュにして書き込む ──
-export async function anchorPending(extraLeaves: string[] = []): Promise<{ anchor?: Anchor; count: number; address: string; needFunds?: boolean; balance?: number }> {
+export async function anchorPending(extraLeaves: string[] = []): Promise<{ anchor?: Anchor; count: number; address: string; needFunds?: boolean; balance?: number; chain?: string; xrpl?: { tx?: string; needFunds?: boolean; error?: string } }> {
   await ensureIssuer();
+  const { getChains, solanaRpc, anchorXrpl } = await import('./chains');
+  const chains = await getChains(true);
+  const NET = chains.solana;
   const web3 = await import('@solana/web3.js');
   const address = issuerAddress();
   const a = await db().from('passport_log').select('id,hash').is('anchor_id', null).order('id');
@@ -177,9 +182,9 @@ export async function anchorPending(extraLeaves: string[] = []): Promise<{ ancho
   const root = merkleRoot(leaves);
 
   const kp = web3.Keypair.fromSeed(seed());
-  const conn = new web3.Connection(CHAIN === 'solana-devnet' ? web3.clusterApiUrl('devnet') : web3.clusterApiUrl('mainnet-beta'), 'confirmed');
+  const conn = new web3.Connection(solanaRpc(NET), 'confirmed');
   let bal = await conn.getBalance(kp.publicKey);
-  if (bal < 0.001 * web3.LAMPORTS_PER_SOL && CHAIN === 'solana-devnet') {
+  if (bal < 0.001 * web3.LAMPORTS_PER_SOL && NET === 'solana-devnet') {
     try {
       const sig = await conn.requestAirdrop(kp.publicKey, 0.5 * web3.LAMPORTS_PER_SOL);
       const bh = await conn.getLatestBlockhash();
@@ -189,7 +194,7 @@ export async function anchorPending(extraLeaves: string[] = []): Promise<{ ancho
       /* テスト用の無料配布は混雑で失敗することがある */
     }
   }
-  if (bal < 0.00001 * web3.LAMPORTS_PER_SOL) return { count: leaves.length, address, needFunds: true, balance: bal / web3.LAMPORTS_PER_SOL };
+  if (bal < 0.00001 * web3.LAMPORTS_PER_SOL) return { count: leaves.length, address, needFunds: true, balance: bal / web3.LAMPORTS_PER_SOL, chain: NET };
 
   const ix = new web3.TransactionInstruction({
     keys: [{ pubkey: kp.publicKey, isSigner: true, isWritable: false }],
@@ -197,12 +202,21 @@ export async function anchorPending(extraLeaves: string[] = []): Promise<{ ancho
     data: Buffer.from(anchorMemo(root, leaves.length), 'utf8'),
   });
   const tx = await web3.sendAndConfirmTransaction(conn, new web3.Transaction().add(ix), [kp], { commitment: 'confirmed' });
-  const ins = await db().from('passport_anchors').insert({ chain: CHAIN, root, leaves, tx }).select('*').single();
+  const ins = await db().from('passport_anchors').insert({ chain: NET, root, leaves, tx }).select('*').single();
   if (ins.error) throw ins.error;
-  const anchor = ins.data as Anchor;
+  let anchor = ins.data as Anchor;
+  // 同じルートを XRPL にも（設定がオンのとき。失敗しても Solana の刻印は残る）
+  let xr: { tx?: string; needFunds?: boolean; error?: string } | undefined;
+  if (chains.xrpl !== 'off') {
+    xr = await anchorXrpl(seed(), chains.xrpl, anchorMemo(root, leaves.length));
+    if (xr.tx) {
+      const up = await db().from('passport_anchors').update({ xrpl_tx: xr.tx, xrpl_chain: chains.xrpl }).eq('id', anchor.id).select('*').single();
+      if (!up.error) anchor = up.data as Anchor;
+    }
+  }
   if (logRows.length) await db().from('passport_log').update({ anchor_id: anchor.id }).in('id', logRows.map((r) => r.id));
   if (keyRows.length) await db().from('passport_keys').update({ anchor_id: anchor.id }).in('id', keyRows.map((r) => r.id));
-  return { anchor, count: leaves.length, address, balance: (await conn.getBalance(kp.publicKey)) / web3.LAMPORTS_PER_SOL };
+  return { anchor, count: leaves.length, address, chain: NET, xrpl: xr, balance: (await conn.getBalance(kp.publicKey)) / web3.LAMPORTS_PER_SOL };
 }
 
 // 記録した直後に刻印を試みる（失敗しても記録は残り、毎日の自動刻印で拾われる）
@@ -214,10 +228,11 @@ export async function anchorSoon(ms = 25_000) {
   }
 }
 
-export async function issuerBalance(): Promise<number | null> {
+export async function issuerBalance(net?: string): Promise<number | null> {
   try {
     const web3 = await import('@solana/web3.js');
-    const conn = new web3.Connection(CHAIN === 'solana-devnet' ? web3.clusterApiUrl('devnet') : web3.clusterApiUrl('mainnet-beta'));
+    const { getChains, solanaRpc } = await import('./chains');
+    const conn = new web3.Connection(solanaRpc((net as 'solana-devnet') || (await getChains()).solana));
     return (await conn.getBalance(new web3.PublicKey(issuerAddress()))) / web3.LAMPORTS_PER_SOL;
   } catch {
     return null;

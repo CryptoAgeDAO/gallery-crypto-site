@@ -169,6 +169,7 @@ export default function NfcPage() {
       <p className="mo-links">
         <a href="/demo/3d">See the tag inside the cap in 3D →</a>
         <a href="/passport/GC-DEMO-1">Open the demo passport →</a>
+        <a href="/ledger">See every real write to Solana →</a>
         <a href="/spec">Read the full specification →</a>
       </p>
     </MoShell>

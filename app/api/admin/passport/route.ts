@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/server';
 import {
-  CHAIN, anchorPending, anchorSoon, commitKey, commitRecord, ensureIssuer, isAdminRequest, issuerAddress, issuerBalance, issuerConfigured,
-  issuerError, issuerPermanent, loadKeyring, prepareKey, prepareRecord,
+  anchorPending, anchorSoon, commitKey, commitRecord, ensureIssuer, isAdminRequest, issuerAddress, issuerBalance, issuerConfigured,
+  issuerError, issuerPermanent, issuerSeedForChains, loadKeyring, prepareKey, prepareRecord,
 } from '@/lib/passportServer';
+import { getChains, setChains, xrplAddress, xrplBalance, type SolanaNet, type XrplNet } from '@/lib/chains';
 import { runSetup } from '@/lib/setup';
 import { dailySnapshot, dumpAll, logBackup, restoreAll, verifyBackup, type BackupData } from '@/lib/backup';
 import { serverMac } from '@/lib/passportServer';
@@ -37,7 +38,7 @@ export async function POST(req: Request) {
       // 鍵がまだ保管されていなければ、その場で表を作り直して再挑戦（自動）
       let setup: string | undefined;
       const ver = await db().rpc('gc_schema_version');
-      if (!issuerPermanent() || ver.error || Number(ver.data) < 4) {
+      if (!issuerPermanent() || ver.error || Number(ver.data) < 5) {
         const r = await runSetup();
         setup = r.ok ? 'ran' : r.error;
         await new Promise((res) => setTimeout(res, 1200));
@@ -57,9 +58,23 @@ export async function POST(req: Request) {
       try {
         backups = { download: await lastOf('download'), snapshot: await lastOf('snapshot'), restore: await lastOf('restore'), pending: (await pend('passport_log')) + (await pend('passport_keys')) };
       } catch {}
-      return NextResponse.json({ issuer: issuerAddress(), permanent: issuerPermanent(), problem: issuerPermanent() ? '' : issuerError(), setup, chain: CHAIN, balance: await issuerBalance(), ring, passkeys, backups });
+      const chains = await getChains(true);
+      return NextResponse.json({ issuer: issuerAddress(), permanent: issuerPermanent(), problem: issuerPermanent() ? '' : issuerError(), setup, chain: chains.solana, balance: await issuerBalance(chains.solana), ring, passkeys, backups });
     }
     if (body.action === 'anchor') return NextResponse.json(await anchorPending());
+    // 刻印先のチェーン（Solana と XRPL）。残高と入金先のアドレスも返す
+    if (body.action === 'chains') {
+      const c = await getChains(true);
+      const seed = issuerSeedForChains();
+      const [sol, xr] = await Promise.all([issuerBalance(c.solana), xrplBalance(seed, c.xrpl === 'off' ? 'xrpl-testnet' : c.xrpl)]);
+      const anchors = await db().from('passport_anchors').select('id', { count: 'exact', head: true });
+      return NextResponse.json({ ...c, solanaAddress: issuerAddress(), xrplAddress: await xrplAddress(seed), solanaBalance: sol, xrplBalance: xr, anchors: anchors.count || 0 });
+    }
+    if (body.action === 'set-chains') {
+      if (jwtAal(req) !== 'aal2') return NextResponse.json({ error: 'mfa-required' }, { status: 403 });
+      const c = await setChains({ solana: body.solana as SolanaNet | undefined, xrpl: body.xrpl as XrplNet | undefined });
+      return NextResponse.json(c);
+    }
 
     // 署名（記録・鍵の操作）は、2段階認証を通ったログインのときだけ
     if (/^(prepare|commit|passkey|backup|restore|snapshot)/.test(String(body.action))) {

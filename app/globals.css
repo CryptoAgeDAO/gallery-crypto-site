@@ -786,3 +786,30 @@ body{background:radial-gradient(1100px 560px at 92% -8%,#edeffb 0%,rgba(237,239,
 .st3-steps li.on{color:var(--ink)}
 .st3-steps li.on::before{background:#C47A45}
 .st3-body{margin:0 0 14px;font-size:14.5px;line-height:1.7;min-height:5em}
+/* 運用実績（/ledger） */
+.lg-stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:8px 0 28px}
+.lg-stats>div{display:grid;gap:6px;align-content:start;padding:16px;border:1px solid var(--line);background:#fff}
+.lg-stats b{font:400 40px/1 var(--serif)}
+.lg-stats span{font-size:12.5px;line-height:1.5;color:#4A4743}
+@media (max-width:860px){.lg-stats{grid-template-columns:1fr 1fr}}
+.lg{list-style:none;margin:0 0 16px;padding:0;border-top:1px solid var(--ink)}
+.lg-row{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:14px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.lg-row.ng{background:rgba(179,38,30,.04)}
+.lg-main p{margin:0}
+.lg-when{font:500 11px/1.4 var(--sans);letter-spacing:.12em;text-transform:uppercase;color:var(--mute)}
+.lg-what{font-size:14px;line-height:1.6}
+.lg-msg{font-size:12.5px;color:#4A4743}.lg-msg.ok{color:#2F6B3A}.lg-msg.ng{color:#B3261E}
+.lg-links{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.lg-chip{padding:7px 10px;border:1px solid var(--line);background:#fff;font:500 11px/1 var(--sans);letter-spacing:.08em;color:var(--ink);text-decoration:none;cursor:pointer}
+.lg-chip:hover{border-color:var(--ink)}
+@media (max-width:640px){.lg-row{grid-template-columns:40px minmax(0,1fr)}.lg-links{grid-column:1/-1;justify-content:flex-start}}
+/* 管理：刻印先のチェーン */
+.ch{display:grid;gap:14px;padding:18px;border:1px solid var(--line);background:#fff;margin:0 0 18px}
+.ch-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px 16px;align-items:start}
+.ch-seg{display:inline-flex;border:1px solid var(--line)}
+.ch-seg button{padding:8px 12px;border:0;border-right:1px solid var(--line);background:transparent;font:500 11px/1 var(--sans);letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
+.ch-seg button:last-child{border-right:0}
+.ch-seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.ch-fund{display:grid;grid-template-columns:120px minmax(0,1fr);gap:14px;align-items:center;padding:12px;background:var(--soft)}
+.ch-fund svg{width:120px;height:120px;background:#fff}
+.ch-addr{font-family:var(--mono);font-size:12px;word-break:break-all}
