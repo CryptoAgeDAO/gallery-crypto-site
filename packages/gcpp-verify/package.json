@@ -1,0 +1,27 @@
+{
+  "name": "gcpp-verify",
+  "version": "0.1.0",
+  "description": "Reference verifier for GCPP/2 (Gallery Crypto Provenance Protocol): dual-signed provenance records for physical objects, anchored on Solana and mirrored to the XRP Ledger.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "bin": { "gcpp-verify": "./dist/cli.js" },
+  "files": ["dist", "README.md", "LICENSE"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@noble/curves": "1.9.7",
+    "@noble/hashes": "1.8.0"
+  },
+  "devDependencies": {
+    "typescript": "5.6.3",
+    "@types/node": "20.17.6"
+  },
+  "keywords": ["provenance", "nfc", "solana", "xrpl", "digital-product-passport", "authenticity", "verification", "ed25519", "p256", "merkle"],
+  "repository": { "type": "git", "url": "https://github.com/CryptoAgeDAO/gallery-crypto-site", "directory": "packages/gcpp-verify" },
+  "engines": { "node": ">=18" }
+}
