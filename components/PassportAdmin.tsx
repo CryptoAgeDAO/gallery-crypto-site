@@ -1,5 +1,6 @@
 'use client';
 import ChainsPanel from './ChainsPanel';
+import NfcTagPanel from './NfcTagPanel';
 
 // 管理画面「Passport」タブ：DPP に沿った記録の入力 → 確定（署名）→ 出来事の追記 → Solana への刻印
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -596,6 +597,8 @@ export default function PassportAdmin() {
           )}
         </div>
       )}
+
+      {item && <NfcTagPanel cert={certNo(item)} uid={String((dpp as { fingerprint?: { chip?: string } } | null)?.fingerprint?.chip || '')} />}
     </>
   );
 }
