@@ -7,6 +7,7 @@ import { shrink } from '@/lib/image';
 import { onSfxChange, setSfx, sfx, sfxBoot, sfxEnabled } from '@/lib/sfx';
 import Ticket from '@/components/Ticket';
 import PassportAdmin from '@/components/PassportAdmin';
+import ModelAdmin from '@/components/ModelAdmin';
 import SecurityCenter from '@/components/SecurityCenter';
 import { MfaChallenge, TwoStepSettings, useAal } from '@/components/TwoStep';
 import { EVENTS_SQL } from '@/lib/eventsSql';
@@ -229,6 +230,7 @@ function ItemForm({ init, onDone }: { init: Partial<Item> | null; onDone: (msg?:
         <label>{tt('Price (USD, public)', '価格（米ドル・公開）')}<input inputMode="numeric" value={f.price_usd ?? ''} onChange={(e) => set('price_usd', e.target.value.replace(/[^0-9]/g, '') || null)} placeholder="e.g. 450" /></label>
         <label>{tt('Rank (private)', 'ランク（非公開）')}<input value={f.rank || ''} onChange={(e) => set('rank', e.target.value)} placeholder="A / B / C" /></label>
         <label className="wide">{tt('Listen link (Spotify, Apple Music or YouTube URL)', '試聴リンク（Spotify・Apple Music・YouTube の URL）')}<input type="url" value={f.listen} onChange={(e) => set('listen', e.target.value)} placeholder="https://open.spotify.com/track/..." /></label>
+        <ModelAdmin itemId={init?.id} />
         <div className="sec wide" style={{ gridColumn: '1/-1' }}>
           <h4>{tt('Audio file (only audio you have the rights to)', '音声ファイル（権利のある音声のみ）')}</h4>
           <p>{tt('Playing commercial recordings on the site needs permission for both the song (publishing, e.g. JASRAC) and the recording (label). For anything unlicensed, use the listen link above. Upload only audio you made or have a licence for (mp3, m4a, wav, up to 20 MB).', '市販の音源をサイトで流すには、楽曲（著作権、例：JASRAC）と録音（レーベル）の両方の許諾が必要です。許諾のないものは上の試聴リンクを使ってください。アップロードするのは、自分で作った音声か、ライセンスのある音声だけにしてください（mp3・m4a・wav、20MBまで）。')}</p>

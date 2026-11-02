@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase, photoUrl } from '@/lib/supabase';
+import { supabase, photoUrl, modelUrl } from '@/lib/supabase';
+import ModelViewerLazy from '@/components/ModelViewerLazy';
 import { ERA_LABEL, certNo, usd, type GcEvent, type Item, type Settings } from '@/lib/types';
 import Events from '@/components/Events';
 import BuyButton from '@/components/BuyButton';
@@ -12,7 +13,7 @@ import type { T } from '@/lib/i18n';
 
 // 公開サイト：白と黒だけ、装飾なし。論文のように番号つきの節で並べる（匿名性・静けさ・読みやすさ）。
 
-type Props = { settings: Settings; items: Item[]; events?: GcEvent[]; sealed?: number[]; demo?: boolean; configured: boolean };
+type Props = { settings: Settings; items: Item[]; events?: GcEvent[]; sealed?: number[]; models?: Record<string, string>; demo?: boolean; configured: boolean };
 type Status = { kind: 'idle' | 'busy' | 'ok' | 'err'; text?: string };
 
 // 管理者への通知（失敗しても画面には影響させない）
@@ -71,9 +72,11 @@ function DrawForm({ itemId, label }: { itemId: string | null; label?: string }) 
   );
 }
 
-function Detail({ it, onClose, saleOpen, sealed, demo }: { it: Item; onClose: () => void; saleOpen: boolean; sealed: boolean; demo?: boolean }) {
+function Detail({ it, onClose, saleOpen, sealed, demo, model }: { it: Item; onClose: () => void; saleOpen: boolean; sealed: boolean; demo?: boolean; model?: string }) {
   const { t } = useLang();
   const [shot, setShot] = useState(0);
+  // 3Dモデルがある作品は、最初から3Dで見せる
+  const [view3d, setView3d] = useState(Boolean(model));
   const close = () => {
     sfx('close');
     onClose();
@@ -83,7 +86,7 @@ function Detail({ it, onClose, saleOpen, sealed, demo }: { it: Item; onClose: ()
     document.addEventListener('keydown', k);
     return () => document.removeEventListener('keydown', k);
   });
-  useEffect(() => setShot(0), [it.id]);
+  useEffect(() => { setShot(0); setView3d(Boolean(model)); }, [it.id, model]);
   const rows: [string, string][] = (
     [
       [t('Item no.', '作品番号'), certNo(it)],
@@ -104,8 +107,21 @@ function Detail({ it, onClose, saleOpen, sealed, demo }: { it: Item; onClose: ()
           ×
         </button>
         <div className="mo-dpic">
-          <Photo src={it.photos.length ? photoUrl(it.photos[shot] || it.photos[0]) : undefined} alt={`${it.band} ${it.title}`.trim()} n={certNo(it)} />
-          {it.photos.length > 1 && (
+          {model && view3d ? (
+            <div style={{ position: 'relative' }}>
+              <ModelViewerLazy src={modelUrl(model)} />
+              <span className="mv-badge">3D · 360°</span>
+            </div>
+          ) : (
+            <Photo src={it.photos.length ? photoUrl(it.photos[shot] || it.photos[0]) : undefined} alt={`${it.band} ${it.title}`.trim()} n={certNo(it)} />
+          )}
+          {model && (
+            <div className="mo-dview">
+              <button type="button" aria-pressed={view3d} onClick={() => setView3d(true)}>{t('3D', '3D')}</button>
+              <button type="button" aria-pressed={!view3d} onClick={() => setView3d(false)}>{t('Photos', '写真')}</button>
+            </div>
+          )}
+          {!view3d && it.photos.length > 1 && (
             <div className="mo-thumbs">
               {it.photos.map((p, i) => (
                 <button key={p} aria-label={`${t('Photo', '写真')} ${i + 1}`} aria-pressed={i === shot} onClick={() => setShot(i)}>
@@ -213,7 +229,7 @@ function Contact({ email }: { email: string }) {
   );
 }
 
-export default function Site({ settings: s, items, events = [], sealed = [], demo = false }: Props) {
+export default function Site({ settings: s, items, events = [], sealed = [], models = {}, demo = false }: Props) {
   const [open, setOpen] = useState<Item | null>(null);
   const { t, lang } = useLang();
   // 管理画面で変えていない（初期のままの）文言だけ日本語にする。変えた文言は入力したまま出す
@@ -339,7 +355,7 @@ export default function Site({ settings: s, items, events = [], sealed = [], dem
         </footer>
       </div>
 
-      {open && <Detail it={open} demo={demo} saleOpen={s.sale_open} sealed={demo || sealed.includes(open.serial)} onClose={() => setOpen(null)} />}
+      {open && <Detail it={open} demo={demo} saleOpen={s.sale_open} sealed={demo || sealed.includes(open.serial)} model={models[open.id]} onClose={() => setOpen(null)} />}
       <MusicBar />
     </div>
   );

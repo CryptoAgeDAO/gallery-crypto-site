@@ -3,6 +3,7 @@ import 'server-only';
 import { Client } from 'pg';
 import { EVENTS_SQL } from './eventsSql';
 import { PASSPORT_SQL } from './passportSql';
+import { MODELS_SQL } from './modelsSql';
 
 export async function runSetup(): Promise<{ ok: boolean; error?: string }> {
   const url = process.env.POSTGRES_URL_NON_POOLING || process.env.POSTGRES_URL;
@@ -12,6 +13,7 @@ export async function runSetup(): Promise<{ ok: boolean; error?: string }> {
     await c.connect();
     await c.query(EVENTS_SQL);
     await c.query(PASSPORT_SQL);
+    await c.query(MODELS_SQL);
     // サーバー（service role）が秘密の表を使えるように明示
     await c.query('grant select, insert on public.gc_secrets to service_role');
     await c.query("notify pgrst, 'reload schema'");

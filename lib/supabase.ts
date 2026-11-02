@@ -24,3 +24,10 @@ export function audioUrl(path: string): string {
   if (!url || !path) return '';
   return `${url}/storage/v1/object/public/audio/${path}`;
 }
+
+export function modelUrl(path: string): string {
+  if (!path) return '';
+  if (path.startsWith('http') || path.startsWith('/')) return path;
+  if (!url) return '';
+  return `${url}/storage/v1/object/public/models/${path}`;
+}
