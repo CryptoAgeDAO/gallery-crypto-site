@@ -8,6 +8,7 @@ import { demoPassport, getPassport, parseCert, parseDemo } from '@/lib/passportP
 import { compactOf } from '@/lib/gcpp';
 import { siteUrl } from '@/lib/server';
 import { photoUrl } from '@/lib/supabase';
+import { readTapToken } from '@/lib/sunServer';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,7 +17,7 @@ export async function generateMetadata({ params }: { params: { cert: string } })
 }
 
 // NFC タグや QR から開く、一点ごとの来歴パスポート
-export default async function PassportPage({ params }: { params: { cert: string } }) {
+export default async function PassportPage({ params, searchParams }: { params: { cert: string }; searchParams?: { tap?: string } }) {
   const cert = params.cert.toUpperCase();
   const dn = parseDemo(cert);
   const b = dn ? await demoPassport(dn) : await getPassport(cert);
@@ -31,8 +32,19 @@ export default async function PassportPage({ params }: { params: { cert: string 
   const offlineUrl = `${siteUrl()}/verify#${compactOf(b.entries[b.entries.length - 1], dn ? 9000 + dn : parseCert(b.cert) || 0)}`;
   const offlineQr = await QRCode.toString(offlineUrl, { type: 'svg', margin: 0, errorCorrectionLevel: 'L', color: { dark: '#111111', light: '#00000000' } });
   const photo = b.item?.photos?.[0];
+  // NFC タグから来たとき：サーバーがチップの使い捨てコードを確かめた印（10分有効）
+  const tap = dn ? null : readTapToken(b.cert, searchParams?.tap);
   return (
     <MoShell title={b.item ? `${b.item.band}${b.item.title ? ` — ${b.item.title}` : ''}` : b.cert} kicker={`Provenance passport · ${b.cert}`}>
+      {tap && (
+        <div className="pp-tap" role="status">
+          <span className="pp-mark ok">✓</span>
+          <div>
+            <b>Chip verified just now</b>
+            <span>The NFC tag sewn into this piece made a fresh one-time code that only the genuine chip can make (tap no. {tap.counter}).</span>
+          </div>
+        </div>
+      )}
       {dn ? (
         <div className="pp-3d">
           <CapViewerLazy compact pieces={[{ n: dn, band: b.item?.band || '', title: b.item?.title || '', year: b.item?.year || '', cert: b.cert, cap: DEMO_ITEMS[dn - 1].cap, qr }]} />

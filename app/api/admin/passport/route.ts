@@ -38,7 +38,7 @@ export async function POST(req: Request) {
       // 鍵がまだ保管されていなければ、その場で表を作り直して再挑戦（自動）
       let setup: string | undefined;
       const ver = await db().rpc('gc_schema_version');
-      if (!issuerPermanent() || ver.error || Number(ver.data) < 5) {
+      if (!issuerPermanent() || ver.error || Number(ver.data) < 6) {
         const r = await runSetup();
         setup = r.ok ? 'ran' : r.error;
         await new Promise((res) => setTimeout(res, 1200));

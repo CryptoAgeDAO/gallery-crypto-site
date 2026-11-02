@@ -53,7 +53,7 @@ function TreeFigure() {
 }
 
 const FAQ: [string, string][] = [
-  ['Can someone copy the tag?', 'They can copy the link it showed last time, but not the chip’s secret key. Every tap makes a new one-time code with a counter that only goes up, so an old code replayed by a copy is rejected. (The code check arrives with GCPP/3; today the two signatures and the photo fingerprint do the proving.)'],
+  ['Can someone copy the tag?', 'They can copy the link it showed last time, but not the chip’s secret key. Every tap makes a new one-time code with a counter that only goes up, so an old code replayed by a copy is rejected. The site checks the code and the counter on every tap, then opens the passport marked “Chip verified just now”.'],
   ['Can the tag be moved to another cap?', 'The antenna is printed so that peeling the label off tears it, and the tag stops answering. The record also holds macro photos of this cap’s own thread and wear — a different cap does not match them.'],
   ['Does the tag track me?', 'No. The tag holds a link and nothing else, and a tap opens a normal web page. The record never stores who tapped, when, or where.'],
   ['Does it need charging or an app?', 'No battery, no app. The phone’s own NFC field powers the chip for the moment it is read.'],

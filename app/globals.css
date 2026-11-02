@@ -813,3 +813,6 @@ body{background:radial-gradient(1100px 560px at 92% -8%,#edeffb 0%,rgba(237,239,
 .ch-fund{display:grid;grid-template-columns:120px minmax(0,1fr);gap:14px;align-items:center;padding:12px;background:var(--soft)}
 .ch-fund svg{width:120px;height:120px;background:#fff}
 .ch-addr{font-family:var(--mono);font-size:12px;word-break:break-all}
+.pp-tap{display:flex;gap:12px;align-items:flex-start;margin:0 0 20px;padding:14px 16px;border:1px solid #1d7a4f;background:#eef8f2;color:#0f4a2f;font:400 14px/1.5 var(--sans)}
+.pp-tap b{display:block;font-weight:600;margin-bottom:2px}
+.pp-tap span:not(.pp-mark){display:block}
