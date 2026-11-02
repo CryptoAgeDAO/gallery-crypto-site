@@ -2,6 +2,7 @@
 // 繊維向けの細則は 2027 年採択の見込みで未確定のため、準備調査（2025）で示された6分類に合わせ、
 // 一点物のヴィンテージに必要な「来歴」「指紋」を加えている。
 import type { Item } from './types';
+import { dl } from './dppJa';
 
 export type FieldType = 'text' | 'textarea' | 'number' | 'composition' | 'hashes';
 export type Field = { key: string; label: string; type: FieldType; required?: boolean; hint?: string };
@@ -115,14 +116,14 @@ function filled(v: unknown, t: FieldType): boolean {
   return typeof v === 'string' ? v.trim().length > 0 : v != null;
 }
 
-export function completeness(d: Dpp): { done: number; total: number; missing: string[] } {
+export function completeness(d: Dpp, lang: 'en' | 'ja' = 'en'): { done: number; total: number; missing: string[] } {
   const missing: string[] = [];
   let total = 0;
   for (const s of DPP_SECTIONS)
     for (const f of s.fields)
       if (f.required) {
         total++;
-        if (!filled(d[s.key]?.[f.key], f.type)) missing.push(`${s.title}: ${f.label}${f.type === 'composition' ? ' (must add up to 100%)' : ''}`);
+        if (!filled(d[s.key]?.[f.key], f.type)) missing.push(`${dl(lang, s.title)}: ${dl(lang, f.label)}${f.type === 'composition' ? dl(lang, ' (must add up to 100%)') : ''}`);
       }
   return { done: total - missing.length, total, missing };
 }
@@ -154,4 +155,7 @@ export const EVENT_TYPES: { key: string; label: string; hint: string }[] = [
   { key: 'repaired', label: 'Repaired', hint: 'What was repaired and by whom.' },
   { key: 'note', label: 'Note', hint: 'Anything else worth keeping.' },
 ];
-export const eventLabel = (k: string) => EVENT_TYPES.find((e) => e.key === k)?.label || k;
+export const eventLabel = (k: string, lang: 'en' | 'ja' = 'en') => {
+  const l = EVENT_TYPES.find((e) => e.key === k)?.label;
+  return l ? dl(lang, l) : k;
+};

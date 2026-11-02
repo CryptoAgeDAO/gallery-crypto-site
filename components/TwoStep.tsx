@@ -3,6 +3,7 @@
 // 2段階認証（認証アプリの6桁コード）：設定画面での登録と、ログイン時の確認
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { tt } from '@/components/Lang';
 
 type Factor = { id: string; friendly_name?: string; status: string; created_at: string; factor_type: string };
 
@@ -26,7 +27,7 @@ const codeOk = (c: string) => /^\d{6}$/.test(c);
 
 // ログイン直後：6桁コードの入力
 const deviceLabel = () =>
-  /iPhone|iPad/.test(navigator.userAgent) ? 'Face ID · iPhone' : /Mac/.test(navigator.userAgent) ? 'Touch ID · Mac' : /Android/.test(navigator.userAgent) ? 'Biometrics · Android' : 'Biometrics';
+  /iPhone|iPad/.test(navigator.userAgent) ? 'Face ID · iPhone' : /Mac/.test(navigator.userAgent) ? 'Touch ID · Mac' : /Android/.test(navigator.userAgent) ? tt('Biometrics · Android', '生体認証 · Android') : tt('Biometrics', '生体認証');
 
 export function MfaChallenge({ onDone }: { onDone: () => void }) {
   const [code, setCode] = useState('');
@@ -41,21 +42,21 @@ export function MfaChallenge({ onDone }: { onDone: () => void }) {
   }, []);
   const withFace = async () => {
     setBusy(true);
-    setSt('Look at your device…');
+    setSt(tt('Look at your device…', '端末を見てください…'));
     for (const f of kinds.webauthn) {
       const { error } = await supabase()!.auth.mfa.webauthn.authenticate({ factorId: f.id });
       if (!error) { setBusy(false); setSt(''); return onDone(); }
     }
     setBusy(false);
-    setSt(kinds.totp.length ? 'Face ID did not work here. Use the 6-digit code instead.' : 'Face ID did not work. Try again.');
+    setSt(kinds.totp.length ? tt('Face ID did not work here. Use the 6-digit code instead.', 'ここでは Face ID が使えませんでした。代わりに6桁のコードを使ってください。') : tt('Face ID did not work. Try again.', 'Face ID が使えませんでした。もう一度お試しください。'));
   };
   const submit = async () => {
     setBusy(true);
-    setSt('Checking…');
+    setSt(tt('Checking…', '確認中…'));
     const db = supabase()!;
     const { data: f } = await db.auth.mfa.listFactors();
     const factor = f?.totp?.[0];
-    if (!factor) { setBusy(false); return setSt('No authenticator is registered.'); }
+    if (!factor) { setBusy(false); return setSt(tt('No authenticator is registered.', '認証アプリが登録されていません。')); }
     // 複数登録している場合は、どれかで通れば OK
     let ok = false;
     for (const fx of f!.totp) {
@@ -63,26 +64,26 @@ export function MfaChallenge({ onDone }: { onDone: () => void }) {
       if (!error) { ok = true; break; }
     }
     setBusy(false);
-    if (!ok) return setSt('That code did not work. Check the time on your phone and try the newest code.');
+    if (!ok) return setSt(tt('That code did not work. Check the time on your phone and try the newest code.', 'そのコードは使えませんでした。スマホの時刻を確認し、最新のコードを入れてください。'));
     setSt('');
     onDone();
   };
   return (
     <form className="sec" style={{ maxWidth: 420 }} onSubmit={(e) => { e.preventDefault(); if (codeOk(code)) submit(); }}>
-      <h4>Two-step sign-in</h4>
+      <h4>{tt('Two-step sign-in', '2段階ログイン')}</h4>
       {kinds.webauthn.length > 0 && (
         <div className="row" style={{ justifyContent: 'flex-start', marginBottom: 8 }}>
-          <button type="button" className="btn primary" disabled={busy} onClick={withFace}>Use Face ID / Touch ID</button>
+          <button type="button" className="btn primary" disabled={busy} onClick={withFace}>{tt('Use Face ID / Touch ID', 'Face ID / Touch ID を使う')}</button>
         </div>
       )}
       {(kinds.totp.length > 0 || !kinds.webauthn.length) && <>
-      <p>{kinds.webauthn.length ? 'Or enter' : 'Open your authenticator app and enter'} the 6-digit code for Gallery Crypto.</p>
+      <p>{kinds.webauthn.length ? tt('Or enter', 'または入力：') : tt('Open your authenticator app and enter', '認証アプリを開いて入力：')} the 6-digit code for Gallery Crypto.</p>
       <div className="form">
-        <label className="wide">Code<input type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} autoFocus value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} /></label>
+        <label className="wide">{tt('Code', 'コード')}<input type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} autoFocus value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} /></label>
       </div>
       <div className="row">
-        <button type="button" className="btn" onClick={() => supabase()!.auth.signOut()}>Sign out</button>
-        <button className="btn primary" disabled={busy || !codeOk(code)}>Verify</button>
+        <button type="button" className="btn" onClick={() => supabase()!.auth.signOut()}>{tt('Sign out', 'ログアウト')}</button>
+        <button className="btn primary" disabled={busy || !codeOk(code)}>{tt('Verify', '確認')}</button>
       </div>
       </>}
       {st && <p className="status">{st}</p>}
@@ -116,7 +117,7 @@ export function TwoStepSettings() {
     for (const f of (data?.all as Factor[]) || []) if (f.status !== 'verified') await db.auth.mfa.unenroll({ factorId: f.id });
     const { data: e, error } = await db.auth.mfa.enroll({ factorType: 'totp', friendlyName: `${backup ? 'Backup' : 'Main'} authenticator ${new Date().toISOString().slice(0, 16)}` });
     setBusy(false);
-    if (error || !e) return setSt('Could not start: ' + (error?.message || 'unknown'));
+    if (error || !e) return setSt(tt('Could not start: ', '開始できませんでした：') + (error?.message || 'unknown'));
     setEnroll({ id: e.id, qr: e.totp.qr_code, secret: e.totp.secret });
     setCode('');
   };
@@ -125,81 +126,80 @@ export function TwoStepSettings() {
     setBusy(true);
     const { error } = await db.auth.mfa.challengeAndVerify({ factorId: enroll.id, code });
     setBusy(false);
-    if (error) return setSt('That code did not work. Try the newest code.');
+    if (error) return setSt(tt('That code did not work. Try the newest code.', 'そのコードは使えませんでした。最新のコードを入れてください。'));
     setEnroll(null);
-    setSt('Two-step sign-in is on. From now on, signing in needs your password and a code from the app.');
+    setSt(tt('Two-step sign-in is on. From now on, signing in needs your password and a code from the app.', '2段階ログインをオンにしました。これからはパスワードとアプリのコードでログインします。'));
     load();
     refresh();
   };
   const addFace = async () => {
     setBusy(true);
-    setSt('Follow the Face ID / Touch ID prompt…');
+    setSt(tt('Follow the Face ID / Touch ID prompt…', 'Face ID / Touch ID の案内に従ってください…'));
     const { error } = await db.auth.mfa.webauthn.register({ friendlyName: `${deviceLabel()} ${new Date().toISOString().slice(0, 10)}` });
     setBusy(false);
     if (error) {
       const m = error.message || '';
-      return setSt(/disabled|not enabled|not supported|unsupported/i.test(m) ? 'Face ID sign-in is switched off for this project. In Supabase: Authentication → Multi-Factor → WebAuthn → Enabled, then try again. Until then, use the 6-digit code.' : 'Could not add Face ID: ' + m);
+      return setSt(/disabled|not enabled|not supported|unsupported/i.test(m) ? tt('Face ID sign-in is switched off for this project. In Supabase: Authentication → Multi-Factor → WebAuthn → Enabled, then try again. Until then, use the 6-digit code.', 'このプロジェクトでは Face ID でのログインがオフです。Supabase で Authentication → Multi-Factor → WebAuthn → Enabled にしてから、もう一度お試しください。それまでは6桁のコードを使ってください。') : tt('Could not add Face ID: ', 'Face ID を追加できませんでした：') + m);
     }
-    setSt('Face ID sign-in added. Next time you can sign in with your face instead of a code.');
+    setSt(tt('Face ID sign-in added. Next time you can sign in with your face instead of a code.', 'Face ID でのログインを追加しました。次からはコードの代わりに顔でログインできます。'));
     load();
     refresh();
   };
   const remove = async (f: Factor) => {
-    if (factors.length === 1 && !confirm('Turn off two-step sign-in? Records can no longer be signed until you turn it on again.')) return;
-    if (factors.length > 1 && !confirm(`Remove "${f.friendly_name || 'authenticator'}"?`)) return;
+    if (factors.length === 1 && !confirm(tt('Turn off two-step sign-in? Records can no longer be signed until you turn it on again.', '2段階ログインをオフにしますか？もう一度オンにするまで、記録に署名できなくなります。'))) return;
+    if (factors.length > 1 && !confirm(tt(`Remove "${f.friendly_name || 'authenticator'}"?`, `「${f.friendly_name || '認証アプリ'}」を削除しますか？`))) return;
     const { error } = await db.auth.mfa.unenroll({ factorId: f.id });
-    setSt(error ? 'Error: ' + error.message : 'Removed');
+    setSt(error ? tt('Error: ', 'エラー：') + error.message : tt('Removed', '削除しました'));
     load();
     refresh();
   };
 
   return (
     <div className="sec">
-      <h4>Two-step sign-in</h4>
+      <h4>{tt('Two-step sign-in', '2段階ログイン')}</h4>
       <p>
-        Protects the admin even if your password leaks: signing in also needs a 6-digit code from an authenticator app on your phone (Google Authenticator, Microsoft Authenticator,
-        1Password, iPhone Passwords…). It is required to sign provenance records.
+        {tt('Protects the admin even if your password leaks: signing in also needs a 6-digit code from an authenticator app on your phone (Google Authenticator, Microsoft Authenticator, 1Password, iPhone Passwords…). It is required to sign provenance records.', 'パスワードが漏れても管理画面を守ります。ログインには、スマホの認証アプリ（Google Authenticator、Microsoft Authenticator、1Password、iPhone のパスワードなど）の6桁のコードも必要になります。来歴の記録に署名するには必須です。')}
       </p>
       {factors.length > 0 ? (
         <>
-          <p><b style={{ color: '#0b6b2c' }}>On ✓</b> · this session: {aal?.current === 'aal2' ? 'verified with a code ✓' : 'not verified yet'}</p>
+          <p><b style={{ color: '#0b6b2c' }}>{tt('On ✓', 'オン ✓')}</b> · this session: {aal?.current === 'aal2' ? 'verified with a code ✓' : 'not verified yet'}</p>
           <ul style={{ margin: 0, paddingLeft: 18 }}>
             {factors.map((f) => (
               <li key={f.id}>
-                {f.friendly_name || 'Authenticator'} · added {new Date(f.created_at).toLocaleDateString('en-US')}{' '}
-                {aal?.current === 'aal2' && <button className="btn danger" style={{ padding: '2px 8px', fontSize: 13 }} onClick={() => remove(f)}>Remove</button>}
+                {f.friendly_name || tt('Authenticator', '認証アプリ')} · added {new Date(f.created_at).toLocaleDateString('en-US')}{' '}
+                {aal?.current === 'aal2' && <button className="btn danger" style={{ padding: '2px 8px', fontSize: 13 }} onClick={() => remove(f)}>{tt('Remove', '外す')}</button>}
               </li>
             ))}
           </ul>
           {factors.length === 1 && aal?.current === 'aal2' && !enroll && (
-            <p style={{ marginTop: 8 }}>Recommended: add a backup authenticator on a second phone or a password manager, in case you lose this one. <button className="btn" disabled={busy} onClick={() => start(true)}>Add a backup</button></p>
+            <p style={{ marginTop: 8 }}>{tt('Recommended: add a backup authenticator on a second phone or a password manager, in case you lose this one.', 'おすすめ：このスマホをなくしたときのために、2台目のスマホやパスワード管理アプリに予備の認証アプリを追加してください。')} <button className="btn" disabled={busy} onClick={() => start(true)}>{tt('Add a backup', '予備を追加')}</button></p>
           )}
         </>
       ) : (
-        !enroll && <button className="btn primary" disabled={busy} onClick={() => start(false)}>Turn on two-step sign-in</button>
+        !enroll && <button className="btn primary" disabled={busy} onClick={() => start(false)}>{tt('Turn on two-step sign-in', '2段階ログインをオンにする')}</button>
       )}
       <div style={{ marginTop: 10 }}>
-        <p><b>Face ID / Touch ID sign-in</b> — use your face instead of typing a code.</p>
+        <p><b>{tt('Face ID / Touch ID sign-in', 'Face ID / Touch ID でのログイン')}</b> {tt('— use your face instead of typing a code.', '— コードを入力する代わりに顔を使います。')}</p>
         {faceF.length > 0 && (
           <ul style={{ margin: 0, paddingLeft: 18 }}>
             {faceF.map((f) => (
-              <li key={f.id}>{f.friendly_name || 'Face ID'} {aal?.current === 'aal2' && <button className="btn danger" style={{ padding: '2px 8px', fontSize: 13 }} onClick={() => remove(f)}>Remove</button>}</li>
+              <li key={f.id}>{f.friendly_name || 'Face ID'} {aal?.current === 'aal2' && <button className="btn danger" style={{ padding: '2px 8px', fontSize: 13 }} onClick={() => remove(f)}>{tt('Remove', '外す')}</button>}</li>
             ))}
           </ul>
         )}
-        {(aal?.current === 'aal2' || (!factors.length && !faceF.length)) && <button className="btn" disabled={busy} onClick={addFace}>Add Face ID on this device</button>}
+        {(aal?.current === 'aal2' || (!factors.length && !faceF.length)) && <button className="btn" disabled={busy} onClick={addFace}>{tt('Add Face ID on this device', 'この端末に Face ID を追加')}</button>}
       </div>
       {enroll && (
         <div className="pa-warn" style={{ marginTop: 8 }}>
-          <p><b>1.</b> In your authenticator app, add an account and scan this code:</p>
+          <p><b>1.</b> {tt('In your authenticator app, add an account and scan this code:', '認証アプリでアカウントを追加し、このコードを読み取ってください：')}</p>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={enroll.qr} alt="QR code for your authenticator app" width={180} height={180} style={{ background: '#fff', padding: 6, border: '2px solid #111' }} />
-          <p className="pa-hash">Can&apos;t scan? Enter this key by hand: <b>{enroll.secret}</b></p>
-          <p><b>2.</b> Enter the 6-digit code the app shows:</p>
+          <p className="pa-hash">{tt('Can\'t scan? Enter this key by hand:', '読み取れない場合は、このキーを手で入力してください：')} <b>{enroll.secret}</b></p>
+          <p><b>2.</b> {tt('Enter the 6-digit code the app shows:', 'アプリに表示された6桁のコードを入力：')}</p>
           <div className="row" style={{ justifyContent: 'flex-start' }}>
             <input type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} style={{ width: 120 }} />
-            <button className="btn primary" disabled={busy || !codeOk(code)} onClick={confirmCode}>Confirm</button>
-            <button className="btn" onClick={() => setEnroll(null)}>Cancel</button>
+            <button className="btn primary" disabled={busy || !codeOk(code)} onClick={confirmCode}>{tt('Confirm', '確認')}</button>
+            <button className="btn" onClick={() => setEnroll(null)}>{tt('Cancel', '取り消す')}</button>
           </div>
         </div>
       )}

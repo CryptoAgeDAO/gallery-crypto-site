@@ -1,4 +1,5 @@
 'use client';
+import { useLang } from './Lang';
 
 import { useEffect, useState } from 'react';
 import { audioUrl } from '@/lib/supabase';
@@ -89,6 +90,7 @@ export function useNowPlaying(): Now {
 }
 
 export function PlayButton({ it }: { it: Item }) {
+  const { t } = useLang();
   const n = useNowPlaying();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(false);
@@ -104,14 +106,15 @@ export function PlayButton({ it }: { it: Item }) {
           setBusy(false);
         }}
       >
-        {busy ? 'Loading…' : playing ? '■ Stop' : '▶ Play'}
+        {busy ? t('Loading…', '読み込み中…') : playing ? t('■ Stop', '■ 停止') : t('▶ Play', '▶ 再生')}
       </button>
-      {err && <span className="mo-err">This track could not be played.</span>}
+      {err && <span className="mo-err">{t('This track could not be played.', 'この曲を再生できませんでした。')}</span>}
     </>
   );
 }
 
 export function MusicBar() {
+  const { t } = useLang();
   const n = useNowPlaying();
   if (!n) return null;
   return (
@@ -122,7 +125,7 @@ export function MusicBar() {
         <i />
       </span>
       <span className="mt">{n.label}</span>
-      <button onClick={stopMusic}>Stop</button>
+      <button onClick={stopMusic}>{t('Stop', '停止')}</button>
     </div>
   );
 }

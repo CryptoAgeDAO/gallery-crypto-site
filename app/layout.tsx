@@ -1,5 +1,7 @@
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
+import { LangProvider } from '@/components/Lang';
+import { getLang } from '@/lib/lang';
 
 export const metadata: Metadata = {
   title: 'Gallery Crypto — Founder\'s Archive',
@@ -14,8 +16,9 @@ export const metadata: Metadata = {
 export const viewport: Viewport = { width: 'device-width', initialScale: 1, viewportFit: 'cover' };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const lang = getLang();
   return (
-    <html lang="en">
+    <html lang={lang} data-lang={lang}>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
@@ -25,7 +28,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+JP:wght@400;500&display=swap"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <LangProvider lang={lang}>{children}</LangProvider>
+      </body>
     </html>
   );
 }

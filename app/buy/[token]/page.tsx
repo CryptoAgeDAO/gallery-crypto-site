@@ -4,6 +4,7 @@ import MoShell from '@/components/MoShell';
 import { db, paymentsConfigured } from '@/lib/server';
 import { photoUrl } from '@/lib/supabase';
 import { certNo, metaLine, usd, type Item } from '@/lib/types';
+import { getT } from '@/lib/lang';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Your purchase — Gallery Crypto', robots: { index: false } };
@@ -19,6 +20,7 @@ function Shell({ title, kicker, children }: { title: string; kicker?: string; ch
 }
 
 function Piece({ it, token }: { it: Item; token: string }) {
+  const t = getT();
   return (
     <div className="mo-order">
       <div className="mo-dpic">
@@ -31,8 +33,8 @@ function Piece({ it, token }: { it: Item; token: string }) {
         )}
       </div>
       <div className="mo-dinfo">
-        <p className="mo-no">Item {certNo(it)}</p>
-        <h2 className="mo-dh">{it.band || 'Untitled'}</h2>
+        <p className="mo-no">{t('Item', '作品')} {certNo(it)}</p>
+        <h2 className="mo-dh">{it.band || t('Untitled', '無題')}</h2>
         {it.title && <p className="mo-dsub">{it.title}</p>}
         <p className="mo-fine">{metaLine(it)}</p>
         <div className="mo-coupon small">
@@ -40,7 +42,7 @@ function Piece({ it, token }: { it: Item; token: string }) {
             ✂ - - - - - - - - - - - - - - - - - - - - - - - -
           </p>
           {it.sold ? (
-            <p className="mo-price">Sold</p>
+            <p className="mo-price">{t('Sold', '売約済み')}</p>
           ) : it.price_usd ? (
             <>
               <p className="mo-price">{usd(it.price_usd)}</p>
@@ -48,7 +50,7 @@ function Piece({ it, token }: { it: Item; token: string }) {
             </>
           ) : (
             <p className="mo-price">
-              Price <span>coming soon</span>
+              {t('Price', '価格')} <span>{t('coming soon', '近日公開')}</span>
             </p>
           )}
         </div>
@@ -58,11 +60,13 @@ function Piece({ it, token }: { it: Item; token: string }) {
 }
 export default async function Buy({ params }: { params: { token: string } }) {
   const token = params.token;
-  if (!paymentsConfigured || !/^[0-9a-f-]{36}$/i.test(token)) return <Shell title="Link not valid"><p className="mo-lead">Please check the link in your email.</p></Shell>;
+  const t = getT();
+  const bad = <Shell title={t('Link not valid', 'リンクが無効です')}><p className="mo-lead">{t('Please check the link in your email.', 'メールに記載のリンクをご確認ください。')}</p></Shell>;
+  if (!paymentsConfigured || !/^[0-9a-f-]{36}$/i.test(token)) return bad;
   const d = db();
   const { data: entry } = await d.from('entries').select('id,item_id,won,used_at').eq('token', token).maybeSingle();
-  if (!entry || !entry.won) return <Shell title="Link not valid"><p className="mo-lead">Please check the link in your email.</p></Shell>;
-  if (entry.used_at) return <Shell title="Already purchased"><p className="mo-lead">This link has been used. Thank you — your order confirmation was sent by email.</p></Shell>;
+  if (!entry || !entry.won) return bad;
+  if (entry.used_at) return <Shell title={t('Already purchased', '購入済みです')}><p className="mo-lead">{t('This link has been used. Thank you — your order confirmation was sent by email.', 'このリンクは使用済みです。ありがとうございました。ご注文の確認はメールでお送りしています。')}</p></Shell>;
 
   let q = d.from('items').select(COLS).eq('published', true);
   q = entry.item_id ? q.eq('id', entry.item_id) : q.eq('sold', false).not('price_usd', 'is', null);
@@ -70,11 +74,11 @@ export default async function Buy({ params }: { params: { token: string } }) {
   const items = (data as unknown as Item[]) || [];
 
   return (
-    <Shell title="You won the draw!" kicker="Winner's order form">
+    <Shell title={t('You won the draw!', '抽選に当選しました！')} kicker={t("Winner's order form", '当選者の注文フォーム')}>
       <p className="mo-lead">
-        {entry.item_id ? 'This piece is reserved for you to buy.' : 'Choose one piece from the archive.'} The link works once and is for you only.
+        {entry.item_id ? t('This piece is reserved for you to buy.', 'この作品はあなたのために確保されています。') : t('Choose one piece from the archive.', 'アーカイブから1点お選びください。')} {t('The link works once and is for you only.', 'このリンクは1回限り、ご本人専用です。')}
       </p>
-      {items.length ? items.map((it) => <Piece key={it.id} it={it} token={token} />) : <p className="mo-lead">No pieces are available right now.</p>}
+      {items.length ? items.map((it) => <Piece key={it.id} it={it} token={token} />) : <p className="mo-lead">{t('No pieces are available right now.', 'いま購入できる作品はありません。')}</p>}
     </Shell>
   );
 }

@@ -1,8 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import { useLang } from './Lang';
 
-export default function BuyButton({ itemId, token, label = 'Buy now' }: { itemId: string; token?: string; label?: string }) {
+export default function BuyButton({ itemId, token, label }: { itemId: string; token?: string; label?: string }) {
+  const { t } = useLang();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   return (
@@ -24,16 +26,16 @@ export default function BuyButton({ itemId, token, label = 'Buy now' }: { itemId
               location.href = j.url;
               return;
             }
-            setErr(j.error || 'Checkout could not be started.');
+            setErr(j.error || t('Checkout could not be started.', '購入手続きを開始できませんでした。'));
           } catch {
-            setErr('Checkout could not be started.');
+            setErr(t('Checkout could not be started.', '購入手続きを開始できませんでした。'));
           }
           setBusy(false);
         }}
       >
-        {busy ? 'Opening checkout…' : label}
+        {busy ? t('Opening checkout…', '購入画面を開いています…') : label || t('Buy now', '購入する')}
       </button>
-      <p className="mo-fine">Card or Apple Pay · Secure checkout by Stripe</p>
+      <p className="mo-fine">{t('Card or Apple Pay · Secure checkout by Stripe', 'カードまたは Apple Pay · Stripe による安全なお支払い')}</p>
       {err && <p className="mo-err">{err}</p>}
     </div>
   );

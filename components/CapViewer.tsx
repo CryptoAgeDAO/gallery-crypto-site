@@ -9,7 +9,8 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import { archBase, brim, crownAt, crownFrame, dims, panels, seamCurve, seams, strap, sweatband, type CapSpec } from './capGeometry';
 import { capTextures, meshAlpha } from './capArt';
 import { canvasTex, makeInlay } from './nfcParts';
-import { TAG_LAYERS } from '@/lib/nfcSteps';
+import { tagLayers } from '@/lib/nfcSteps';
+import { useLang } from './Lang';
 
 export type CapPiece = { n: number; band: string; title: string; year: string; cert: string; qr: string; cap: CapSpec };
 type View = 'front' | 'side' | 'back' | 'inside';
@@ -37,6 +38,8 @@ const smooth01 = (x: number, a: number, b: number) => { const k = Math.min(1, Ma
 export default function CapViewer({ pieces, compact = false }: { pieces: CapPiece[]; compact?: boolean }) {
   const host = useRef<HTMLDivElement>(null);
   const api = useRef<Api | null>(null);
+  const { t, lang } = useLang();
+  const TAG_LAYERS = tagLayers(lang);
   const [cur, setCur] = useState(0);
   const [spin, setSpin] = useState(true);
   const [dark, setDark] = useState(false);
@@ -262,7 +265,8 @@ export default function CapViewer({ pieces, compact = false }: { pieces: CapPiec
           c.fillStyle = '#111'; c.font = '500 52px Georgia, serif'; c.fillText(l.title, 26, 122);
           c.fillStyle = '#6B6862'; c.font = '500 25px sans-serif';
           let line = '', y = 170;
-          l.body.split(' ').forEach((wd) => { if (c.measureText(line + wd).width > w - 52) { c.fillText(line, 26, y); line = ''; y += 34; } line += wd + ' '; });
+          const sp = l.body.includes(' ') ? ' ' : '';
+          l.body.split(sp).forEach((wd) => { if (c.measureText(line + wd).width > w - 52) { c.fillText(line, 26, y); line = ''; y += 34; } line += wd + sp; });
           c.fillText(line, 26, y);
         }, 640, 260);
         const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true, opacity: 0, toneMapped: false }));
@@ -492,23 +496,23 @@ export default function CapViewer({ pieces, compact = false }: { pieces: CapPiec
     a.download = `gallery-crypto-${p.cert.toLowerCase()}-cap.png`;
     a.click();
   };
-  const styleName = { structured: 'Structured 6-panel', dad: 'Unstructured 6-panel', trucker: 'Trucker, foam and mesh', five: '5-panel' }[p.cap.style];
+  const styleName = { structured: t('Structured 6-panel', '6枚はぎ・芯あり'), dad: t('Unstructured 6-panel', '6枚はぎ・芯なし'), trucker: t('Trucker, foam and mesh', 'トラッカー（フォームとメッシュ）'), five: t('5-panel', '5枚はぎ') }[p.cap.style];
 
   // パスポートの中に置く小さな版：回す・タグを分解・内側・リセットだけ
   if (compact)
     return (
       <div className="tvc">
         <div className="tv-stage">
-          <div ref={host} className="tv-canvas" role="img" aria-label={`3D model of this cap, with its NFC tag sewn inside the back. Drag to turn, scroll to zoom.`} />
-          {busy && <p className="tv-busy">Loading the model…</p>}
-          <p className="tv-hint">Drag to turn · scroll to zoom</p>
-          <button className="tv-reset" onClick={resetAll}>Reset</button>
+          <div ref={host} className="tv-canvas" role="img" aria-label={t('3D model of this cap, with its NFC tag sewn inside the back. Drag to turn, scroll to zoom.', 'このキャップの3Dモデル。後ろの内側にNFCタグを縫い込んでいます。ドラッグで回転、スクロールで拡大。')} />
+          {busy && <p className="tv-busy">{t('Loading the model…', 'モデルを読み込み中…')}</p>}
+          <p className="tv-hint">{t('Drag to turn · scroll to zoom', 'ドラッグで回転 · スクロールで拡大')}</p>
+          <button className="tv-reset" onClick={resetAll}>{t('Reset', 'リセット')}</button>
         </div>
         <div className="tvc-bar">
-          <button className="mo-btn small" disabled={busy} onClick={() => { const v = !exploded; setExploded(v); setSpin(false); api.current?.explode(v); }}>{exploded ? 'Put the tag back' : 'Pull the NFC tag apart'}</button>
-          <button className="mo-btn ghost small" disabled={busy} onClick={() => { setSpin(false); setSee(true); api.current?.see(true); }}>Find the tag inside</button>
-          <button className="mo-btn ghost small" onClick={() => { const v = !spin; setSpin(v); api.current?.spin(v); }}>{spin ? 'Stop turning' : 'Turn 360°'}</button>
-          <a className="mo-btn ghost small" href="/demo/3d">Full 3D view →</a>
+          <button className="mo-btn small" disabled={busy} onClick={() => { const v = !exploded; setExploded(v); setSpin(false); api.current?.explode(v); }}>{exploded ? t('Put the tag back', 'タグを元に戻す') : t('Pull the NFC tag apart', 'NFCタグを分解する')}</button>
+          <button className="mo-btn ghost small" disabled={busy} onClick={() => { setSpin(false); setSee(true); api.current?.see(true); }}>{t('Find the tag inside', '内側のタグを探す')}</button>
+          <button className="mo-btn ghost small" onClick={() => { const v = !spin; setSpin(v); api.current?.spin(v); }}>{spin ? t('Stop turning', '回転を止める') : t('Turn 360°', '360°回す')}</button>
+          <a className="mo-btn ghost small" href="/demo/3d">{t('Full 3D view →', '3Dで大きく見る →')}</a>
         </div>
       </div>
     );
@@ -516,52 +520,52 @@ export default function CapViewer({ pieces, compact = false }: { pieces: CapPiec
   return (
     <div className="tv">
       <div className="tv-stage">
-        <div ref={host} className="tv-canvas" role="img" aria-label={`3D model of the ${p.band} ${p.title} cap, with an NFC tag sewn inside the back. Drag to turn, scroll to zoom.`} />
-        {busy && <p className="tv-busy">Loading the model…</p>}
-        <p className="tv-hint">{sel ? 'Hang tag — drag to move · scroll on it to resize' : 'Drag to turn · scroll to zoom · drag the hang tag to move it'}</p>
-        <button className="tv-reset" onClick={resetAll}>Reset</button>
+        <div ref={host} className="tv-canvas" role="img" aria-label={t(`3D model of the ${p.band} ${p.title} cap, with an NFC tag sewn inside the back. Drag to turn, scroll to zoom.`, `${p.band} ${p.title} のキャップの3Dモデル。後ろの内側にNFCタグを縫い込んでいます。ドラッグで回転、スクロールで拡大。`)} />
+        {busy && <p className="tv-busy">{t('Loading the model…', 'モデルを読み込み中…')}</p>}
+        <p className="tv-hint">{sel ? t('Hang tag — drag to move · scroll on it to resize', '下げ札 — ドラッグで移動 · 上でスクロールして大きさを変える') : t('Drag to turn · scroll to zoom · drag the hang tag to move it', 'ドラッグで回転 · スクロールで拡大 · 下げ札はドラッグで移動')}</p>
+        <button className="tv-reset" onClick={resetAll}>{t('Reset', 'リセット')}</button>
       </div>
       <div className="tv-side">
-        <p className="mo-kicker">Demo piece · 3D</p>
+        <p className="mo-kicker">{t('Demo piece · 3D', 'デモ作品 · 3D')}</p>
         <h2 className="tv-name">{p.band}</h2>
         <p className="tv-sub">{p.title} · {p.year} · {styleName}</p>
-        <div className="tv-picks" role="group" aria-label="Choose a piece">
+        <div className="tv-picks" role="group" aria-label={t('Choose a piece', '作品を選ぶ')}>
           {pieces.map((x, i) => (
             <button key={x.n} aria-pressed={i === cur} onClick={() => pick(i)} style={{ background: x.cap.style === 'trucker' && x.cap.front ? `linear-gradient(90deg, ${x.cap.front} 50%, ${x.cap.mesh || x.cap.crown} 50%)` : x.cap.crown }} aria-label={`${x.band} ${x.title}`} />
           ))}
         </div>
-        <div className="tv-views" role="group" aria-label="Viewpoint">
+        <div className="tv-views" role="group" aria-label={t('Viewpoint', '視点')}>
           {(['front', 'side', 'back', 'inside'] as const).map((k) => (
-            <button key={k} onClick={() => { setSpin(false); api.current?.view(k); }}>{k}</button>
+            <button key={k} onClick={() => { setSpin(false); api.current?.view(k); }}>{({ front: t('front', '正面'), side: t('side', '横'), back: t('back', '後ろ'), inside: t('inside', '内側') } as Record<string, string>)[k]}</button>
           ))}
         </div>
         <div className="tv-labels">
-          <p className="tv-lt">NFC tag · inside the back</p>
+          <p className="tv-lt">{t('NFC tag · inside the back', 'NFCタグ · 後ろの内側')}</p>
           <div className="pp-row">
-            <button className="mo-btn small" disabled={busy} onClick={() => { const v = !exploded; setExploded(v); setSpin(false); api.current?.explode(v); }}>{exploded ? 'Put the tag back' : 'Pull the tag apart'}</button>
+            <button className="mo-btn small" disabled={busy} onClick={() => { const v = !exploded; setExploded(v); setSpin(false); api.current?.explode(v); }}>{exploded ? t('Put the tag back', 'タグを元に戻す') : t('Pull the tag apart', 'タグを分解する')}</button>
           </div>
-          <label className="lb-check"><input type="checkbox" checked={see} onChange={(e) => { setSee(e.target.checked); if (e.target.checked) setSpin(false); api.current?.see(e.target.checked); }} />See the chip through the label</label>
+          <label className="lb-check"><input type="checkbox" checked={see} onChange={(e) => { setSee(e.target.checked); if (e.target.checked) setSpin(false); api.current?.see(e.target.checked); }} />{t('See the chip through the label', 'ラベル越しにチップを見る')}</label>
         </div>
         <div className="tv-opts">
-          <label className="lb-check"><input type="checkbox" checked={spin} onChange={(e) => { setSpin(e.target.checked); api.current?.spin(e.target.checked); }} />Turn 360°</label>
-          <label className="lb-check"><input type="checkbox" checked={hang} onChange={(e) => { setHang(e.target.checked); api.current?.hang(e.target.checked); }} />Hang tag</label>
-          <label className="lb-check"><input type="checkbox" checked={dark} onChange={(e) => { setDark(e.target.checked); api.current?.dark(e.target.checked); }} />Dark studio</label>
+          <label className="lb-check"><input type="checkbox" checked={spin} onChange={(e) => { setSpin(e.target.checked); api.current?.spin(e.target.checked); }} />{t('Turn 360°', '360°回す')}</label>
+          <label className="lb-check"><input type="checkbox" checked={hang} onChange={(e) => { setHang(e.target.checked); api.current?.hang(e.target.checked); }} />{t('Hang tag', '下げ札')}</label>
+          <label className="lb-check"><input type="checkbox" checked={dark} onChange={(e) => { setDark(e.target.checked); api.current?.dark(e.target.checked); }} />{t('Dark studio', '暗いスタジオ')}</label>
         </div>
         {sel && (
           <div className="tv-edit">
             <label className="tv-size">
-              Hang tag size <span>{Math.round(size * 100)}%</span>
+              {t('Hang tag size', '下げ札の大きさ')} <span>{Math.round(size * 100)}%</span>
               <input type="range" min={0.5} max={4} step={0.05} value={size} onChange={(e) => { const v = Number(e.target.value); setSize(v); api.current?.setScale(v); }} />
             </label>
           </div>
         )}
         <div className="pp-row">
-          <button className="mo-btn small" onClick={save} disabled={busy}>Save image</button>
-          <button className="mo-btn ghost small" onClick={resetAll}>Reset</button>
-          <a className="mo-btn ghost small" href={`/passport/${p.cert}`}>Open its passport</a>
+          <button className="mo-btn small" onClick={save} disabled={busy}>{t('Save image', '画像を保存')}</button>
+          <button className="mo-btn ghost small" onClick={resetAll}>{t('Reset', 'リセット')}</button>
+          <a className="mo-btn ghost small" href={`/passport/${p.cert}`}>{t('Open its passport', 'パスポートを開く')}</a>
         </div>
-        <p className="mo-links"><a href="/demo/nfc">How the NFC tag and the system work →</a></p>
-        <p className="mo-fine">Bands and artwork are fictional, made for this demo. The hang-tag QR is real — scan it from the screen.</p>
+        <p className="mo-links"><a href="/demo/nfc">{t('How the NFC tag and the system work →', 'NFCタグとシステムの仕組み →')}</a></p>
+        <p className="mo-fine">{t('Bands and artwork are fictional, made for this demo. The hang-tag QR is real — scan it from the screen.', 'バンドとアートワークはこのデモのための架空のものです。下げ札のQRは本物なので、画面から読み取れます。')}</p>
       </div>
     </div>
   );

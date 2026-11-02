@@ -102,7 +102,8 @@ export type EventEntry = {
   created_at: string;
 };
 export const EVENT_COLUMNS = 'id,title,starts_at,venue,description,mode,capacity,status,published,created_at';
-export function eventDate(s: string | null): string {
-  if (!s) return 'Date TBA';
+export function eventDate(s: string | null, lang: 'en' | 'ja' = 'en'): string {
+  if (!s) return lang === 'ja' ? '日程未定' : 'Date TBA';
+  if (lang === 'ja') return new Date(s).toLocaleString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Tokyo' }) + '（日本時間）';
   return new Date(s).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Tokyo' }) + ' JST';
 }

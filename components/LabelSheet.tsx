@@ -2,17 +2,19 @@
 
 // A4 ラベル印刷シート：種類・作品・枚数を選んで、そのまま印刷
 import { useMemo, useState } from 'react';
+import { tt } from '@/components/Lang';
 
 export type LabelItem = {
   cert: string; band: string; title: string; year: string; size: string; dealer: string;
   sealed: boolean; records: number; url: string; qr: string; offlineQr: string; demo?: boolean;
 };
 type Kind = 'tag' | 'card' | 'sticker';
-const KINDS: Record<Kind, { name: string; size: string; perPage: number; cols: number; note: string }> = {
-  tag: { name: 'Hang tag', size: '55 × 90 mm', perPage: 9, cols: 3, note: 'Online QR. Punch the circle for the string.' },
-  card: { name: 'Certificate card', size: '91 × 55 mm', perPage: 10, cols: 2, note: 'Online + offline QR. Print at 600 dpi or finer.' },
-  sticker: { name: 'Small sticker', size: '38 × 38 mm', perPage: 35, cols: 5, note: 'Online QR only. For boxes, bags and care labels.' },
-};
+// 言語で文言が変わるので、表示のたびに作る
+const kinds = (): Record<Kind, { name: string; size: string; perPage: number; cols: number; note: string }> => ({
+  tag: { name: tt('Hang tag', '下げ札'), size: '55 × 90 mm', perPage: 9, cols: 3, note: tt('Online QR. Punch the circle for the string.', 'オンラインのQR。丸い部分に穴を開けて紐を通します。') },
+  card: { name: tt('Certificate card', '証明書カード'), size: '91 × 55 mm', perPage: 10, cols: 2, note: tt('Online + offline QR. Print at 600 dpi or finer.', 'オンライン＋オフラインのQR。600dpi 以上で印刷してください。') },
+  sticker: { name: tt('Small sticker', '小さいシール'), size: '38 × 38 mm', perPage: 35, cols: 5, note: tt('Online QR only. For boxes, bags and care labels.', 'オンラインのQRのみ。箱、袋、洗濯表示用。') },
+});
 
 function Qr({ svg, label }: { svg: string; label?: string }) {
   return (
@@ -24,7 +26,7 @@ function Qr({ svg, label }: { svg: string; label?: string }) {
 }
 
 function Label({ it, kind, host }: { it: LabelItem; kind: Kind; host: string }) {
-  const name = it.band || 'Untitled';
+  const name = it.band || tt('Untitled', '無題');
   if (kind === 'sticker')
     return (
       <div className="lb lb-sticker">
@@ -74,7 +76,7 @@ export default function LabelSheet({ items, host }: { items: LabelItem[]; host: 
   const [copies, setCopies] = useState(1);
   const [skip, setSkip] = useState(0);
   const [cuts, setCuts] = useState(true);
-  const k = KINDS[kind];
+  const k = kinds()[kind];
 
   const slots = useMemo(() => {
     const list: (LabelItem | null)[] = Array.from({ length: Math.min(skip, k.perPage - 1) }, () => null);
@@ -89,39 +91,39 @@ export default function LabelSheet({ items, host }: { items: LabelItem[]; host: 
   return (
     <div className="lb-root">
       <div className="lb-controls">
-        <h1>Print labels</h1>
+        <h1>{tt('Print labels', 'ラベルを印刷')}</h1>
         <div className="lb-row">
-          {(Object.keys(KINDS) as Kind[]).map((key) => (
+          {(Object.keys(kinds()) as Kind[]).map((key) => (
             <button key={key} aria-pressed={kind === key} onClick={() => setKind(key)}>
-              <b>{KINDS[key].name}</b>
-              <span>{KINDS[key].size} · {KINDS[key].perPage} per A4</span>
+              <b>{kinds()[key].name}</b>
+              <span>{kinds()[key].size} · {tt(`${kinds()[key].perPage} per A4`, `A4に${kinds()[key].perPage}枚`)}</span>
             </button>
           ))}
         </div>
         <p className="lb-note">{k.note}</p>
         <div className="lb-row lb-opts">
-          <label>Copies of each<input type="number" min={1} max={20} value={copies} onChange={(e) => setCopies(Math.max(1, Math.min(20, Number(e.target.value) || 1)))} /></label>
-          <label>Skip first slots<input type="number" min={0} max={k.perPage - 1} value={skip} onChange={(e) => setSkip(Math.max(0, Math.min(k.perPage - 1, Number(e.target.value) || 0)))} /></label>
-          <label className="lb-check"><input type="checkbox" checked={cuts} onChange={(e) => setCuts(e.target.checked)} />Cut lines</label>
+          <label>{tt('Copies of each', '各作品の枚数')}<input type="number" min={1} max={20} value={copies} onChange={(e) => setCopies(Math.max(1, Math.min(20, Number(e.target.value) || 1)))} /></label>
+          <label>{tt('Skip first slots', '最初の空き枠を飛ばす')}<input type="number" min={0} max={k.perPage - 1} value={skip} onChange={(e) => setSkip(Math.max(0, Math.min(k.perPage - 1, Number(e.target.value) || 0)))} /></label>
+          <label className="lb-check"><input type="checkbox" checked={cuts} onChange={(e) => setCuts(e.target.checked)} />{tt('Cut lines', '切り取り線')}</label>
           <button className="lb-print" disabled={!count} onClick={() => window.print()}>Print {count} labels</button>
         </div>
         <details>
           <summary>Pieces ({picked.size} of {items.length})</summary>
           <div className="lb-row">
-            <button onClick={() => setPicked(new Set(items.map((i) => i.cert)))}>All</button>
-            <button onClick={() => setPicked(new Set(items.filter((i) => i.sealed && !i.demo).map((i) => i.cert)))}>Sealed only</button>
-            <button onClick={() => setPicked(new Set())}>None</button>
+            <button onClick={() => setPicked(new Set(items.map((i) => i.cert)))}>{tt('All', 'すべて')}</button>
+            <button onClick={() => setPicked(new Set(items.filter((i) => i.sealed && !i.demo).map((i) => i.cert)))}>{tt('Sealed only', '確定済みのみ')}</button>
+            <button onClick={() => setPicked(new Set())}>{tt('None', 'なし')}</button>
           </div>
           <div className="lb-picks">
             {items.map((i) => (
               <label key={i.cert} className="lb-check">
                 <input type="checkbox" checked={picked.has(i.cert)} onChange={() => toggle(i.cert)} />
-                {i.cert} · {i.band || 'Untitled'}{i.demo ? ' (sample)' : ''}{!i.sealed ? ' · not sealed' : ''}
+                {i.cert} · {i.band || tt('Untitled', '無題')}{i.demo ? tt(' (sample)', '（見本）') : ''}{!i.sealed ? tt(' · not sealed', ' · 未確定') : ''}
               </label>
             ))}
           </div>
         </details>
-        <p className="lb-note">In the print dialog choose A4, scale 100% (“Actual size”), and turn off headers and footers. Use “Skip first slots” to reuse a half-used sticker sheet.</p>
+        <p className="lb-note">{tt('In the print dialog choose A4, scale 100% (“Actual size”), and turn off headers and footers. Use “Skip first slots” to reuse a half-used sticker sheet.', '印刷画面で A4、倍率100%（「実際のサイズ」）を選び、ヘッダーとフッターをオフにしてください。使いかけのシールの台紙を使うときは「最初の空き枠を飛ばす」を使います。')}</p>
       </div>
 
       {slots.map((page, pi) => (
@@ -129,7 +131,7 @@ export default function LabelSheet({ items, host }: { items: LabelItem[]; host: 
           {page.map((it, i) => (it ? <Label key={i} it={it} kind={kind} host={host} /> : <div key={i} className={`lb lb-${kind} lb-blank`} />))}
         </section>
       ))}
-      {!count && <p className="lb-note lb-controls">Choose at least one piece.</p>}
+      {!count && <p className="lb-note lb-controls">{tt('Choose at least one piece.', '少なくとも1点選んでください。')}</p>}
     </div>
   );
 }

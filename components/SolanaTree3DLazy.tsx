@@ -1,7 +1,14 @@
 'use client';
 import dynamic from 'next/dynamic';
+import { useLang } from './Lang';
 
-const SolanaTree3D = dynamic(() => import('./SolanaTree3D'), { ssr: false, loading: () => <div className="st3"><div className="st3-stage"><p className="tv-busy">Loading 3D…</p></div></div> });
+function Loading() {
+  const { t } = useLang();
+  return <div className="st3"><div className="st3-stage"><p className="tv-busy">{t('Loading 3D…', '3Dを読み込み中…')}</p></div></div>;
+}
+
+const SolanaTree3D = dynamic(() => import('./SolanaTree3D'), { ssr: false, loading: () => <Loading /> });
 export default function SolanaTree3DLazy() {
-  return <SolanaTree3D />;
+  const { lang } = useLang();
+  return <SolanaTree3D key={lang} />;
 }

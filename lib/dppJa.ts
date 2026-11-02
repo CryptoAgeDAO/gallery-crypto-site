@@ -1,0 +1,40 @@
+// 来歴パスポート（DPP）の項目名・説明の日本語。英語の文言をそのまま鍵にする（記録そのものは英語の項目名で署名済みなので変えない）
+import type { Lang } from './i18n';
+
+const JA: Record<string, string> = {
+  'Product identity': '製品の識別', 'Unique identifier · product type': '固有の識別子 · 製品の種類',
+  'Product name': '製品名', Category: 'カテゴリー', 'T-shirt, long sleeve, hoodie…': 'Tシャツ、長袖、パーカー…',
+  'Original label / maker': '元のタグ・メーカー', 'e.g. Brockum, Giant, Hanes': '例：Brockum、Giant、Hanes',
+  'Year of manufacture': '製造年', Size: 'サイズ', 'Responsible party': '責任者（発行者）',
+  'Material composition': '素材の構成', 'Fibre content · recycled & reused share': '繊維の内容 · リサイクル・再使用の割合',
+  'Fibres (%)': '繊維（%）', 'Reused share (%)': '再使用の割合（%）', 'A vintage garment kept in use is 100% reused.': '使い続けるヴィンテージ衣料は100%再使用です。',
+  'Recycled fibre (%)': 'リサイクル繊維（%）', Certifications: '認証',
+  'Origin & processes': '原産と工程', 'Key processes · country of each stage': '主な工程 · 各段階の国',
+  'Country of manufacture': '製造国', Construction: '縫製', 'Single stitch, double stitch…': 'シングルステッチ、ダブルステッチ…',
+  'Print / decoration process': 'プリント・装飾の方法', 'Screen print, discharge, plastisol…': 'シルクスクリーン、抜染、プラスチゾル…',
+  'Remake processes (Gallery Crypto)': 'リメイクの工程（Gallery Crypto）', 'Leave empty if the piece is kept as found.': '見つけたままの状態なら空欄にします。',
+  'Country of remake': 'リメイクした国',
+  Provenance: '来歴', 'Supply-chain traceability (tier 1–2)': 'サプライチェーンの追跡（1〜2次）',
+  'Inherited from (dealer credit)': '入手先（ディーラー）', 'Dealer profile': 'ディーラーの紹介', 'Shop, city, character — no prices.': '店、都市、人柄 — 価格は書かない。',
+  'Country sourced': '入手した国', Story: 'ストーリー',
+  'Durability, care & repair': '耐久性・お手入れ・修理', 'Durability · care · repairability': '耐久性 · お手入れ · 修理のしやすさ',
+  Condition: '状態', 'Wear & marks (part of the piece)': '着用感・跡（作品の一部）', 'Care instructions': 'お手入れ方法', 'Repair history': '修理の履歴',
+  'Environment & substances': '環境と物質', 'Environmental indicators · substances of concern': '環境の指標 · 懸念物質',
+  Circularity: '循環性', 'Substances / treatments': '物質・加工',
+  'End of life': '使用後', 'Resale · take-back · recycling': '再販 · 回収 · リサイクル', Resale: '再販', 'Recycling route': 'リサイクルの経路',
+  'Physical fingerprint': '物理的な指紋', 'Gallery Crypto extension — 1:1 link to the object': 'Gallery Crypto の拡張 — 実物と1対1で結びつける',
+  'NFC chip UID': 'NFCチップのUID', 'NTAG 424 DNA UID once the tag is sewn in.': 'タグを縫い込んだら、NTAG 424 DNA のUIDを入れます。',
+  'Macro photo hashes (SHA-256)': '接写写真のハッシュ（SHA-256）', 'Only the hash is recorded — the photo itself stays private or public, your choice.': '記録するのはハッシュだけです。写真そのものは公開・非公開を選べます。',
+  Sourced: '入手', 'Inherited from a dealer — who, where.': 'ディーラーから受け継いだ — 誰から、どこで。',
+  Catalogued: '登録', 'Photographed and entered into the archive.': '撮影してアーカイブに登録した。',
+  'Processed by artist': 'アーティストによる加工', 'Artist ID and what they did.': 'アーティストのIDと、行った加工。',
+  Fingerprinted: '指紋の記録', 'Macro photos hashed, chip sewn in.': '接写写真をハッシュ化し、チップを縫い込んだ。',
+  Exhibited: '展示', 'Shown at an event or pop-up.': 'イベントやポップアップで展示した。',
+  'Ownership transferred': '所有者の移転', 'Sold or claimed — no personal data is recorded.': '販売・受け渡し — 個人情報は記録しない。',
+  'Re-scanned': '再スキャン', 'Owner update: condition, new wear.': '所有者からの更新：状態、新しい着用感。',
+  Repaired: '修理', 'What was repaired and by whom.': '何を、誰が修理したか。',
+  Note: 'メモ', 'Anything else worth keeping.': 'そのほか残しておきたいこと。',
+  ' (must add up to 100%)': '（合計100%にする）',
+};
+
+export const dl = (lang: Lang, s: string) => (lang === 'ja' ? JA[s] ?? s : s);

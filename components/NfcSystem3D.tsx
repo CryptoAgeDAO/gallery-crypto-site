@@ -6,7 +6,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { canvasTex, makeInlay, makePhone, makeRings, COPPER } from './nfcParts';
-import { NFC_STEPS, TAG_LAYERS } from '@/lib/nfcSteps';
+import { nfcSteps, tagLayers } from '@/lib/nfcSteps';
+import { useLang } from './Lang';
 
 type Mode = 'tag' | 'system';
 type Api = { mode: (m: Mode) => void; explode: (v: boolean) => void; step: (k: string | null) => void; reset: () => void };
@@ -35,6 +36,10 @@ function labelSprite(n: string, title: string, sub: string) {
 }
 
 export default function NfcSystem3D() {
+  const { t, lang } = useLang();
+  const STEPS = nfcSteps(lang);
+  const LAYERS = tagLayers(lang);
+  const clip = (x: string, n: number) => (x.length <= n ? x : x.includes(' ') ? x.slice(0, x.lastIndexOf(' ', n)) + '…' : x.slice(0, Math.round(n / 2)) + '…');
   const host = useRef<HTMLDivElement>(null);
   const api = useRef<Api | null>(null);
   const [mode, setMode] = useState<Mode>('tag');
@@ -94,8 +99,8 @@ export default function NfcSystem3D() {
     tagRings.group.scale.setScalar(2.2);
     tagG.add(tagRings.group);
     const layerObjs = [face, inlay, back];
-    const callouts = TAG_LAYERS.map((l, i) => {
-      const sp = labelSprite(`0${i + 1}`, l.title, l.body.length > 44 ? l.body.slice(0, l.body.lastIndexOf(' ', 44)) + '…' : l.body);
+    const callouts = LAYERS.map((l, i) => {
+      const sp = labelSprite(`0${i + 1}`, l.title, clip(l.body, 44));
       sp.scale.set(2.9, 0.93, 1);
       const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]), new THREE.LineBasicMaterial({ color: '#9A958C' }));
       tagG.add(sp, line);
@@ -110,13 +115,13 @@ export default function NfcSystem3D() {
     const nodes: Record<string, THREE.Group> = {};
     const sprites: Record<string, THREE.Sprite> = {};
     const v = (k: string) => new THREE.Vector3(...POS[k]);
-    NFC_STEPS.forEach((s) => {
+    STEPS.forEach((s) => {
       const g = new THREE.Group();
       g.position.copy(v(s.k));
       g.userData.key = s.k;
       sysG.add(g);
       nodes[s.k] = g;
-      const sp = labelSprite(String(s.n).padStart(2, '0') + (s.next ? '   NEXT · GCPP/3' : ''), s.title, s.short);
+      const sp = labelSprite(String(s.n).padStart(2, '0'), s.title, s.short);
       sp.position.set(0, 2.75, 0);
       g.add(sp);
       sprites[s.k] = sp;
@@ -390,49 +395,49 @@ export default function NfcSystem3D() {
     if (!playing) return;
     let i = 0;
     const go = () => {
-      const k = NFC_STEPS[i % NFC_STEPS.length].k;
+      const k = STEPS[i % STEPS.length].k;
       setStep(k);
       api.current?.step(k);
       i++;
     };
     go();
-    const id = setInterval(() => { if (i >= NFC_STEPS.length) { setPlaying(false); return; } go(); }, 3600);
+    const id = setInterval(() => { if (i >= STEPS.length) { setPlaying(false); return; } go(); }, 3600);
     return () => clearInterval(id);
   }, [playing]);
 
   const pickMode = (m: Mode) => { setMode(m); setStep(null); setPlaying(false); api.current?.mode(m); };
   const reset = () => { setStep(null); setPlaying(false); setExploded(true); api.current?.reset(); };
-  const s = NFC_STEPS.find((x) => x.k === step);
+  const s = STEPS.find((x) => x.k === step);
 
   return (
     <div className="tv ns">
       <div className="tv-stage">
-        <div ref={host} className="tv-canvas" role="img" aria-label={mode === 'tag' ? 'Exploded 3D view of the NFC label: woven face, copper antenna with chip, sealed backing.' : '3D diagram of the NFC proof system, from the piece to the Solana anchor and the offline check.'} />
-        <p className="tv-hint">{mode === 'system' ? 'Tap a step · drag to turn · scroll to zoom' : 'Drag to turn · scroll to zoom'}</p>
-        <button className="tv-reset" onClick={reset}>Reset</button>
+        <div ref={host} className="tv-canvas" role="img" aria-label={mode === 'tag' ? t('Exploded 3D view of the NFC label: woven face, copper antenna with chip, sealed backing.', 'NFCラベルの分解3D図：織りの表面、チップ付きの銅のアンテナ、密封した裏地。') : t('3D diagram of the NFC proof system, from the piece to the Solana anchor and the offline check.', '作品から Solana への刻印、オフラインの確認までの、NFC証明の仕組みの3D図。')} />
+        <p className="tv-hint">{mode === 'system' ? t('Tap a step · drag to turn · scroll to zoom', '段階をタップ · ドラッグで回転 · スクロールで拡大') : t('Drag to turn · scroll to zoom', 'ドラッグで回転 · スクロールで拡大')}</p>
+        <button className="tv-reset" onClick={reset}>{t('Reset', 'リセット')}</button>
       </div>
       <div className="tv-side">
-        <div className="tv-views" role="tablist" aria-label="View">
-          <button role="tab" aria-pressed={mode === 'tag'} aria-selected={mode === 'tag'} onClick={() => pickMode('tag')}>Inside the tag</button>
-          <button role="tab" aria-pressed={mode === 'system'} aria-selected={mode === 'system'} onClick={() => pickMode('system')}>The whole system</button>
+        <div className="tv-views" role="tablist" aria-label={t('View', '表示')}>
+          <button role="tab" aria-pressed={mode === 'tag'} aria-selected={mode === 'tag'} onClick={() => pickMode('tag')}>{t('Inside the tag', 'タグの中')}</button>
+          <button role="tab" aria-pressed={mode === 'system'} aria-selected={mode === 'system'} onClick={() => pickMode('system')}>{t('The whole system', '仕組み全体')}</button>
         </div>
         {mode === 'tag' ? (
           <>
-            <h2 className="tv-name">The NFC label</h2>
-            <p className="tv-sub">Three layers, 24 × 32 mm, sewn inside the back of the cap</p>
+            <h2 className="tv-name">{t('The NFC label', 'NFCラベル')}</h2>
+            <p className="tv-sub">{t('Three layers, 24 × 32 mm, sewn inside the back of the cap', '3層・24 × 32 mm、キャップの後ろの内側に縫い込み')}</p>
             <ol className="ns-list">
-              {TAG_LAYERS.map((l, i) => (
+              {LAYERS.map((l, i) => (
                 <li key={l.k}><b>{String(i + 1).padStart(2, '0')} {l.title}</b><span>{l.body}</span></li>
               ))}
             </ol>
-            <label className="lb-check"><input type="checkbox" checked={exploded} onChange={(e) => { setExploded(e.target.checked); api.current?.explode(e.target.checked); }} />Pull the layers apart</label>
+            <label className="lb-check"><input type="checkbox" checked={exploded} onChange={(e) => { setExploded(e.target.checked); api.current?.explode(e.target.checked); }} />{t('Pull the layers apart', '層を分解する')}</label>
           </>
         ) : (
           <>
-            <h2 className="tv-name">{s ? s.title : 'From tap to proof'}</h2>
-            <p className="tv-sub">{s ? s.short : 'Six steps. Tap one, or play them in order.'}</p>
-            <div className="ns-steps" role="group" aria-label="Steps">
-              {NFC_STEPS.map((x) => (
+            <h2 className="tv-name">{s ? s.title : t('From tap to proof', 'タップから証明まで')}</h2>
+            <p className="tv-sub">{s ? s.short : t('Six steps. Tap one, or play them in order.', '6つの段階。1つずつタップするか、順番に再生してください。')}</p>
+            <div className="ns-steps" role="group" aria-label={t('Steps', '段階')}>
+              {STEPS.map((x) => (
                 <button key={x.k} aria-pressed={step === x.k} onClick={() => { setPlaying(false); const k = step === x.k ? null : x.k; setStep(k); api.current?.step(k); }}>{x.n}</button>
               ))}
             </div>
@@ -440,11 +445,10 @@ export default function NfcSystem3D() {
               <div className="ns-detail">
                 <p>{s.body}</p>
                 <p className="pp-mono">{s.tech}</p>
-                {s.next && <p className="mo-fine">Planned for GCPP/3. Today the tag opens the passport, and the two signatures do the proving.</p>}
-              </div>
+                              </div>
             )}
             <div className="pp-row">
-              <button className="mo-btn small" onClick={() => setPlaying(true)} disabled={playing}>{playing ? 'Playing…' : 'Play the steps'}</button>
+              <button className="mo-btn small" onClick={() => setPlaying(true)} disabled={playing}>{playing ? t('Playing…', '再生中…') : t('Play the steps', '順番に再生')}</button>
             </div>
           </>
         )}

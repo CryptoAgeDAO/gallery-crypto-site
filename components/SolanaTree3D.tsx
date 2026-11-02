@@ -7,13 +7,14 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { canvasTex } from './nfcParts';
+import { useLang } from './Lang';
 
-const PHASES = [
-  { t: 0, title: '1 · Each record gets a fingerprint', body: 'Sourced, catalogued, fingerprinted, sealed — each record is turned into a 32-byte SHA-256 fingerprint.' },
-  { t: 2.2, title: '2 · Pairs are combined', body: 'Two fingerprints are joined and fingerprinted again. Change any record and every fingerprint above it changes.' },
-  { t: 4.2, title: '3 · One root is left', body: 'A single 32-byte root now stands for all four records — and nothing about them can be read from it.' },
-  { t: 6.0, title: '4 · The root is written to Solana', body: 'Our issuer address writes the root into a Solana memo. The network stamps the time; nobody can change it afterwards.' },
-  { t: 8.6, title: '5 · Anyone can check', body: 'Your browser recomputes the root from the passport and finds it on Solana. If the records changed, the roots would not match.' },
+const phases = (ja: boolean) => [
+  { t: 0, title: ja ? '1 · 記録ごとに指紋を作る' : '1 · Each record gets a fingerprint', body: ja ? '入手・登録・指紋の記録・確定 — 各記録を32バイトの SHA-256 の指紋にします。' : 'Sourced, catalogued, fingerprinted, sealed — each record is turned into a 32-byte SHA-256 fingerprint.' },
+  { t: 2.2, title: ja ? '2 · 2つずつ組み合わせる' : '2 · Pairs are combined', body: ja ? '2つの指紋をつなげて、もう一度指紋にします。どれか1つの記録が変われば、その上の指紋はすべて変わります。' : 'Two fingerprints are joined and fingerprinted again. Change any record and every fingerprint above it changes.' },
+  { t: 4.2, title: ja ? '3 · 1つのルートが残る' : '3 · One root is left', body: ja ? '32バイトのルート1つが4つの記録すべてを代表します。ルートから記録の中身は読み取れません。' : 'A single 32-byte root now stands for all four records — and nothing about them can be read from it.' },
+  { t: 6.0, title: ja ? '4 · ルートを Solana に書く' : '4 · The root is written to Solana', body: ja ? '発行者のアドレスがルートを Solana のメモに書き込みます。ネットワークが日時を刻み、あとから誰も変えられません。' : 'Our issuer address writes the root into a Solana memo. The network stamps the time; nobody can change it afterwards.' },
+  { t: 8.6, title: ja ? '5 · 誰でも確かめられる' : '5 · Anyone can check', body: ja ? 'ブラウザがパスポートからルートを計算し直し、Solana で見つけます。記録が変われば、ルートは一致しません。' : 'Your browser recomputes the root from the passport and finds it on Solana. If the records changed, the roots would not match.' },
 ];
 const END = 11.5;
 
@@ -31,6 +32,9 @@ function label(lines: [string, string], dark = false, w = 512, h = 200) {
 }
 
 export default function SolanaTree3D() {
+  const { t, lang } = useLang();
+  const ja = lang === 'ja';
+  const PHASES = phases(ja);
   const host = useRef<HTMLDivElement>(null);
   const api = useRef<{ play: () => void; reset: () => void } | null>(null);
   const [phase, setPhase] = useState(-1);
@@ -92,10 +96,10 @@ export default function SolanaTree3D() {
     };
 
     // 記録（下段）
-    const names = ['Sourced', 'Catalogued', 'Fingerprinted', 'Sealed'];
+    const names = ja ? ['入手', '登録', '指紋の記録', '確定'] : ['Sourced', 'Catalogued', 'Fingerprinted', 'Sealed'];
     const fps = ['a1f4…09', '9c02…e1', '47de…5a', 'e8b3…c7'];
     const leaves = names.map((n, i) => {
-      const m = plate(label([`Record ${i + 1}`, `${n}`]), 2.6, 1.0, '#FAFAF8');
+      const m = plate(label([ja ? `記録 ${i + 1}` : `Record ${i + 1}`, `${n}`]), 2.6, 1.0, '#FAFAF8');
       m.position.set(-4.5 + i * 3, 0, 0);
       scene.add(m);
       const fp = plate(label(['fingerprint', fps[i]], false, 512, 200), 2.0, 0.78, '#FAFAF8');
@@ -112,7 +116,7 @@ export default function SolanaTree3D() {
       scene.add(m);
       return m;
     });
-    const root = plate(label(['Root', '5f2e9a…c41b'], true), 3.0, 1.05, '#111');
+    const root = plate(label([ja ? 'ルート' : 'Root', '5f2e9a…c41b'], true), 3.0, 1.05, '#111');
     root.position.set(0, 6.1, 0);
     root.scale.setScalar(0.001);
     scene.add(root);
@@ -138,11 +142,11 @@ export default function SolanaTree3D() {
     const memo = box(1.1, 1.1, 1.1, new THREE.MeshStandardMaterial({ color: CU, roughness: 0.35, metalness: 0.4, emissive: CU, emissiveIntensity: 0 }));
     memo.visible = false;
     ledger.add(memo);
-    const ledgerLabel = new THREE.Sprite(new THREE.SpriteMaterial({ map: label(['Solana', 'public ledger · slots →']), transparent: true, toneMapped: false }));
+    const ledgerLabel = new THREE.Sprite(new THREE.SpriteMaterial({ map: label(['Solana', ja ? '公開の台帳 · スロット →' : 'public ledger · slots →']), transparent: true, toneMapped: false }));
     ledgerLabel.scale.set(3.2, 1.25, 1);
     ledgerLabel.position.set(0, 1.6, 0);
     ledger.add(ledgerLabel);
-    const stamp = new THREE.Sprite(new THREE.SpriteMaterial({ map: label(['Written · 03:00 JST', 'memo GCPP/2 root:5f2e…'], true, 640, 200), transparent: true, opacity: 0, toneMapped: false }));
+    const stamp = new THREE.Sprite(new THREE.SpriteMaterial({ map: label([ja ? '書き込み · 日本時間 3:00' : 'Written · 03:00 JST', 'memo GCPP/2 root:5f2e…'], true, 640, 200), transparent: true, opacity: 0, toneMapped: false }));
     stamp.scale.set(3.6, 1.12, 1);
     ledger.add(stamp);
     const flyer = root.clone();
@@ -262,8 +266,8 @@ export default function SolanaTree3D() {
   return (
     <div className="st3">
       <div className="st3-stage">
-        <div ref={host} className="tv-canvas" role="img" aria-label="3D animation: four records become fingerprints, are combined into one root, and the root is written to the Solana ledger, where anyone can check it." />
-        <button className="tv-reset" onClick={() => api.current?.reset()}>Reset</button>
+        <div ref={host} className="tv-canvas" role="img" aria-label={t('3D animation: four records become fingerprints, are combined into one root, and the root is written to the Solana ledger, where anyone can check it.', '3Dアニメーション：4つの記録が指紋になり、1つのルートにまとめられ、そのルートが誰でも確かめられる Solana の台帳に書き込まれます。')} />
+        <button className="tv-reset" onClick={() => api.current?.reset()}>{t('Reset', 'リセット')}</button>
       </div>
       <div className="st3-side">
         <ol className="st3-steps">
@@ -271,9 +275,9 @@ export default function SolanaTree3D() {
             <li key={x.title} className={i === phase ? 'on' : i < phase ? 'done' : ''}>{x.title}</li>
           ))}
         </ol>
-        <p className="st3-body">{phase < 0 ? 'Press play to watch four records become one entry on Solana.' : p.body}</p>
+        <p className="st3-body">{phase < 0 ? t('Press play to watch four records become one entry on Solana.', '再生を押すと、4つの記録が Solana の1件の書き込みになる様子が見られます。') : p.body}</p>
         <div className="pp-row">
-          <button className="mo-btn small" onClick={() => api.current?.play()} disabled={playing}>{playing ? 'Playing…' : phase >= 0 ? 'Play again' : 'Play'}</button>
+          <button className="mo-btn small" onClick={() => api.current?.play()} disabled={playing}>{playing ? t('Playing…', '再生中…') : phase >= 0 ? t('Play again', 'もう一度再生') : t('Play', '再生')}</button>
         </div>
       </div>
     </div>

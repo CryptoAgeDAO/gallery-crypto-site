@@ -1,5 +1,6 @@
 // NFC タグと証明の仕組みを1枚の図に（横長＝PC、縦長＝スマホ）
-import { NFC_STEPS, TAG_LAYERS, type NfcStep } from '@/lib/nfcSteps';
+import { nfcSteps, tagLayers, type NfcStep } from '@/lib/nfcSteps';
+import { makeT, type Lang } from '@/lib/i18n';
 import { SvgIcon, type IconName } from './GcIcon';
 
 const INK = '#111111', MUTE = '#6B6862', LINE = '#CFCAC0', PAPER = '#FAFAF8', CU = '#C47A45';
@@ -8,6 +9,12 @@ const SANS = 'Archivo, "Noto Sans JP", sans-serif', SERIF = '"Cormorant Garamond
 function wrap(t: string, max: number) {
   const out: string[] = [];
   let cur = '';
+  // 日本語（空白なし）は1文字ずつ、幅は英字のおよそ2倍として折り返す
+  if (!t.includes(' ') && /[\u3000-\u9fff]/.test(t)) {
+    const m = Math.max(4, Math.floor(max / 1.9));
+    for (let i = 0; i < t.length; i += m) out.push(t.slice(i, i + m));
+    return out;
+  }
   t.split(' ').forEach((w) => {
     if ((cur + ' ' + w).trim().length > max && cur) { out.push(cur); cur = w; } else cur = (cur + ' ' + w).trim();
   });
@@ -26,7 +33,6 @@ function Node({ s, x, y, w, h, techMax }: { s: NfcStep; x: number; y: number; w:
     <g>
       <rect x={x} y={y} width={w} height={h} fill={PAPER} stroke={s.next ? MUTE : INK} strokeDasharray={s.next ? '4 4' : undefined} />
       <text x={x + 16} y={y + 26} fontFamily={MONO} fontSize="11" letterSpacing="2" fill={MUTE}>{String(s.n).padStart(2, '0')}</text>
-      {s.next && <text x={x + 44} y={y + 26} fontFamily={SANS} fontSize="9" letterSpacing="2" fill={CU}>NEXT · GCPP/3</text>}
       <Icon k={s.k} x={x + w - 40} y={y + 12} />
       <text x={x + 16} y={y + 60} fontFamily={SERIF} fontSize="25" fill={INK}>{s.title}</text>
       <text x={x + 16} y={y + 82} fontFamily={SANS} fontSize="12.5" fill={MUTE}>{s.short}</text>
@@ -37,11 +43,12 @@ function Node({ s, x, y, w, h, techMax }: { s: NfcStep; x: number; y: number; w:
   );
 }
 
-function TagLayers({ x, y, labelX, labelMax, step, below = false }: { x: number; y: number; labelX: number; labelMax: number; step: number; below?: boolean }) {
+function TagLayers({ x, y, labelX, labelMax, step, below = false, lang }: { x: number; y: number; labelX: number; labelMax: number; step: number; below?: boolean; lang: Lang }) {
+  const TAG_LAYERS = tagLayers(lang);
   const para = (yy: number) => `M${x} ${yy + 34} L${x + 86} ${yy} H${x + 236} L${x + 150} ${yy + 34} Z`;
   return (
     <g>
-      <text x={x} y={y - 14} fontFamily={SANS} fontSize="10" letterSpacing="2.4" fill={MUTE}>INSIDE THE NFC LABEL</text>
+      <text x={x} y={y - 14} fontFamily={SANS} fontSize="10" letterSpacing="2.4" fill={MUTE}>{lang === 'ja' ? 'NFCラベルの中' : 'INSIDE THE NFC LABEL'}</text>
       {TAG_LAYERS.map((l, i) => {
         const yy = y + i * step;
         return (
@@ -79,13 +86,15 @@ const Arrow = ({ id }: { id: string }) => (
   </defs>
 );
 
-export default function NfcDiagram() {
+export default function NfcDiagram({ lang = 'en' }: { lang?: Lang }) {
+  const t = makeT(lang);
+  const NFC_STEPS = nfcSteps(lang);
   const main = NFC_STEPS.filter((s) => s.k !== 'offline');
   const off = NFC_STEPS.find((s) => s.k === 'offline')!;
   const W = 200, H = 170, GAP = 32, X0 = 30, Y0 = 40;
   return (
     <figure className="nd">
-      <svg className="nd-wide" viewBox="0 0 1200 650" role="img" aria-label="How the NFC tag proves a piece: tap, chip check, signed record, Solana anchor, and offline check from the hang-tag QR.">
+      <svg className="nd-wide" viewBox="0 0 1200 650" role="img" aria-label={t('How the NFC tag proves a piece: tap, chip check, signed record, Solana anchor, and offline check from the hang-tag QR.', 'NFCタグが作品を証明する流れ：タップ、チップの確認、署名つきの記録、Solana への刻印、下げ札のQRでのオフライン確認。')}>
         <Arrow id="ndA" />
         {main.map((s, i) => (
           <g key={s.k}>
@@ -95,14 +104,14 @@ export default function NfcDiagram() {
         ))}
         {/* オフラインの枝 */}
         <path d={`M${X0 + W / 2} ${Y0 + H + 3} V${330 + H / 2} H${X0 + W + GAP - 4}`} fill="none" stroke={INK} markerEnd="url(#ndA)" />
-        <text x={X0 + W / 2 + 10} y={Y0 + H + 40} fontFamily={SANS} fontSize="11.5" fill={MUTE}>or scan the hang-tag QR</text>
+        <text x={X0 + W / 2 + 10} y={Y0 + H + 40} fontFamily={SANS} fontSize="11.5" fill={MUTE}>{t('or scan the hang-tag QR', 'または下げ札のQRを読み取る')}</text>
         <Node s={off} x={X0 + W + GAP} y={330} w={W} h={H} techMax={27} />
         <path d={`M${X0 + 2 * W + GAP + 3} ${330 + H / 2} H${X0 + 3 * (W + GAP) + W / 2} V${Y0 + H + 6}`} fill="none" stroke={INK} strokeDasharray="5 4" markerEnd="url(#ndA)" />
-        <text x={X0 + 2 * W + GAP + 18} y={330 + H / 2 - 10} fontFamily={SANS} fontSize="11.5" fill={MUTE}>same two signatures, checked on the phone</text>
-        <TagLayers x={560} y={460} labelX={850} labelMax={52} step={64} />
+        <text x={X0 + 2 * W + GAP + 18} y={330 + H / 2 - 10} fontFamily={SANS} fontSize="11.5" fill={MUTE}>{t('same two signatures, checked on the phone', '同じ2つの署名を、スマホの中で確認')}</text>
+        <TagLayers x={560} y={460} labelX={850} labelMax={52} step={64} lang={lang} />
       </svg>
 
-      <svg className="nd-tall" viewBox="0 0 360 1330" role="img" aria-label="How the NFC tag proves a piece, step by step.">
+      <svg className="nd-tall" viewBox="0 0 360 1330" role="img" aria-label={t('How the NFC tag proves a piece, step by step.', 'NFCタグが作品を証明する流れ（段階ごと）')}>
         <Arrow id="ndB" />
         {main.map((s, i) => (
           <g key={s.k}>
@@ -111,9 +120,9 @@ export default function NfcDiagram() {
           </g>
         ))}
         <path d="M24 84 H10 V872 H20" fill="none" stroke={INK} markerEnd="url(#ndB)" />
-        <text x={30} y={800} fontFamily={SANS} fontSize="11.5" fill={MUTE}>or scan the hang-tag QR (no signal)</text>
+        <text x={30} y={800} fontFamily={SANS} fontSize="11.5" fill={MUTE}>{t('or scan the hang-tag QR (no signal)', 'または下げ札のQRを読み取る（電波なし）')}</text>
         <Node s={off} x={24} y={808} w={316} h={128} techMax={46} />
-        <TagLayers x={8} y={1000} labelX={8} labelMax={56} step={106} below />
+        <TagLayers x={8} y={1000} labelX={8} labelMax={56} step={106} below lang={lang} />
       </svg>
     </figure>
   );

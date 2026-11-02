@@ -9,22 +9,25 @@ import { compactOf } from '@/lib/gcpp';
 import { siteUrl } from '@/lib/server';
 import { photoUrl } from '@/lib/supabase';
 import { readTapToken } from '@/lib/sunServer';
+import { getT } from '@/lib/lang';
 
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }: { params: { cert: string } }): Promise<Metadata> {
-  return { title: `${params.cert.toUpperCase()} — Provenance passport — Gallery Crypto`, description: 'A signed, permanent record of where this piece came from and what it is made of.' };
+  const t = getT();
+  return { title: `${params.cert.toUpperCase()} — ${t('Provenance passport', '来歴パスポート')} — Gallery Crypto`, description: t('A signed, permanent record of where this piece came from and what it is made of.', 'この作品がどこから来て、何でできているかを示す、署名つきの消えない記録。') };
 }
 
 // NFC タグや QR から開く、一点ごとの来歴パスポート
 export default async function PassportPage({ params, searchParams }: { params: { cert: string }; searchParams?: { tap?: string } }) {
+  const t = getT();
   const cert = params.cert.toUpperCase();
   const dn = parseDemo(cert);
   const b = dn ? await demoPassport(dn) : await getPassport(cert);
   if (!b)
     return (
-      <MoShell title="Passport not found" kicker="Provenance">
-        <p className="mo-lead">This piece has no sealed record yet. See how passports work in the <a href="/proof">Proof Lab</a>.</p>
+      <MoShell title={t('Passport not found', 'パスポートが見つかりません')} kicker={t('Provenance', '来歴')}>
+        <p className="mo-lead">{t('This piece has no sealed record yet. See how passports work in the', 'この作品にはまだ確定した記録がありません。パスポートの仕組みは')} <a href="/proof">Proof Lab</a>{t('.', ' でご覧いただけます。')}</p>
       </MoShell>
     );
   const url = `${siteUrl()}/passport/${b.cert}`;
@@ -35,13 +38,13 @@ export default async function PassportPage({ params, searchParams }: { params: {
   // NFC タグから来たとき：サーバーがチップの使い捨てコードを確かめた印（10分有効）
   const tap = dn ? null : readTapToken(b.cert, searchParams?.tap);
   return (
-    <MoShell title={b.item ? `${b.item.band}${b.item.title ? ` — ${b.item.title}` : ''}` : b.cert} kicker={`Provenance passport · ${b.cert}`}>
+    <MoShell title={b.item ? `${b.item.band}${b.item.title ? ` — ${b.item.title}` : ''}` : b.cert} kicker={`${t('Provenance passport', '来歴パスポート')} · ${b.cert}`}>
       {tap && (
         <div className="pp-tap" role="status">
           <span className="pp-mark ok">✓</span>
           <div>
-            <b>Chip verified just now</b>
-            <span>The NFC tag sewn into this piece made a fresh one-time code that only the genuine chip can make (tap no. {tap.counter}).</span>
+            <b>{t('Chip verified just now', 'いまタップでチップを確認しました')}</b>
+            <span>{t(`The NFC tag sewn into this piece made a fresh one-time code that only the genuine chip can make (tap no. ${tap.counter}).`, `この作品に縫い込まれたNFCタグが、本物のチップにしか作れない新しい使い捨てコードを出しました（${tap.counter}回目のタップ）。`)}</span>
           </div>
         </div>
       )}
@@ -55,7 +58,7 @@ export default async function PassportPage({ params, searchParams }: { params: {
           <img src={photoUrl(photo)} alt="" />
         </div>
       )}
-      <PassportView b={b} qr={qr} url={url} offlineQr={offlineQr} offlineUrl={offlineUrl} />
+      <PassportView b={b} qr={qr} url={url} offlineQr={offlineQr} offlineUrl={offlineUrl} tapped={Boolean(tap)} />
     </MoShell>
   );
 }
