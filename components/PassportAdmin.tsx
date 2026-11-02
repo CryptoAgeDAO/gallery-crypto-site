@@ -352,8 +352,8 @@ export default function PassportAdmin() {
       {info?.ring && !info.ring.ok && <p className="status status-err">{tt('The keyring does not verify — signing is locked. Contact support before doing anything else.', '鍵の台帳の検証が通りません — 署名はロックされています。ほかの操作をする前に、サポートに連絡してください。')}</p>}
       {info && mfa && (
         <p>
-          Face ID for signing: {faces.length ? <b style={{ color: '#0b6b2c' }}>{faces.length} registered ✓</b> : <b>{tt('not set', '未設定')}</b>}
-          {faces.length > 0 && <> ({faces.map((x) => x.label).join(', ')})</>} · this device {faceHere ? '✓' : '—'}
+          {tt('Face ID for signing:', '署名用の Face ID：')} {faces.length ? <b style={{ color: '#0b6b2c' }}>{tt(`${faces.length} registered ✓`, `${faces.length}件登録済み ✓`)}</b> : <b>{tt('not set', '未設定')}</b>}
+          {faces.length > 0 && <> ({faces.map((x) => x.label).join(', ')})</>} · {tt('this device', 'この端末')} {faceHere ? '✓' : '—'}
         </p>
       )}
       {info && info.permanent && mfa && ringList.length === 0 && (
@@ -388,10 +388,10 @@ export default function PassportAdmin() {
               <tbody>
                 {keysList.map((k) => (
                   <tr key={k.key}>
-                    <td className="pa-hash">#{keyId(k.key)}{dev?.pub === k.key ? ' (this device)' : ''}</td>
+                    <td className="pa-hash">#{keyId(k.key)}{dev?.pub === k.key ? tt(' (this device)', '（この端末）') : ''}</td>
                     <td>{k.label}</td>
                     <td>{new Date(k.added).toLocaleDateString('en-US')}</td>
-                    <td>{k.revoked ? 'revoked' : 'active'}</td>
+                    <td>{k.revoked ? tt('revoked', '取り消し済み') : tt('active', '有効')}</td>
                     <td>{!k.revoked && devActive && k.key !== dev?.pub && <button className="btn danger" style={{ padding: '2px 8px', fontSize: 13 }} onClick={() => revoke(k.key, k.label)}>{tt('Revoke', '取り消す')}</button>}</td>
                   </tr>
                 ))}
@@ -448,7 +448,7 @@ export default function PassportAdmin() {
         </p>
         {info && (
           <p className="pa-hash">
-            {tt('Issuer key (= Solana address):', '発行者の鍵（= Solana のアドレス）：')} <a href={explorerAddr(info.issuer, info.chain)} target="_blank" rel="noopener noreferrer">{info.issuer}</a> · {info.chain === 'solana-mainnet' ? 'Solana mainnet' : 'Solana devnet (test network)'} · balance {info.balance == null ? '—' : `${info.balance} SOL`} · {info.permanent ? 'server key stored ✓' : tt('server key not stored yet', 'サーバーの鍵はまだ保存されていません')} · records anchored right after signing, plus daily at 3:00 JST
+            {tt('Issuer key (= Solana address):', '発行者の鍵（= Solana のアドレス）：')} <a href={explorerAddr(info.issuer, info.chain)} target="_blank" rel="noopener noreferrer">{info.issuer}</a> · {info.chain === 'solana-mainnet' ? tt('Solana mainnet', 'Solana 本番') : tt('Solana devnet (test network)', 'Solana devnet（テスト網）')} · {tt('balance', '残高')} {info.balance == null ? '—' : `${info.balance} SOL`} · {info.permanent ? tt('server key stored ✓', 'サーバーの鍵を保存済み ✓') : tt('server key not stored yet', 'サーバーの鍵はまだ保存されていません')} · {tt('records anchored right after signing, plus daily at 3:00 JST', '署名のすぐあとと、毎日午前3時（日本時間）に刻印')}
           </p>
         )}
         {info && !info.permanent && (
@@ -459,7 +459,7 @@ export default function PassportAdmin() {
           </div>
         )}
         <div className="row" style={{ justifyContent: 'flex-start' }}>
-          <button className="btn primary" disabled={busy || !pending} onClick={anchor}>Anchor {pending || ''} to Solana</button>
+          <button className="btn primary" disabled={busy || !pending} onClick={anchor}>{tt(`Anchor ${pending || ''} to Solana`, `${pending ? pending + '件を' : ''}Solana に刻印`)}</button>
           <a className="btn" href="/proof" target="_blank" rel="noreferrer">{tt('Open Proof Lab', 'Proof Lab を開く')}</a>
           <a className="btn" href="/labels" target="_blank" rel="noreferrer">{tt('Print labels', 'ラベルを印刷')}</a>
         </div>
@@ -479,7 +479,7 @@ export default function PassportAdmin() {
               <button key={i.id} className={`pa-item${sel === i.id ? ' on' : ''}`} onClick={() => setSel(i.id)}>
                 <b>{certNo(i)}</b>
                 <span>{i.band || tt('Untitled', '無題')}{i.published ? '' : tt(' · hidden', ' · 非公開')}</span>
-                <span className={`pa-st${seals ? ' sealed' : ''}`}>{seals ? `sealed v${seals} · ${rows.length} rec` : rows.length ? `${rows.length} events` : 'draft'}</span>
+                <span className={`pa-st${seals ? ' sealed' : ''}`}>{seals ? tt(`sealed v${seals} · ${rows.length} rec`, `確定 v${seals} · ${rows.length}件`) : rows.length ? tt(`${rows.length} events`, `出来事${rows.length}件`) : tt('draft', '下書き')}</span>
               </button>
             );
           })}
@@ -552,9 +552,9 @@ export default function PassportAdmin() {
 
           <div className="row" style={{ marginTop: 12 }}>
             <button className="btn" disabled={busy} onClick={saveDraft}>{tt('Save draft', '下書きを保存')}</button>
-            <button className="btn primary" disabled={busy || comp.missing.length > 0 || !devActive} onClick={seal}>Seal record{mine.some((l) => l.kind === 'seal') ? ' (new version)' : ''}</button>
+            <button className="btn primary" disabled={busy || comp.missing.length > 0 || !devActive} onClick={seal}>{tt('Seal record', '記録を確定')}{mine.some((l) => l.kind === 'seal') ? tt(' (new version)', '（新しいバージョン）') : ''}</button>
           </div>
-          {comp.missing.length > 0 && <p className="status">Still needed: {comp.missing.join(' · ')}</p>}
+          {comp.missing.length > 0 && <p className="status">{tt('Still needed:', 'まだ必要：')} {comp.missing.join(' · ')}</p>}
         </div>
       )}
 
@@ -587,9 +587,9 @@ export default function PassportAdmin() {
                     <tr key={l.id}>
                       <td>{l.seq}</td>
                       <td>{l.kind === 'seal' ? tt(`Sealed v${(l.entry.data as { version?: number }).version}`, `確定 v${(l.entry.data as { version?: number }).version}`) : jl(eventLabel(String(l.entry.data.type)))}</td>
-                      <td>{new Date(l.created_at).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' })}</td>
+                      <td>{new Date(l.created_at).toLocaleString(tt('en-US', 'ja-JP'), { dateStyle: 'short', timeStyle: 'short' })}</td>
                       <td className="pa-hash">{l.hash.slice(0, 12)}…</td>
-                      <td>{l.anchor_id ? `✓ #${l.anchor_id}` : 'pending'}</td>
+                      <td>{l.anchor_id ? `✓ #${l.anchor_id}` : tt('pending', '待機中')}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -26,7 +26,7 @@ async function call(body: Record<string, unknown>) {
 const daysAgo = (s: string | null | undefined) => (s ? Math.floor((Date.now() - Date.parse(s)) / 86400_000) : null);
 const ago = (s: string | null | undefined) => {
   const d = daysAgo(s);
-  return d === null ? 'never' : d === 0 ? 'today' : d === 1 ? 'yesterday' : `${d} days ago`;
+  return d === null ? tt('never', '未実施') : d === 0 ? tt('today', '今日') : d === 1 ? tt('yesterday', '昨日') : tt(`${d} days ago`, `${d}日前`);
 };
 
 // バックアップの中身をこの端末で検証（署名・鎖・鍵の台帳）
@@ -74,9 +74,9 @@ export default function SecurityCenter({ goto }: { goto: (tab: 'settings' | 'pas
     { ok: (info?.passkeys?.length || 0) > 0, title: tt('Face ID for every signature', '署名ごとの Face ID'), why: tt('Nothing is signed without your face, checked by the server.', 'あなたの顔認証なしには何も署名されず、サーバーがそれを確かめます。'), fix: () => goto('passport'), fixLabel: tt('Passport', 'パスポート') },
     { ok: devActive, title: tt('Founder key on this device', 'この端末の創業者の鍵'), why: tt('The second signature lives only inside your device.', '2つ目の署名は、あなたの端末の中だけにあります。'), fix: () => goto('passport'), fixLabel: tt('Passport', 'パスポート') },
     { ok: recovery, title: tt('Offline recovery key', 'オフラインの復旧鍵'), why: tt('If every device is lost, this file approves a new one.', 'すべての端末をなくしても、このファイルで新しい端末を承認できます。'), fix: () => goto('passport'), fixLabel: tt('Passport', 'パスポート') },
-    { ok: dl !== null && dl <= 30, title: 'Encrypted backup (last 30 days)', why: `Your own copy of everything, sealed with a passphrase. Last: ${ago(info?.backups?.download)}.` },
-    { ok: sn !== null && sn <= 2, title: tt('Daily automatic snapshot', '毎日の自動スナップショット'), why: `Signed records saved every night at 3:00 JST. Last: ${ago(info?.backups?.snapshot)}.` },
-    { ok: (info?.backups?.pending ?? 1) === 0, title: tt('Everything anchored on Solana', 'すべて Solana に刻印済み'), why: `${info?.backups?.pending ?? '—'} records waiting. Balance ${info?.balance ?? '—'} SOL.` },
+    { ok: dl !== null && dl <= 30, title: tt('Encrypted backup (last 30 days)', '暗号化バックアップ（30日以内）'), why: tt(`Your own copy of everything, sealed with a passphrase. Last: ${ago(info?.backups?.download)}.`, `パスフレーズで封じた、すべての控え。前回：${ago(info?.backups?.download)}。`) },
+    { ok: sn !== null && sn <= 2, title: tt('Daily automatic snapshot', '毎日の自動スナップショット'), why: tt(`Signed records saved every night at 3:00 JST. Last: ${ago(info?.backups?.snapshot)}.`, `署名済みの記録を毎晩午前3時（日本時間）に保存。前回：${ago(info?.backups?.snapshot)}。`) },
+    { ok: (info?.backups?.pending ?? 1) === 0, title: tt('Everything anchored on Solana', 'すべて Solana に刻印済み'), why: tt(`${info?.backups?.pending ?? '—'} records waiting. Balance ${info?.balance ?? '—'} SOL.`, `待機中の記録 ${info?.backups?.pending ?? '—'}件。残高 ${info?.balance ?? '—'} SOL。`) },
     { ok: Boolean(ring && (ring.ok || !info?.ring?.list.length)), title: tt('Keyring verifies', '鍵の台帳の検証が通る'), why: tt('Every key change was approved by an active key.', '鍵の変更はすべて、有効な鍵が承認しています。') },
   ];
   const score = checks.filter((c) => c.ok).length;
@@ -172,7 +172,7 @@ export default function SecurityCenter({ goto }: { goto: (tab: 'settings' | 'pas
   return (
     <>
       <div className="sec">
-        <h4>Security · {score} / {checks.length}</h4>
+        <h4>{tt('Security', 'セキュリティ')} · {score} / {checks.length}</h4>
         <div className={`pa-meter${score === checks.length ? ' full' : ''}`}><i style={{ width: `${(score / checks.length) * 100}%` }} /></div>
         <ol className="sc-list">
           {checks.map((c) => (

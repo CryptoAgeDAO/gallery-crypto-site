@@ -25,7 +25,7 @@ const BLANK: Omit<Item, 'id' | 'serial' | 'created_at'> = {
   listen: '', audio_path: '', audio_name: '', audio_credit: '',
 };
 
-const fmt = (s: string) => new Date(s).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' });
+const fmt = (s: string) => new Date(s).toLocaleString(tt('en-US', 'ja-JP'), { dateStyle: 'short', timeStyle: 'short' });
 
 function csvDownload(name: string, rows: (string | number | null)[][]) {
   const esc = (v: string | number | null) => {
@@ -337,7 +337,7 @@ function Items() {
               <div className="ph">{it.photos[0] ? <img src={photoUrl(it.photos[0])} alt="" loading="lazy" /> : <span className="noimg">{tt('No image', '画像なし')}</span>}</div>
               <div className="cap">
                 <span className="nm">{it.band || '(no band yet)'}</span>
-                <span className="sub">{certNo(it)}{it.published ? '' : ' · draft'}{it.rank ? ` · ${it.rank}` : ''}{it.sold ? ' · SOLD' : it.price_usd ? ` · ${usd(it.price_usd)}` : ''}</span>
+                <span className="sub">{certNo(it)}{it.published ? '' : tt(' · draft', ' · 下書き')}{it.rank ? ` · ${it.rank}` : ''}{it.sold ? tt(' · SOLD', ' · 売約済み') : it.price_usd ? ` · ${usd(it.price_usd)}` : ''}</span>
               </div>
             </button>
             <button className="btn danger" style={{ fontSize: 11, padding: '4px 8px' }} onClick={async () => {
@@ -382,7 +382,7 @@ function Entries() {
   };
   return (
     <div className="sec">
-      <h4>Draw entries ({rows.length} · {uniq} people · {rows.filter((r) => r.won).length} winners)</h4>
+      <h4>{tt(`Draw entries (${rows.length} · ${uniq} people · ${rows.filter((r) => r.won).length} winners)`, `抽選の応募（${rows.length}件 · ${uniq}人 · 当選 ${rows.filter((r) => r.won).length}人）`)}</h4>
       <p>{tt('Marking a winner creates a one-time purchase link only they can use. It works even before general sale opens.', '当選にすると、その人だけが使える1回限りの購入リンクができます。一般販売の開始前でも使えます。')}</p>
       <div className="row" style={{ justifyContent: 'flex-start' }}>
         <label className="check" style={{ fontSize: 12 }}><input type="checkbox" checked={onlyWon} onChange={(e) => setOnlyWon(e.target.checked)} />{tt('Winners only', '当選者のみ')}</label>
@@ -433,7 +433,7 @@ function Orders() {
   const total = rows.reduce((n, r) => n + r.amount, 0) / 100;
   return (
     <div className="sec">
-      <h4>Orders ({rows.length} · total {usd(total) || '$0'})</h4>
+      <h4>{tt(`Orders (${rows.length} · total ${usd(total) || '$0'})`, `注文（${rows.length}件 · 合計 ${usd(total) || '$0'}）`)}</h4>
       <p>{tt('Paid orders appear here automatically and the piece is marked sold. Refunds are made in the Stripe dashboard.', '支払いが済んだ注文は自動でここに表示され、作品は売約済みになります。返金は Stripe の管理画面で行います。')}</p>
       <div className="row" style={{ justifyContent: 'flex-start' }}>
         <button className="btn" onClick={() => csvDownload('orders.csv', [['date', 'item', 'name', 'email', 'amount', 'currency', 'address', 'shipped'], ...rows.map((r) => [r.created_at, r.item_id ? names[r.item_id] || '' : '', r.name, r.email, r.amount / 100, r.currency, addr(r.shipping), r.shipped_at || ''])])}>CSV</button>
@@ -543,7 +543,7 @@ function EventsAdmin() {
   };
   const draw = async () => {
     if (!ev || !rows.length) return;
-    const msg = ev.mode === 'lottery' ? `Draw ${Math.min(ev.capacity, rows.length)} winners from ${rows.length} tickets? Ticket holders see the result right away.` : `Draw the entry order for ${rows.length} tickets? Ticket holders see their number right away.`;
+    const msg = ev.mode === 'lottery' ? tt(`Draw ${Math.min(ev.capacity, rows.length)} winners from ${rows.length} tickets? Ticket holders see the result right away.`, `チケット${rows.length}枚から当選者${Math.min(ev.capacity, rows.length)}人を抽選しますか？結果はすぐにチケットに表示されます。`) : tt(`Draw the entry order for ${rows.length} tickets? Ticket holders see their number right away.`, `チケット${rows.length}枚の入場順を抽選しますか？番号はすぐにチケットに表示されます。`);
     if (!confirm(msg)) return;
     setSt(tt('Drawing…', '抽選中…'));
     const order = shuffle(rows);
@@ -629,7 +629,7 @@ function EventsAdmin() {
               <button key={e.id} className={`ev-adm-item${sel === e.id ? ' on' : ''}`} onClick={() => { setSel(e.id); setEditing(false); }}>
                 <span className="ev-badge sm">{e.mode === 'lottery' ? 'LOTTERY' : 'ORDER'}</span>
                 <b>{e.title || tt('Untitled', '無題')}</b>
-                <span>{eventDate(e.starts_at)}</span>
+                <span>{eventDate(e.starts_at, tt('en', 'ja') as 'en' | 'ja')}</span>
                 <span className={`ev-st ${e.status}`}>{e.status}{e.published ? '' : tt(' · hidden', ' · 非公開')}</span>
               </button>
             ))}
@@ -665,12 +665,12 @@ function EventsAdmin() {
       {ev && !editing && (
         <div className="sec">
           <h4><span className="ev-badge">EVENT</span> {ev.title}</h4>
-          <p>{eventDate(ev.starts_at)}{ev.venue ? ` · ${ev.venue}` : ''} · {ev.mode === 'lottery' ? `Lottery, ${ev.capacity} winners` : tt('Entry order by draw', '入場順を抽選')} · Status: <b>{ev.status}</b> · {rows.length} tickets</p>
+          <p>{eventDate(ev.starts_at, tt('en', 'ja') as 'en' | 'ja')}{ev.venue ? ` · ${ev.venue}` : ''} · {ev.mode === 'lottery' ? tt(`Lottery, ${ev.capacity} winners`, `抽選・当選${ev.capacity}人`) : tt('Entry order by draw', '入場順を抽選')} · {tt('Status:', '状態：')} <b>{ev.status === 'open' ? tt('open', '受付中') : ev.status === 'closed' ? tt('closed', '受付終了') : tt('drawn', '抽選済み')}</b> · {tt(`${rows.length} tickets`, `チケット${rows.length}枚`)}</p>
           <div className="row" style={{ justifyContent: 'flex-start' }}>
             <button className="btn" onClick={() => { setForm({ id: ev.id, title: ev.title, starts_at: toLocal(ev.starts_at), venue: ev.venue, description: ev.description, mode: ev.mode, capacity: ev.capacity, published: ev.published }); setEditing(true); }}>{tt('Edit', '編集')}</button>
             {ev.status === 'open' && <button className="btn" onClick={() => setStatus('closed')}>{tt('Close tickets', '受付を締め切る')}</button>}
             {ev.status === 'closed' && <button className="btn" onClick={() => setStatus('open')}>{tt('Reopen tickets', '受付を再開')}</button>}
-            {ev.status !== 'drawn' && <button className="btn primary" disabled={!rows.length} onClick={draw}>{ev.mode === 'lottery' ? 'Draw winners' : 'Draw the order'}</button>}
+            {ev.status !== 'drawn' && <button className="btn primary" disabled={!rows.length} onClick={draw}>{ev.mode === 'lottery' ? tt('Draw winners', '当選者を抽選') : tt('Draw the order', '入場順を抽選')}</button>}
             {ev.status === 'drawn' && <button className="btn" onClick={reset}>{tt('Clear results', '結果を消す')}</button>}
             <button className="btn danger" onClick={remove}>{tt('Delete event', 'イベントを削除')}</button>
           </div>
@@ -687,7 +687,7 @@ function EventsAdmin() {
                       <td>#{String(r.ticket_no || 0).padStart(4, '0')}</td>
                       <td>{r.name || '—'}</td>
                       <td><a href={`mailto:${r.email}`}>{r.email}</a></td>
-                      <td>{ev.mode === 'order' ? (r.position ? String(r.position).padStart(3, '0') : '—') : r.result === 'win' ? <b style={{ color: 'var(--red)' }}>WIN</b> : r.result === 'lose' ? 'lose' : '—'}</td>
+                      <td>{ev.mode === 'order' ? (r.position ? String(r.position).padStart(3, '0') : '—') : r.result === 'win' ? <b style={{ color: 'var(--red)' }}>WIN</b> : r.result === 'lose' ? tt('lose', '落選') : '—'}</td>
                       <td>{fmt(r.created_at)}</td>
                       <td style={{ whiteSpace: 'nowrap' }}>
                         <button className="btn" style={{ padding: '4px 8px', fontSize: 13 }} onClick={async () => { await navigator.clipboard.writeText(link(r.token)); setSt(tt('Link copied', 'リンクをコピーしました')); }}>{tt('Copy', 'コピー')}</button>{' '}

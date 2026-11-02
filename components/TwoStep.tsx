@@ -77,7 +77,7 @@ export function MfaChallenge({ onDone }: { onDone: () => void }) {
         </div>
       )}
       {(kinds.totp.length > 0 || !kinds.webauthn.length) && <>
-      <p>{kinds.webauthn.length ? tt('Or enter', 'または入力：') : tt('Open your authenticator app and enter', '認証アプリを開いて入力：')} the 6-digit code for Gallery Crypto.</p>
+      <p>{kinds.webauthn.length ? tt('Or enter', 'または入力：') : tt('Open your authenticator app and enter', '認証アプリを開いて、')} {tt('the 6-digit code for Gallery Crypto.', 'Gallery Crypto の6桁のコードを入力してください。')}</p>
       <div className="form">
         <label className="wide">{tt('Code', 'コード')}<input type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} autoFocus value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} /></label>
       </div>
@@ -162,11 +162,11 @@ export function TwoStepSettings() {
       </p>
       {factors.length > 0 ? (
         <>
-          <p><b style={{ color: '#0b6b2c' }}>{tt('On ✓', 'オン ✓')}</b> · this session: {aal?.current === 'aal2' ? 'verified with a code ✓' : 'not verified yet'}</p>
+          <p><b style={{ color: '#0b6b2c' }}>{tt('On ✓', 'オン ✓')}</b> · {tt('this session:', 'このログイン：')} {aal?.current === 'aal2' ? tt('verified with a code ✓', 'コードで確認済み ✓') : tt('not verified yet', '未確認')}</p>
           <ul style={{ margin: 0, paddingLeft: 18 }}>
             {factors.map((f) => (
               <li key={f.id}>
-                {f.friendly_name || tt('Authenticator', '認証アプリ')} · added {new Date(f.created_at).toLocaleDateString('en-US')}{' '}
+                {f.friendly_name || tt('Authenticator', '認証アプリ')} · {tt('added', '追加日')} {new Date(f.created_at).toLocaleDateString(tt('en-US', 'ja-JP'))}{' '}
                 {aal?.current === 'aal2' && <button className="btn danger" style={{ padding: '2px 8px', fontSize: 13 }} onClick={() => remove(f)}>{tt('Remove', '外す')}</button>}
               </li>
             ))}

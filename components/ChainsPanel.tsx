@@ -65,11 +65,11 @@ export default function ChainsPanel() {
   return (
     <div className="ch">
       <h4>{tt('Where records are written', '記録の書き込み先')}</h4>
-      <p>{tt('Every new record is written as one fingerprint to Solana, and — if switched on — mirrored to the XRP Ledger. Start on the test networks; switch to main when the first real pieces are sealed. The public track record is at', '新しい記録はすべて1つの指紋として Solana に書き込まれ、オンにすれば XRP Ledger にも同じものを記録します。最初はテスト網で始め、本物の作品を初めて確定したら本番に切り替えてください。公開の運用実績はこちら：')} <a href="/ledger" target="_blank" rel="noreferrer">/ledger</a> ({c.anchors} writes so far).</p>
+      <p>{tt('Every new record is written as one fingerprint to Solana, and — if switched on — mirrored to the XRP Ledger. Start on the test networks; switch to main when the first real pieces are sealed. The public track record is at', '新しい記録はすべて1つの指紋として Solana に書き込まれ、オンにすれば XRP Ledger にも同じものを記録します。最初はテスト網で始め、本物の作品を初めて確定したら本番に切り替えてください。公開の運用実績はこちら：')} <a href="/ledger" target="_blank" rel="noreferrer">/ledger</a> {tt(` (${c.anchors} writes so far).`, `（これまでの書き込み ${c.anchors}件）`)}</p>
 
       <div className="ch-row">
         <div>
-          <b>Solana</b> · {solMain ? 'mainnet' : 'devnet (test, free)'} · balance {c.solanaBalance == null ? '—' : `${c.solanaBalance} SOL`}
+          <b>Solana</b> · {solMain ? tt('mainnet', '本番') : tt('devnet (test, free)', 'devnet（テスト・無料）')} · {tt('balance', '残高')} {c.solanaBalance == null ? '—' : `${c.solanaBalance} SOL`}
           <p className="ch-addr"><a href={explorerAddr(c.solanaAddress, c.solana)} target="_blank" rel="noopener noreferrer">{c.solanaAddress}</a></p>
         </div>
         <div className="ch-seg" role="group" aria-label="Solana network">
@@ -88,7 +88,7 @@ export default function ChainsPanel() {
 
       <div className="ch-row">
         <div>
-          <b>{tt('XRP Ledger mirror', 'XRP Ledger への記録')}</b> · {c.xrpl === 'off' ? 'off' : xrMain ? 'mainnet' : 'testnet (test, free)'} · balance {c.xrpl === 'off' || c.xrplBalance == null ? '—' : `${c.xrplBalance} XRP`}
+          <b>{tt('XRP Ledger mirror', 'XRP Ledger への記録')}</b> · {c.xrpl === 'off' ? tt('off', 'オフ') : xrMain ? tt('mainnet', '本番') : tt('testnet (test, free)', 'testnet（テスト・無料）')} · {tt('balance', '残高')} {c.xrpl === 'off' || c.xrplBalance == null ? '—' : `${c.xrplBalance} XRP`}
           <p className="ch-addr"><a href={explorerXrplAddr(c.xrplAddress, c.xrpl === 'off' ? 'xrpl-testnet' : c.xrpl)} target="_blank" rel="noopener noreferrer">{c.xrplAddress}</a></p>
         </div>
         <div className="ch-seg" role="group" aria-label="XRPL network">
