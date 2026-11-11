@@ -245,7 +245,7 @@ export default function Site({ settings: s, items, events = [], sealed = [], mod
   // 作品が少ないあいだは、番号だけの空き枠で列をそろえる
   const slots = Math.max(items.length, 3);
   const heroItem = items.find((i) => i.photos[0]);
-  const hero = demo ? '/demo/hero.jpg' : heroItem ? photoUrl(heroItem.photos[0]) : '';
+  const hero = demo ? '/demo/hero-bust.jpg' : heroItem ? photoUrl(heroItem.photos[0]) : '';
 
   return (
     <div className="mo gx">
@@ -281,7 +281,7 @@ export default function Site({ settings: s, items, events = [], sealed = [], mod
         </header>
       </div>
 
-      <section className={`mo-hero${hero ? ' img' : ''}`} style={hero ? { backgroundImage: `url(${hero})` } : undefined}>
+      <section className={`mo-hero${hero ? ' img' : ''}`} style={hero ? { backgroundImage: `url(${hero})`, backgroundPosition: demo ? '72% center' : undefined } : undefined}>
         <div className="mo-hero-in">
           <p className="mo-kicker">{def(s.launch, 'Release 2027 · Date TBA', '2027年発売 · 日程未定')}</p>
           <h1>{def(s.headline, "Founder's Archive", '創業者のアーカイブ')}</h1>
