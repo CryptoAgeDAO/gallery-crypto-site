@@ -1,3 +1,8 @@
+import '@fontsource/anton/400.css';
+import '@fontsource/oswald/400.css';
+import '@fontsource/oswald/500.css';
+import '@fontsource/oswald/600.css';
+import '@fontsource/dela-gothic-one/400.css';
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
 import { LangProvider } from '@/components/Lang';

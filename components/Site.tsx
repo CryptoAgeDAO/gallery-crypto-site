@@ -10,6 +10,7 @@ import { MusicBar, PlayButton } from '@/components/Music';
 import { sfx } from '@/lib/sfx';
 import { LangToggle, useLang } from '@/components/Lang';
 import type { T } from '@/lib/i18n';
+import GameHud, { hudBanner } from '@/components/GameHud';
 
 // 公開サイト：白と黒だけ、装飾なし。論文のように番号つきの節で並べる（匿名性・静けさ・読みやすさ）。
 
@@ -52,7 +53,10 @@ function DrawForm({ itemId, label }: { itemId: string | null; label?: string }) 
         if (hp) return;
         setSt({ kind: 'busy' });
         const r = await enter(email, itemId, t);
-        if (r.kind === 'ok') sfx('coin');
+        if (r.kind === 'ok') {
+          sfx('coin');
+          hudBanner(t('Entry confirmed', '応募完了'), t('You are in the 2027 draw', '2027年の抽選に参加しました'));
+        }
         setSt(r);
       }}
     >
@@ -132,6 +136,7 @@ function Detail({ it, onClose, saleOpen, sealed, demo, model }: { it: Item; onCl
           )}
         </div>
         <div className="mo-dinfo">
+          <p className="gx-brief">{t('Briefing', 'ブリーフィング')}</p>
           <p className="mo-no">{demo ? t('Demo piece', 'デモ作品') : certNo(it)} · {t('1 of 1', '一点もの')}</p>
           <h2 className="mo-dh">{it.band || t('Untitled', '無題')}</h2>
           {it.title && <p className="mo-dsub">{it.title}</p>}
@@ -203,7 +208,10 @@ function Contact({ email }: { email: string }) {
         if (!db) return setSt({ kind: 'err', text: t('The form is not open yet.', 'フォームはまだ受け付けていません。') });
         setSt({ kind: 'busy' });
         const { error } = await db.from('messages').insert({ name: f.name.trim(), email: f.email.trim(), body: f.body.trim() });
-        if (!error) notify('message', f.email);
+        if (!error) {
+          notify('message', f.email);
+          hudBanner(t('Message sent', '送信完了'), t('We will reply by email', 'メールでお返事します'));
+        }
         setSt(error ? { kind: 'err', text: t('Your message could not be sent. Please try again in a moment.', '送信できませんでした。少し時間をおいて、もう一度お試しください。') } : { kind: 'ok', text: t('Thank you. Your message has been sent.', 'ありがとうございます。メッセージを送信しました。') });
       }}
     >
@@ -240,7 +248,17 @@ export default function Site({ settings: s, items, events = [], sealed = [], mod
   const hero = demo ? '/demo/hero.jpg' : heroItem ? photoUrl(heroItem.photos[0]) : '';
 
   return (
-    <div className="mo">
+    <div className="mo gx">
+      <GameHud
+        sections={[
+          { id: 'archive', label: t('Archive', 'アーカイブ'), goal: t('Pick a piece to open its briefing', '作品を選んでブリーフィングを開く') },
+          ...(events.length ? [{ id: 'events', label: t('Events', 'イベント'), goal: t('Get a ticket for an event', 'イベントのチケットを取る') }] : []),
+          { id: 'draw', label: t('Draw', '抽選'), goal: t('Enter the free draw', '無料の抽選に応募する') },
+          { id: 'provenance', label: t('Provenance', '来歴'), goal: t('See how every piece is proven', '作品の証明のしくみを見る') },
+          { id: 'contact', label: t('Contact', 'お問い合わせ'), goal: t('Send us a message', 'メッセージを送る') },
+        ]}
+        stats={[demo ? t('Demo', 'デモ') : t(`${items.length} pieces`, `${items.length}点`), s.sale_open ? t('Sale open', '販売中') : t('Draw open', '抽選受付中')]}
+      />
       <div className="mo-page">
         <header className="mo-mast">
           <nav className="mo-nav l" aria-label="Collection">
@@ -267,7 +285,7 @@ export default function Site({ settings: s, items, events = [], sealed = [], mod
         <div className="mo-hero-in">
           <p className="mo-kicker">{def(s.launch, 'Release 2027 · Date TBA', '2027年発売 · 日程未定')}</p>
           <h1>{def(s.headline, "Founder's Archive", '創業者のアーカイブ')}</h1>
-          <a className="mo-heroa" href="#archive">{t('Explore the archive', 'アーカイブを見る')}</a>
+          <a className="mo-heroa" href="#archive"><kbd aria-hidden>E</kbd>{t('Explore the archive', 'アーカイブを見る')}</a>
           {demo && <a className="mo-herob" href="/demo">{t('Or try the provenance demo', '来歴のデモを試す')}</a>}
         </div>
       </section>
@@ -291,7 +309,7 @@ export default function Site({ settings: s, items, events = [], sealed = [], mod
                   </div>
                 );
               return (
-                <button key={it.id} className="mo-item" onClick={() => (sfx('open'), setOpen(it))} aria-label={`${it.band} ${it.title}`}>
+                <button key={it.id} className="mo-item" data-go={t('View', '見る')} onClick={() => (sfx('open'), setOpen(it))} aria-label={`${it.band} ${it.title}`}>
                   <Photo src={it.photos[0] ? photoUrl(it.photos[0]) : undefined} alt={`${it.band} ${it.title}`.trim()} n={certNo(it)} />
                   <p className="mo-ino">
                     <span>{demo ? t('Demo', 'デモ') : certNo(it)}</span>

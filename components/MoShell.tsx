@@ -1,11 +1,13 @@
 'use client';
 // 共通の外枠（パスポート・Proof Lab・検証・仕様書・購入・お礼・プライバシー・特商法）。トップと同じ白黒の静かな見た目
 import { LangToggle, useLang } from './Lang';
+import GameHud from './GameHud';
 
 export default function MoShell({ kicker, title, children }: { kicker?: string; title: string; children: React.ReactNode }) {
   const { t } = useLang();
   return (
-    <div className="mo">
+    <div className="mo gx">
+      <GameHud goal={title} />
       <div className="mo-page">
         <header className="mo-mast">
           <nav className="mo-nav l" aria-label="Collection">
