@@ -1032,10 +1032,10 @@ html[lang=ja] .gx .mo-iname{font-size:19px;line-height:1.25}
 .gx code,.gx pre{color:var(--gold)}
 /* Film-photo look for all public images: black & white, contrast, grain (colour returns on hover) */
 .gx{--grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
-.gx .mo-hero.img{background-color:#707070;background-blend-mode:luminosity}
-.gx .mo-hero::after{background:var(--grain),radial-gradient(ellipse at 50% 45%,transparent 45%,rgba(0,0,0,.55) 100%);opacity:.9;mix-blend-mode:overlay}
-.gx .mo-ph img,.gx .mo-dpic img,.gx .mo-thumbs img,.gx .dm-img img,.gx .pp-photo img{filter:grayscale(1) contrast(1.22) brightness(.93);transition:filter .5s,transform .9s cubic-bezier(.2,.7,.2,1)}
-.gx .mo-item:hover .mo-ph img,.gx .mo-item:focus-visible .mo-ph img,.gx .mo-dpic:hover img{filter:grayscale(.1) contrast(1.08)}
-.gx .mo-ph::after{background:var(--grain),linear-gradient(180deg,transparent 60%,rgba(11,10,17,.75));mix-blend-mode:normal;opacity:.75}
+.gx .mo-hero.img{background-color:#b98a5e;background-blend-mode:soft-light}
+.gx .mo-hero::after{background:var(--grain),linear-gradient(rgba(255,196,130,.10),rgba(40,70,90,.10)),radial-gradient(ellipse at 50% 45%,transparent 40%,rgba(0,0,0,.6) 100%);opacity:.9;mix-blend-mode:overlay}
+.gx .mo-ph img,.gx .mo-dpic img,.gx .mo-thumbs img,.gx .dm-img img,.gx .pp-photo img{filter:sepia(.24) saturate(.85) contrast(1.06) brightness(.98) hue-rotate(-6deg);transition:filter .5s,transform .9s cubic-bezier(.2,.7,.2,1)}
+.gx .mo-item:hover .mo-ph img,.gx .mo-item:focus-visible .mo-ph img,.gx .mo-dpic:hover img{filter:none}
+.gx .mo-ph::after{background:var(--grain),radial-gradient(ellipse at 50% 42%,transparent 42%,rgba(20,12,6,.62) 100%),linear-gradient(180deg,transparent 60%,rgba(11,10,17,.75));mix-blend-mode:normal;opacity:.75}
 .gx .mo-dpic{position:relative}
-.gx .mo-dpic::after{content:"";position:absolute;inset:0;pointer-events:none;background:var(--grain);opacity:.45;mix-blend-mode:overlay}
+.gx .mo-dpic::after{content:"";position:absolute;inset:0;pointer-events:none;background:var(--grain),radial-gradient(ellipse at 50% 45%,transparent 55%,rgba(20,12,6,.45) 100%);opacity:.45;mix-blend-mode:overlay}
