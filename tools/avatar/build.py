@@ -107,6 +107,61 @@ def push_tee(Q):
     return Q
 vs_t, t_t, Q_t, b_t = shell(inT, lambda B: 0.22 + 0.18 * np.clip((chest_y - B[:, 1]) / 4, 0, 1), 90, push_tee, 0.15)
 
+# ── ネルシャツ（前を開けて羽織る。袖は前腕の途中までまくる）──
+sleeve2 = np.zeros(len(P), bool)
+for sd in 'LR':
+    a0 = H[f'upperarm01.{sd}']; w0 = H[f'wrist.{sd}']
+    sleeve2 |= (along(P, a0, w0) < 0.72)
+inS = (P[:, 1] < neck_y + 0.25) & (P[:, 1] > crotch_y - 0.95) & (headw < 0.5) & ((arm < 0.5) | sleeve2) & (foot < 0.1)
+def push_shirt(Q):
+    y = Q[:, 1]
+    torso = (np.abs(Q[:, 0]) < 2.4) & (y < neck_y - 0.6)
+    dx = Q[:, 0]; dz = Q[:, 2] - axis_t[2]
+    r = np.hypot(dx * 0.92, dz * 1.35)
+    want = 2.25 + 0.18 * np.clip((chest_y - y) / 3, 0, 1)
+    m = torso & (r < want)
+    k = want[m] / np.maximum(r[m], 1e-6)
+    Q[m, 0] *= k; Q[m, 2] = axis_t[2] + dz[m] * k
+    return Q
+vs_f, t_f, Q_f, b_f = shell(inS, lambda B: 0.3 + 0.16 * np.clip((chest_y - B[:, 1]) / 4, 0, 1), 90, push_shirt, 0.27)
+# 前の開き：胸の中央の三角形を外す（首元は広く、下は少し狭く）
+cen = Q_f[t_f].mean(1)
+torso_c = np.abs(cen[:, 0]) < 1.6
+openw = 0.34 + 0.18 * np.clip((cen[:, 1] - (chest_y - 1.5)) / 2.5, 0, 1)
+front = (cen[:, 2] > 0.25) & torso_c & (np.abs(cen[:, 0]) < openw)
+t_f = t_f[~front]
+from collections import Counter
+ec2 = Counter()
+for a_, b_, c_ in t_f:
+    for e in ((a_, b_), (b_, c_), (c_, a_)): ec2[tuple(sorted(e))] += 1
+edge_v = set()
+for (a_, b_), k in ec2.items():
+    if k == 1: edge_v |= {a_, b_}
+for v in edge_v:
+    q = Q_f[v]
+    if q[2] > 0.2 and abs(q[0]) < 0.9 and q[1] < neck_y - 0.2:
+        ow = 0.34 + 0.18 * np.clip((q[1] - (chest_y - 1.5)) / 2.5, 0, 1)
+        Q_f[v, 0] = np.sign(q[0]) * ow
+fh = b_f & (Q_f[:, 1] < crotch_y + 0.4)
+Q_f[fh, 1] = crotch_y - 0.75
+# 格子柄の UV：胴は体のまわりの角度、腕は腕のまわりの角度
+UVf = np.zeros((len(Q_f), 2))
+armf = arm[vs_f] > 0.5
+ang = np.arctan2(Q_f[:, 0], Q_f[:, 2] - 0.2)
+UVf[:, 0] = ang / (2 * np.pi) * 3.2
+UVf[:, 1] = Q_f[:, 1] * 0.55
+for sd, sx in (('L', 1), ('R', -1)):
+    a0 = H[f'upperarm01.{sd}']; w0 = H[f'wrist.{sd}']
+    m = armf & (np.sign(Q_f[:, 0]) == sx)
+    ax = (w0 - a0) / np.linalg.norm(w0 - a0)
+    rel = Q_f[m] - a0
+    tt = rel @ ax
+    perp = rel - np.outer(tt, ax)
+    e1 = np.cross(ax, [0, 0, 1.0]); e1 /= np.linalg.norm(e1); e2 = np.cross(ax, e1)
+    UVf[m, 0] = np.arctan2(perp @ e2, perp @ e1) / (2 * np.pi) * 1.4
+    UVf[m, 1] = tt * 0.55
+shirtM = {'name': 'shirt', 'P': Q_f, 'T': t_f, 'UV': UVf}
+
 # ── パンツ（ワイド、裾はくるぶし）──
 def push_pants(Q):
     for s, sx in (('L', 1), ('R', -1)):
@@ -171,7 +226,7 @@ face = (z > ez - 0.55) & (y < ey + 0.45)
 fade = np.clip((y - (ey - 0.75)) / 0.55, 0, 1) * ~face * (np.abs(x) < 0.95) * (y > ey - 1.0)
 ear = (np.abs(x) > 0.62) & (y < ey + 0.15) & (y > ey - 0.6) & (z > hc[2] - 0.35) & (z < hc[2] + 0.2)
 fade = fade * ~ear
-C_b = C_b + (lin([0.42, 0.32, 0.19]) - C_b) * np.clip(fade * 1.15, 0, 0.9)[:, None]
+C_b = C_b + (lin([0.09, 0.065, 0.05]) - C_b) * np.clip(fade * 1.15, 0, 0.92)[:, None]
 # 肌のむら（頬・鼻・耳は少し赤く、全体に低い周波数のむら）
 warm = np.exp(-((np.abs(x) - 0.42) ** 2 / 0.05 + (y - (ey - 0.45)) ** 2 / 0.06)) * (z > ez - 0.3)
 nose_t = np.exp(-(x ** 2 / 0.02 + (y - (ey - 0.38)) ** 2 / 0.03)) * (z > ez + 0.1)
@@ -186,7 +241,14 @@ nose_y = ey - 0.42
 stub = (y < nose_y + 0.02) & (y > ey - 1.42) & (z > hc[2] - 0.15) & (np.abs(x) < 0.66)
 stub_k = np.clip((nose_y + 0.02 - y) / 0.12, 0, 1) * np.clip((y - (ey - 1.42)) / 0.15, 0, 1) * np.clip((0.66 - np.abs(x)) / 0.2, 0, 1)
 stub_k = stub_k * stub * (1 - np.clip(lips * 1.5, 0, 1)) * (0.75 + 0.25 * rng.random(len(stub_k)))
-C_b = C_b + (lin([0.27, 0.21, 0.17]) - C_b) * np.clip(stub_k * 0.55, 0, 0.55)[:, None]
+C_b = C_b + (lin([0.2, 0.15, 0.12]) - C_b) * np.clip(stub_k * 0.7, 0, 0.7)[:, None]
+# ヤギひげと口ひげ（濃い部分）
+goatee = np.clip(1 - np.abs(x) / 0.24, 0, 1) * np.clip((ey - 0.98 - y) / 0.06, 0, 1) * np.clip((y - (ey - 1.45)) / 0.08, 0, 1) * (z > hc[2] - 0.1)
+print('goatee', int((goatee > .3).sum()), 'z range', z[goatee > .3].min() if (goatee > .3).any() else None)
+must = np.clip(1 - np.abs(x) / 0.3, 0, 1) * np.clip(1 - np.abs(y - (ey - 0.64)) / 0.1, 0, 1) * (z > ez - 0.3)
+print('must', int((must > .3).sum()))
+dk = np.clip(np.maximum(goatee * 1.6, must * 1.2) * 1.4, 0, 0.97) * (1 - np.clip(lips * 2, 0, 1)) * (0.8 + 0.2 * rng.random(len(x)))
+C_b = C_b + (lin([0.06, 0.045, 0.035]) - C_b) * dk[:, None]
 # ── 髪（短い刈り上げ）、まつ毛、目 ──
 def group(name):
     return tris([i for i, g in enumerate(G) if g == name])
@@ -202,7 +264,7 @@ for s in 'lr':
 
 # ── 長い髪（キャップの下から肩まで）。ひもを重力で垂らし、体とTシャツに当てて止める ──
 from scipy.spatial import cKDTree
-coll = np.vstack([Pb[Pb[:, 1] > 4.5], Q_t[Q_t[:, 1] > 4.5]])
+coll = np.vstack([Pb[Pb[:, 1] > 4.5], Q_t[Q_t[:, 1] > 4.5], Q_f[Q_f[:, 1] > 3.5]])
 tree = cKDTree(coll)
 S_CAP, TOPD, HZ = 3.0, 10.1526, 1.1348
 rim_y = TOPD - (2.2 / S_CAP)
@@ -214,7 +276,7 @@ def grow(p, out, L, i, step=0.11, lift=0.9):
     for k in range(n):
         tk = k / n
         g = np.array([0, -1, 0]) * (0.22 + 0.5 * tk)
-        wave = np.array([np.cos(k * 0.45 + i * 1.7), 0, np.sin(k * 0.45 + i * 1.3)]) * 0.035
+        wave = np.array([np.cos(k * 0.62 + i * 1.7), 0, np.sin(k * 0.62 + i * 1.3)]) * (0.05 + 0.06 * tk)
         d = d * 0.82 + g + wave + rng.normal(0, 0.018, 3); d /= np.linalg.norm(d)
         q = p + d * step
         for _ in range(3):
@@ -229,7 +291,7 @@ def grow(p, out, L, i, step=0.11, lift=0.9):
     return np.array(pts)
 # 房（ガイド）を作り、その周りに細い毛束を寄せる（毛先ほど房にまとまる）
 guides = []
-NG = 150
+NG = 190
 for gi in range(NG):
     ph = rng.uniform(0.9, 2 * np.pi - 0.9)
     if ph > np.pi: ph -= 2 * np.pi
@@ -237,10 +299,10 @@ for gi in range(NG):
     y0 = rim_y - 0.03 - rng.random() * 0.1
     p = np.array([0.84 * np.sin(ph), y0, cz + 1.05 * np.cos(ph)])
     out = np.array([np.sin(ph), 0, np.cos(ph)])
-    L = 2.5 + 0.7 * rng.random() - 0.5 * front
+    L = 3.3 + 0.9 * rng.random() - 0.5 * front
     guides.append((grow(p, out, L, gi), ph, out))
 strands = []
-for layer, (count, inset, tone) in enumerate(((5, 0.0, 0.8), (3, 0.02, 1.0))):
+for layer, (count, inset, tone) in enumerate(((4, 0.0, 0.8), (2, 0.02, 1.0))):
     for gi, (G0, ph, out) in enumerate(guides):
         n = len(G0)
         for c in range(count):
@@ -293,6 +355,7 @@ size = glb.write(sys.argv[1] if len(sys.argv) > 1 else 'avatar.glb', [
     {'name': 'lashes', 'P': P[vs_l], 'T': t_l},
     hairM,
     {'name': 'tee', 'P': Q_t, 'T': t_t},
+    shirtM,
     {'name': 'pants', 'P': Q_p, 'T': t_p},
     {'name': 'shoes', 'P': Q_s, 'T': t_s, 'C': C_s},
 ])

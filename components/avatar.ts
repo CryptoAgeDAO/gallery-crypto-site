@@ -98,16 +98,16 @@ function hairTexture() {
   return t;
 }
 
-// 髪の色（根元は暗め、毛先は明るいブロンド）
+// 髪の色（黒に近いダークブラウン。毛先ほどわずかに明るい）
 function hairColor() {
   const c = document.createElement('canvas');
   c.width = 4;
   c.height = 256;
   const g = c.getContext('2d')!;
   const l = g.createLinearGradient(0, 0, 0, 256);
-  l.addColorStop(0, '#5a4128');
-  l.addColorStop(0.35, '#a8834f');
-  l.addColorStop(1, '#e2c890');
+  l.addColorStop(0, '#120d0a');
+  l.addColorStop(0.4, '#21170f');
+  l.addColorStop(1, '#3a2a1c');
   g.fillStyle = l;
   g.fillRect(0, 0, 4, 256);
   const t = new THREE.CanvasTexture(c);
@@ -132,6 +132,38 @@ function poreBump() {
   const t = new THREE.CanvasTexture(c);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.repeat.set(24, 24);
+  return t;
+}
+
+// ネルシャツの格子柄（赤・黒・白の線）
+function plaidTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 256;
+  const g = c.getContext('2d')!;
+  g.fillStyle = '#7b1d1d';
+  g.fillRect(0, 0, 256, 256);
+  const band = (col: string, a: number, o: number, w: number, vert: boolean) => {
+    g.fillStyle = col;
+    g.globalAlpha = a;
+    if (vert) g.fillRect(o, 0, w, 256);
+    else g.fillRect(0, o, 256, w);
+  };
+  for (const v of [false, true]) {
+    band('#111', 0.7, 10, 60, v);
+    band('#111', 0.7, 150, 40, v);
+    band('#d8d2c4', 0.35, 96, 8, v);
+    band('#d8d2c4', 0.35, 206, 6, v);
+    band('#3b0e0e', 0.5, 120, 14, v);
+  }
+  g.globalAlpha = 1;
+  for (let i = 0; i < 4000; i++) {
+    g.fillStyle = `rgba(${Math.random() < 0.5 ? 0 : 255},${Math.random() < 0.5 ? 0 : 255},${Math.random() < 0.5 ? 0 : 255},.04)`;
+    g.fillRect(Math.random() * 256, Math.random() * 256, 2, 1);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
   return t;
 }
 
@@ -164,12 +196,14 @@ export function buildPerson(): Person {
   const hairTex = hairTexture();
   const hairCol = hairColor();
   const pores = poreBump();
+  const plaid = plaidTexture();
   let printTex = printTexture('', '', '#888');
   const mats = {
     skin: new THREE.MeshPhysicalMaterial({ vertexColors: true, bumpMap: pores, bumpScale: 0.35, roughness: 0.56, sheen: 0.35, sheenRoughness: 0.55, sheenColor: new THREE.Color('#e9b8a0'), clearcoat: 0.08, clearcoatRoughness: 0.6 }),
-    hair: new THREE.MeshPhysicalMaterial({ map: hairCol, alphaMap: hairTex, alphaTest: 0.25, alphaToCoverage: true, side: THREE.DoubleSide, roughness: 0.48, sheen: 0.8, sheenRoughness: 0.35, sheenColor: new THREE.Color('#f2dcae') }),
+    hair: new THREE.MeshPhysicalMaterial({ map: hairCol, alphaMap: hairTex, alphaTest: 0.25, alphaToCoverage: true, side: THREE.DoubleSide, roughness: 0.48, sheen: 0.8, sheenRoughness: 0.35, sheenColor: new THREE.Color('#6a5644') }),
     lashes: new THREE.MeshStandardMaterial({ color: '#1a1410', side: THREE.DoubleSide, transparent: true, opacity: 0.75 }),
     tee: new THREE.MeshPhysicalMaterial({ color: '#141416', roughness: 0.92, sheen: 0.7, sheenRoughness: 0.45, sheenColor: new THREE.Color('#5c5c66'), bumpMap: bump, bumpScale: 0.6, side: THREE.DoubleSide }),
+    shirt: new THREE.MeshPhysicalMaterial({ map: plaid, roughness: 0.95, sheen: 0.6, sheenRoughness: 0.5, sheenColor: new THREE.Color('#bb8888'), side: THREE.DoubleSide }),
     pants: new THREE.MeshPhysicalMaterial({ color: '#56677c', roughness: 0.95, sheen: 0.5, sheenColor: new THREE.Color('#9fb3cc'), bumpMap: bump, bumpScale: 0.9, side: THREE.DoubleSide }),
     shoes: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.62, side: THREE.DoubleSide }),
     eye: new THREE.MeshPhysicalMaterial({ map: eyeTex, roughness: 0.12, clearcoat: 1, clearcoatRoughness: 0.05 }),
@@ -254,6 +288,7 @@ export function buildPerson(): Person {
       hairTex.dispose();
       hairCol.dispose();
       pores.dispose();
+      plaid.dispose();
       printTex.dispose();
     },
   };
