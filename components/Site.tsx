@@ -266,7 +266,7 @@ export default function Site({ settings: s, items, events = [], sealed = [], mod
             {events.length > 0 && <a href="#events">{t('Events', 'イベント')}</a>}
             <a href="#draw">{t('Draw', '抽選')}</a>
           </nav>
-          <a className="mo-logo" href="/">Gallery Crypto</a>
+          <a className="mo-logo notranslate" translate="no" href="/">Gallery Crypto</a>
           <nav className="mo-nav r" aria-label="House">
             <a href="/proof">{t('Provenance', '来歴')}</a>
             <a href="/demo">{t('Demo', 'デモ')}</a>

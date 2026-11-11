@@ -55,7 +55,7 @@ function Boot() {
     <div className="gx-boot" role="presentation" onClick={() => setOn(false)}>
       <div className="gx-boot-in">
         <p className="gx-boot-k">{t('Now loading', 'ロード中')}</p>
-        <p className="gx-boot-t">
+        <p className="gx-boot-t notranslate" translate="no">
           <span>Gallery</span>
           <span>Crypto</span>
         </p>

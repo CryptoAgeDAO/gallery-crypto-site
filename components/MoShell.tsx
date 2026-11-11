@@ -15,7 +15,7 @@ export default function MoShell({ kicker, title, children }: { kicker?: string; 
             <a href="/proof">{t('Provenance', '来歴')}</a>
             <a href="/ledger">{t('Ledger', '台帳')}</a>
           </nav>
-          <a className="mo-logo" href="/">Gallery Crypto</a>
+          <a className="mo-logo notranslate" translate="no" href="/">Gallery Crypto</a>
           <nav className="mo-nav r" aria-label="House">
             <a href="/demo">{t('Demo', 'デモ')}</a>
             <a href="/verify">{t('Verify', '検証')}</a>
