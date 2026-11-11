@@ -78,9 +78,9 @@ export default function CapViewer({ pieces, compact = false }: { pieces: CapPiec
     const homeP = () => new THREE.Vector3(homeD * 0.5, 1.0 + homeD * 0.32, homeD * 0.8);
     let wearOn = !compact;
     let darkOn = false;
-    const WEAR_T = new THREE.Vector3(0, -17, 0.5);
-    let wearD = 104;
-    const wearP = () => new THREE.Vector3(wearD * 0.42, -17 + wearD * 0.1, wearD * 0.9);
+    const WEAR_T = new THREE.Vector3(0, -22, 0.5);
+    let wearD = 120;
+    const wearP = () => new THREE.Vector3(wearD * 0.38, -22 + wearD * 0.08, wearD * 0.92);
     const homeT = () => (wearOn ? WEAR_T.clone() : HOME_T.clone());
     const homeAt = () => (wearOn ? wearP() : homeP());
     camera.position.copy(homeAt());
@@ -127,6 +127,9 @@ export default function CapViewer({ pieces, compact = false }: { pieces: CapPiec
       key.target.position.set(0, wearOn ? -27 : 0, 0);
       controls.maxDistance = wearOn ? 190 : 34;
       scene.background = darkOn ? bgDark : wearOn ? dusk : bgLight;
+      key.color.set(wearOn ? '#eef2ff' : '#ffffff');
+      key.intensity = wearOn ? 2.6 : 2.1;
+      rim.intensity = wearOn ? 2.0 : 1.4;
       floor.material.opacity = darkOn || wearOn ? 0.45 : 0.2;
     };
     // キャップの内側をのぞく操作のときは、人物を外す
@@ -406,7 +409,7 @@ export default function CapViewer({ pieces, compact = false }: { pieces: CapPiec
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       homeD = w < 600 ? 19 : 15.5;
-      wearD = w < 600 ? 140 : 104;
+      wearD = w < 600 ? 150 : 120;
       if (first) camera.position.copy(homeAt());
       first = false;
     };
