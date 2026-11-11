@@ -171,7 +171,14 @@ face = (z > ez - 0.55) & (y < ey + 0.45)
 fade = np.clip((y - (ey - 0.75)) / 0.55, 0, 1) * ~face * (np.abs(x) < 0.95) * (y > ey - 1.0)
 ear = (np.abs(x) > 0.62) & (y < ey + 0.15) & (y > ey - 0.6) & (z > hc[2] - 0.35) & (z < hc[2] + 0.2)
 fade = fade * ~ear
-C_b = C_b + (lin([0.035, 0.03, 0.028]) - C_b) * np.clip(fade * 1.15, 0, 0.97)[:, None]
+C_b = C_b + (lin([0.30, 0.22, 0.13]) - C_b) * np.clip(fade * 1.15, 0, 0.9)[:, None]
+# 無精ひげ（あご・ほお下・口のまわり）
+rng = np.random.default_rng(3)
+nose_y = ey - 0.42
+stub = (y < nose_y + 0.02) & (y > ey - 1.42) & (z > hc[2] - 0.15) & (np.abs(x) < 0.66)
+stub_k = np.clip((nose_y + 0.02 - y) / 0.12, 0, 1) * np.clip((y - (ey - 1.42)) / 0.15, 0, 1) * np.clip((0.66 - np.abs(x)) / 0.2, 0, 1)
+stub_k = stub_k * stub * (1 - np.clip(lips * 1.5, 0, 1)) * (0.75 + 0.25 * rng.random(len(stub_k)))
+C_b = C_b + (lin([0.27, 0.21, 0.17]) - C_b) * np.clip(stub_k * 0.55, 0, 0.55)[:, None]
 # ── 髪（短い刈り上げ）、まつ毛、目 ──
 def group(name):
     return tris([i for i, g in enumerate(G) if g == name])
@@ -185,6 +192,67 @@ for s in 'lr':
     Pe = P[vs_e]; c = Pe.mean(0); r = np.linalg.norm(Pe - c, axis=1).max()
     eyes.append({'c': c.tolist(), 'r': float(r)})
 
+# ── 長い髪（キャップの下から肩まで）。ひもを重力で垂らし、体とTシャツに当てて止める ──
+from scipy.spatial import cKDTree
+coll = np.vstack([Pb[Pb[:, 1] > 4.5], Q_t[Q_t[:, 1] > 4.5]])
+tree = cKDTree(coll)
+S_CAP, TOPD, HZ = 3.0, 10.1526, 1.1348
+rim_y = TOPD - (2.2 / S_CAP)
+cz = 0.51
+rng = np.random.default_rng(11)
+strands = []
+N = 720
+for i in range(N):
+    ph = rng.uniform(0.85, 2 * np.pi - 0.85)
+    if ph > np.pi: ph -= 2 * np.pi
+    side = abs(np.sin(ph))
+    y0 = rim_y - 0.04 - rng.random() * 0.12
+    rx, rz = 0.84 - 0.04 * rng.random(), 1.06 - 0.04 * rng.random()
+    p = np.array([rx * np.sin(ph), y0, cz + rz * np.cos(ph)])
+    out = np.array([np.sin(ph), 0, np.cos(ph)])
+    d = out * 0.55 + np.array([0, -1, 0]); d /= np.linalg.norm(d)
+    L = 2.6 + 0.6 * rng.random() - 0.35 * (np.cos(ph) > 0) * side
+    step = 0.09; n = int(L / step)
+    pts = [p.copy()]
+    for k in range(n):
+        g = np.array([0, -1, 0]) * (0.28 + 0.4 * k / n)
+        wave = np.array([np.cos(k * 0.55 + i), 0, np.sin(k * 0.55 + i)]) * 0.05
+        d = d * 0.8 + g + wave + rng.normal(0, 0.025, 3); d /= np.linalg.norm(d)
+        q = p + d * step
+        for _ in range(3):
+            dist, j = tree.query(q)
+            r = 0.075
+            if dist < r:
+                v = q - coll[j]; nv = np.linalg.norm(v)
+                v = v / nv if nv > 1e-9 else out
+                q = coll[j] + v * r
+        d = (q - p) / np.linalg.norm(q - p); p = q
+        pts.append(p.copy())
+    strands.append((np.array(pts), rng.uniform(0.7, 1.0)))
+hp, hn, huv, hc_, ht = [], [], [], [], []
+base_i = 0
+for pts, tint in strands:
+    n = len(pts)
+    w = 0.06 + 0.035 * rng.random()
+    for k in range(n):
+        t = pts[min(k + 1, n - 1)] - pts[max(k - 1, 0)]; t /= np.linalg.norm(t)
+        o = pts[k] - np.array([0, pts[k][1], cz]); o[1] = 0; o /= max(np.linalg.norm(o), 1e-6)
+        sd = np.cross(t, o); sd /= max(np.linalg.norm(sd), 1e-6)
+        ww = w * (1 - 0.55 * (k / (n - 1)) ** 2)
+        for sgn in (-1, 1):
+            hp.append(pts[k] + sd * ww * sgn * 0.5 + o * 0.004 * sgn)
+            hn.append(o)
+            huv.append([0.5 + 0.5 * sgn, k / (n - 1)])
+            tt = k / (n - 1)
+            root = lin([0.32, 0.23, 0.13]); tip = lin([0.86, 0.70, 0.43])
+            hc_.append((root + (tip - root) * min(1, tt * 1.6)) * tint)
+        if k < n - 1:
+            a0 = base_i + 2 * k
+            ht += [[a0, a0 + 1, a0 + 3], [a0, a0 + 3, a0 + 2]]
+    base_i += 2 * n
+hairM = {'name': 'hair', 'P': np.array(hp), 'T': np.array(ht), 'N': np.array(hn), 'UV': np.array(huv), 'C': np.array(hc_)}
+print('hair verts', len(hp))
+
 meta = {
     'floor': float(new_floor), 'top': float(Pb[:, 1].max()),
     'headCenter': Pb[(Pb[:, 1] > Pb[:, 1].max() - 1.2)].mean(0).tolist(),
@@ -195,6 +263,7 @@ print(json.dumps(meta))
 size = glb.write(sys.argv[1] if len(sys.argv) > 1 else 'avatar.glb', [
     {'name': 'skin', 'P': Pb, 'T': t_b, 'C': C_b},
     {'name': 'lashes', 'P': P[vs_l], 'T': t_l},
+    hairM,
     {'name': 'tee', 'P': Q_t, 'T': t_t},
     {'name': 'pants', 'P': Q_p, 'T': t_p},
     {'name': 'shoes', 'P': Q_s, 'T': t_s, 'C': C_s},

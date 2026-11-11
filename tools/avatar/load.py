@@ -33,6 +33,14 @@ MIX = [
     ('macrodetails/caucasian-male-young', 0.5),
     ('macrodetails/height/male-young-averagemuscle-averageweight-maxheight', 0.2),
     ('macrodetails/proportions/male-young-averagemuscle-averageweight-idealproportions', 0.8),
+    # 顔：少し面長で骨っぽく、まぶたは重め・目は細め
+    ('head/head-rectangular', 0.45), ('head/head-scale-vert-incr', 0.15),
+    ('chin/chin-width-incr', 0.3), ('chin/chin-prominent-incr', 0.35), ('chin/chin-height-incr', 0.2),
+    ('cheek/l-cheek-bones-incr', 0.35), ('cheek/r-cheek-bones-incr', 0.35), ('cheek/l-cheek-volume-decr', 0.3), ('cheek/r-cheek-volume-decr', 0.3),
+    ('eyes/l-eye-scale-decr', 0.3), ('eyes/r-eye-scale-decr', 0.3),
+    ('eyes/l-eye-height2-decr', 0.6), ('eyes/r-eye-height2-decr', 0.6),
+    ('eyes/l-eye-eyefold-down', 0.5), ('eyes/r-eye-eyefold-down', 0.5),
+    ('eyebrows/eyebrows-trans-down', 0.35), ('nose/nose-hump-incr', 0.25),
 ]
 
 def rot(axis, ang):

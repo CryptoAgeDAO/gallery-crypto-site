@@ -5,13 +5,13 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 // glb は MakeHuman の単位（デシメートル）。頭頂がキャップの天井の少し下（y=3）、頭の中心が開きの中心に来るように置く
-const S = 3.2;
-const TOP = 10.1382, HEAD_Z = 1.1442, FLOOR_DM = -8.5917;
-const OY = 3.2 - TOP * S, OZ = 0.1 - HEAD_Z * S;
+const S = 3.0;
+const TOP = 10.1526, FLOOR_DM = -8.5917;
+const OY = 2.2 - TOP * S, OZ = -0.51 * S; // 帽子の開きの高さで、頭の前後の中心（0.51 dm）を開きの中心に
 export const FLOOR_Y = FLOOR_DM * S + OY;
 const EYES = [
-  { c: [0.31, 8.9966, 1.316], r: 0.169 },
-  { c: [-0.31, 8.9966, 1.316], r: 0.169 },
+  { c: [0.31, 8.9989, 1.312], r: 0.169 },
+  { c: [-0.31, 8.9989, 1.312], r: 0.169 },
 ];
 
 type Person = {
@@ -56,9 +56,9 @@ function eyeTexture() {
   x.fillStyle = '#e7e2da';
   x.fillRect(0, 0, 256, 256);
   const gi = x.createRadialGradient(128, 128, 8, 128, 128, 46);
-  gi.addColorStop(0, '#2a1a10');
-  gi.addColorStop(0.55, '#4f3420');
-  gi.addColorStop(1, '#1a1009');
+  gi.addColorStop(0, '#3a3a22');
+  gi.addColorStop(0.5, '#6a5a36');
+  gi.addColorStop(1, '#2b2414');
   x.fillStyle = gi;
   x.beginPath();
   x.arc(128, 128, 46, 0, 7);
@@ -69,6 +69,32 @@ function eyeTexture() {
   x.fill();
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+// 髪の束（細い線が何本も並ぶ透明度の模様。先に行くほど細る）
+function hairTexture() {
+  const c = document.createElement('canvas');
+  c.width = 128;
+  c.height = 512;
+  const g = c.getContext('2d')!;
+  g.clearRect(0, 0, 128, 512);
+  for (let i = 0; i < 70; i++) {
+    const x = 4 + Math.random() * 120;
+    const end = 512 * (0.7 + Math.random() * 0.3);
+    const gr = g.createLinearGradient(0, 0, 0, end);
+    gr.addColorStop(0, `rgba(255,255,255,${0.75 + Math.random() * 0.25})`);
+    gr.addColorStop(0.85, `rgba(255,255,255,${0.5 + Math.random() * 0.3})`);
+    gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.strokeStyle = gr;
+    g.lineWidth = 1 + Math.random() * 2.2;
+    g.beginPath();
+    g.moveTo(x, 0);
+    g.bezierCurveTo(x + (Math.random() - 0.5) * 10, end * 0.4, x + (Math.random() - 0.5) * 14, end * 0.7, x + (Math.random() - 0.5) * 16, end);
+    g.stroke();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.flipY = false;
   return t;
 }
 
@@ -98,9 +124,11 @@ export function buildPerson(): Person {
   group.add(inner);
   const bump = fabricBump();
   const eyeTex = eyeTexture();
+  const hairTex = hairTexture();
   let printTex = printTexture('', '', '#888');
   const mats = {
     skin: new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.52, sheen: 0.35, sheenRoughness: 0.55, sheenColor: new THREE.Color('#e9b8a0'), clearcoat: 0.08, clearcoatRoughness: 0.6 }),
+    hair: new THREE.MeshPhysicalMaterial({ vertexColors: true, alphaMap: hairTex, alphaTest: 0.32, side: THREE.DoubleSide, roughness: 0.48, sheen: 0.8, sheenRoughness: 0.35, sheenColor: new THREE.Color('#f2dcae') }),
     lashes: new THREE.MeshStandardMaterial({ color: '#1a1410', side: THREE.DoubleSide, transparent: true, opacity: 0.75 }),
     tee: new THREE.MeshPhysicalMaterial({ color: '#141416', roughness: 0.92, sheen: 0.7, sheenRoughness: 0.45, sheenColor: new THREE.Color('#5c5c66'), bumpMap: bump, bumpScale: 0.6, side: THREE.DoubleSide }),
     pants: new THREE.MeshPhysicalMaterial({ color: '#56677c', roughness: 0.95, sheen: 0.5, sheenColor: new THREE.Color('#9fb3cc'), bumpMap: bump, bumpScale: 0.9, side: THREE.DoubleSide }),
@@ -153,7 +181,7 @@ export function buildPerson(): Person {
     });
     inner.add(gl.scene);
     for (const e of EYES) {
-      const g = new THREE.SphereGeometry(e.r * 0.98, 32, 24);
+      const g = new THREE.SphereGeometry(e.r * 0.95, 32, 24);
       const uv = g.attributes.uv as THREE.BufferAttribute, p = g.attributes.position as THREE.BufferAttribute;
       const v = new THREE.Vector3();
       for (let i = 0; i < p.count; i++) {
@@ -184,6 +212,7 @@ export function buildPerson(): Person {
       Object.values(mats).forEach((m) => m.dispose());
       bump.dispose();
       eyeTex.dispose();
+      hairTex.dispose();
       printTex.dispose();
     },
   };
