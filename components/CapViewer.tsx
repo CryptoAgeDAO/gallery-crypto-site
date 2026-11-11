@@ -11,13 +11,14 @@ import { capTextures, meshAlpha } from './capArt';
 import { canvasTex, makeInlay } from './nfcParts';
 import { tagLayers } from '@/lib/nfcSteps';
 import { useLang } from './Lang';
+import { buildPerson, duskBackground, FLOOR_Y } from './avatar';
 
 export type CapPiece = { n: number; band: string; title: string; year: string; cert: string; qr: string; cap: CapSpec };
 type View = 'front' | 'side' | 'back' | 'inside';
 type Api = {
   load: (p: CapPiece) => void; spin: (v: boolean) => void; dark: (v: boolean) => void; hang: (v: boolean) => void;
   view: (k: View) => void; explode: (v: boolean) => void; see: (v: boolean) => void;
-  setScale: (v: number) => void; reset: () => void; shot: () => string;
+  setScale: (v: number) => void; reset: () => void; shot: () => string; wear: (v: boolean) => void;
 };
 
 const dashTex = () => {
@@ -49,8 +50,10 @@ export default function CapViewer({ pieces, compact = false }: { pieces: CapPiec
   const [sel, setSel] = useState(false);
   const [size, setSize] = useState(1);
   const [busy, setBusy] = useState(true);
-  const ui = useRef({ setSpin, setSel, setSize, setBusy });
-  ui.current = { setSpin, setSel, setSize, setBusy };
+  // 人物モデルが試着した姿で見せる（大きな 3D ページだけ。パスポート内の小さな版はキャップだけ）
+  const [wear, setWear] = useState(!compact);
+  const ui = useRef({ setSpin, setSel, setSize, setBusy, setWear });
+  ui.current = { setSpin, setSel, setSize, setBusy, setWear };
 
   useEffect(() => {
     const el = host.current!;
@@ -73,9 +76,16 @@ export default function CapViewer({ pieces, compact = false }: { pieces: CapPiec
     const HOME_T = new THREE.Vector3(0, 1.0, 0.7);
     let homeD = 15.5;
     const homeP = () => new THREE.Vector3(homeD * 0.5, 1.0 + homeD * 0.32, homeD * 0.8);
-    camera.position.copy(homeP());
+    let wearOn = !compact;
+    let darkOn = false;
+    const WEAR_T = new THREE.Vector3(0, -17, 0.5);
+    let wearD = 104;
+    const wearP = () => new THREE.Vector3(wearD * 0.42, -17 + wearD * 0.1, wearD * 0.9);
+    const homeT = () => (wearOn ? WEAR_T.clone() : HOME_T.clone());
+    const homeAt = () => (wearOn ? wearP() : homeP());
+    camera.position.copy(homeAt());
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.target.copy(HOME_T);
+    controls.target.copy(homeT());
     controls.enableDamping = true;
     controls.dampingFactor = 0.07;
     controls.enablePan = false;
@@ -102,6 +112,26 @@ export default function CapViewer({ pieces, compact = false }: { pieces: CapPiec
     floor.position.y = -0.9;
     floor.receiveShadow = true;
     scene.add(floor);
+    scene.add(key.target);
+    // 試着する人物と、夕暮れの街の背景
+    const person = buildPerson();
+    scene.add(person.group);
+    const dusk = duskBackground();
+    const applyWear = () => {
+      person.group.visible = wearOn;
+      floor.position.y = wearOn ? FLOOR_Y : -0.9;
+      const b = wearOn ? 42 : 7;
+      Object.assign(key.shadow.camera, { left: -b, right: b, top: b, bottom: -b, far: wearOn ? 260 : 60 });
+      key.shadow.camera.updateProjectionMatrix();
+      key.position.set(...((wearOn ? [36, 50, 54] : [6, 12, 9]) as [number, number, number]));
+      key.target.position.set(0, wearOn ? -27 : 0, 0);
+      controls.maxDistance = wearOn ? 190 : 34;
+      scene.background = darkOn ? bgDark : wearOn ? dusk : bgLight;
+      floor.material.opacity = darkOn || wearOn ? 0.45 : 0.2;
+    };
+    // キャップの内側をのぞく操作のときは、人物を外す
+    applyWear();
+    const unwear = () => { if (!wearOn) return; wearOn = false; applyWear(); ui.current.setWear(false); };
 
     const dash = dashTex();
     const cap = new THREE.Group();
@@ -132,6 +162,7 @@ export default function CapViewer({ pieces, compact = false }: { pieces: CapPiec
     const load = (p: CapPiece) => {
       ui.current.setBusy(true);
       clear();
+      person.setPrint(p.band, `${p.title} · ${p.year}`, p.cap.accent);
       const s = p.cap;
       const d = dims(s.style);
       const tex = capTextures(s, p.band, p.title, p.year, aniso);
@@ -375,7 +406,8 @@ export default function CapViewer({ pieces, compact = false }: { pieces: CapPiec
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       homeD = w < 600 ? 19 : 15.5;
-      if (first) camera.position.copy(homeP());
+      wearD = w < 600 ? 140 : 104;
+      if (first) camera.position.copy(homeAt());
       first = false;
     };
     resize();
@@ -437,6 +469,7 @@ export default function CapViewer({ pieces, compact = false }: { pieces: CapPiec
       if (faceMat) faceMat.opacity = 1 - 0.7 * seeT;
       if (inlay) inlay.visible = seeT > 0.02 || e > 0.02;
       if (box) box.update();
+      if (wearOn) person.tick(performance.now() / 1000);
       controls.update();
       renderer.render(scene, camera);
       raf = requestAnimationFrame(tick);
@@ -446,17 +479,19 @@ export default function CapViewer({ pieces, compact = false }: { pieces: CapPiec
     api.current = {
       load(p) { select(false); explodeGoal = 0; explodeT = 0; load(p); },
       spin(v) { controls.autoRotate = v; if (v) fly = null; },
-      dark(v) { scene.background = v ? bgDark : bgLight; floor.material.opacity = v ? 0.5 : 0.2; },
+      dark(v) { darkOn = v; applyWear(); },
+      wear(v) { wearOn = v; applyWear(); if (v) { select(false); explodeGoal = 0; seeGoal = 0; } stop(); fly = { t: homeT(), p: homeAt() }; },
       hang(v) { hangG.visible = v; if (!v) select(false); },
-      view(k) { stop(); fly = views[k](); },
-      explode(v) { stop(); explodeGoal = v ? 1 : 0; fly = v ? views.explode() : views.inside(); },
-      see(v) { seeGoal = v ? 1 : 0; if (v) { stop(); fly = views.inside(); } },
+      view(k) { if (k === 'inside') unwear(); stop(); fly = views[k](); },
+      explode(v) { if (v) unwear(); stop(); explodeGoal = v ? 1 : 0; fly = v ? views.explode() : views.inside(); },
+      see(v) { seeGoal = v ? 1 : 0; if (v) { unwear(); stop(); fly = views.inside(); } },
       setScale(v) { hangG.scale.setScalar(v); },
       reset() {
         select(false);
         hangG.position.copy(hangHome.p); hangG.rotation.copy(hangHome.r); hangG.scale.setScalar(1); hangG.visible = true;
         explodeGoal = 0; seeGoal = 0;
-        fly = { t: HOME_T.clone(), p: homeP() };
+        wearOn = !compact;
+        fly = { t: homeT(), p: homeAt() };
         controls.autoRotate = true;
         this.dark(false);
       },
@@ -467,6 +502,8 @@ export default function CapViewer({ pieces, compact = false }: { pieces: CapPiec
     return () => {
       cancelAnimationFrame(raf);
       ro.disconnect();
+      person.dispose();
+      dusk.dispose();
       el.removeEventListener('pointerdown', onDown, { capture: true });
       el.removeEventListener('pointermove', onMove, { capture: true });
       el.removeEventListener('pointerup', onUp, { capture: true });
@@ -486,7 +523,7 @@ export default function CapViewer({ pieces, compact = false }: { pieces: CapPiec
   const pick = (i: number) => { setCur(i); setExploded(false); setSee(false); setSel(false); api.current?.load(pieces[i]); };
   const resetAll = () => {
     api.current?.reset();
-    setSpin(true); setDark(false); setHang(true); setExploded(false); setSee(false); setSel(false); setSize(1);
+    setSpin(true); setDark(false); setHang(true); setWear(!compact); setExploded(false); setSee(false); setSel(false); setSize(1);
   };
   const save = () => {
     const url = api.current?.shot();
@@ -547,6 +584,7 @@ export default function CapViewer({ pieces, compact = false }: { pieces: CapPiec
           <label className="lb-check"><input type="checkbox" checked={see} onChange={(e) => { setSee(e.target.checked); if (e.target.checked) setSpin(false); api.current?.see(e.target.checked); }} />{t('See the chip through the label', 'ラベル越しにチップを見る')}</label>
         </div>
         <div className="tv-opts">
+          <label className="lb-check"><input type="checkbox" checked={wear} onChange={(e) => { setWear(e.target.checked); if (e.target.checked) { setExploded(false); setSee(false); setSel(false); } api.current?.wear(e.target.checked); }} />{t('Worn by a model', 'モデルが試着')}</label>
           <label className="lb-check"><input type="checkbox" checked={spin} onChange={(e) => { setSpin(e.target.checked); api.current?.spin(e.target.checked); }} />{t('Turn 360°', '360°回す')}</label>
           <label className="lb-check"><input type="checkbox" checked={hang} onChange={(e) => { setHang(e.target.checked); api.current?.hang(e.target.checked); }} />{t('Hang tag', '下げ札')}</label>
           <label className="lb-check"><input type="checkbox" checked={dark} onChange={(e) => { setDark(e.target.checked); api.current?.dark(e.target.checked); }} />{t('Dark studio', '暗いスタジオ')}</label>
