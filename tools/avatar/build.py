@@ -125,7 +125,7 @@ def push_pants(Q):
 vs_p, t_p, Q_p, b_p = shell(inPants, lambda B: 0.1 + 0.05 * np.clip((hip_y - B[:, 1]) / 6, 0, 1), 60, push_pants, 0.08)
 # すそをまっすぐに
 hem = b_t & (Q_t[:, 1] < crotch_y + 0.6)
-Q_t[hem, 1] = Q_t[hem, 1].max() if hem.any() else 0
+Q_t[hem, 1] = crotch_y - 0.45
 hp = b_p & (Q_p[:, 1] < knee_y)
 Q_p[hp, 1] = ankle_y - 0.05
 # 裾を床近くまで伸ばし、たまらせる
@@ -171,7 +171,15 @@ face = (z > ez - 0.55) & (y < ey + 0.45)
 fade = np.clip((y - (ey - 0.75)) / 0.55, 0, 1) * ~face * (np.abs(x) < 0.95) * (y > ey - 1.0)
 ear = (np.abs(x) > 0.62) & (y < ey + 0.15) & (y > ey - 0.6) & (z > hc[2] - 0.35) & (z < hc[2] + 0.2)
 fade = fade * ~ear
-C_b = C_b + (lin([0.30, 0.22, 0.13]) - C_b) * np.clip(fade * 1.15, 0, 0.9)[:, None]
+C_b = C_b + (lin([0.42, 0.32, 0.19]) - C_b) * np.clip(fade * 1.15, 0, 0.9)[:, None]
+# 肌のむら（頬・鼻・耳は少し赤く、全体に低い周波数のむら）
+warm = np.exp(-((np.abs(x) - 0.42) ** 2 / 0.05 + (y - (ey - 0.45)) ** 2 / 0.06)) * (z > ez - 0.3)
+nose_t = np.exp(-(x ** 2 / 0.02 + (y - (ey - 0.38)) ** 2 / 0.03)) * (z > ez + 0.1)
+earw = ((np.abs(x) > 0.66) & (y > ey - 0.6) & (y < ey + 0.25)).astype(float)
+red = np.clip(0.45 * warm + 0.5 * nose_t + 0.35 * earw, 0, 0.6)
+C_b = C_b * (1 - red[:, None] * np.array([0.0, 0.18, 0.2]))
+blot = 0.06 * (np.sin(x * 7.1 + y * 3.3) * np.sin(z * 5.3 - y * 2.1) + np.sin(y * 11.0 + x * 4.0) * 0.5)
+C_b = C_b * (1 + blot[:, None])
 # 無精ひげ（あご・ほお下・口のまわり）
 rng = np.random.default_rng(3)
 nose_y = ey - 0.42
@@ -200,58 +208,78 @@ S_CAP, TOPD, HZ = 3.0, 10.1526, 1.1348
 rim_y = TOPD - (2.2 / S_CAP)
 cz = 0.51
 rng = np.random.default_rng(11)
-strands = []
-N = 720
-for i in range(N):
-    ph = rng.uniform(0.85, 2 * np.pi - 0.85)
-    if ph > np.pi: ph -= 2 * np.pi
-    side = abs(np.sin(ph))
-    y0 = rim_y - 0.04 - rng.random() * 0.12
-    rx, rz = 0.84 - 0.04 * rng.random(), 1.06 - 0.04 * rng.random()
-    p = np.array([rx * np.sin(ph), y0, cz + rz * np.cos(ph)])
-    out = np.array([np.sin(ph), 0, np.cos(ph)])
-    d = out * 0.55 + np.array([0, -1, 0]); d /= np.linalg.norm(d)
-    L = 2.6 + 0.6 * rng.random() - 0.35 * (np.cos(ph) > 0) * side
-    step = 0.09; n = int(L / step)
-    pts = [p.copy()]
+def grow(p, out, L, i, step=0.11, lift=0.9):
+    d = out * lift + np.array([0, -1, 0]); d /= np.linalg.norm(d)
+    n = max(4, int(L / step)); pts = [p.copy()]
     for k in range(n):
-        g = np.array([0, -1, 0]) * (0.28 + 0.4 * k / n)
-        wave = np.array([np.cos(k * 0.55 + i), 0, np.sin(k * 0.55 + i)]) * 0.05
-        d = d * 0.8 + g + wave + rng.normal(0, 0.025, 3); d /= np.linalg.norm(d)
+        tk = k / n
+        g = np.array([0, -1, 0]) * (0.22 + 0.5 * tk)
+        wave = np.array([np.cos(k * 0.45 + i * 1.7), 0, np.sin(k * 0.45 + i * 1.3)]) * 0.035
+        d = d * 0.82 + g + wave + rng.normal(0, 0.018, 3); d /= np.linalg.norm(d)
         q = p + d * step
         for _ in range(3):
             dist, j = tree.query(q)
-            r = 0.075
+            r = 0.085
             if dist < r:
                 v = q - coll[j]; nv = np.linalg.norm(v)
                 v = v / nv if nv > 1e-9 else out
                 q = coll[j] + v * r
         d = (q - p) / np.linalg.norm(q - p); p = q
         pts.append(p.copy())
-    strands.append((np.array(pts), rng.uniform(0.7, 1.0)))
-hp, hn, huv, hc_, ht = [], [], [], [], []
+    return np.array(pts)
+# 房（ガイド）を作り、その周りに細い毛束を寄せる（毛先ほど房にまとまる）
+guides = []
+NG = 150
+for gi in range(NG):
+    ph = rng.uniform(0.9, 2 * np.pi - 0.9)
+    if ph > np.pi: ph -= 2 * np.pi
+    front = max(0, np.cos(ph))
+    y0 = rim_y - 0.03 - rng.random() * 0.1
+    p = np.array([0.84 * np.sin(ph), y0, cz + 1.05 * np.cos(ph)])
+    out = np.array([np.sin(ph), 0, np.cos(ph)])
+    L = 2.5 + 0.7 * rng.random() - 0.5 * front
+    guides.append((grow(p, out, L, gi), ph, out))
+strands = []
+for layer, (count, inset, tone) in enumerate(((5, 0.0, 0.8), (3, 0.02, 1.0))):
+    for gi, (G0, ph, out) in enumerate(guides):
+        n = len(G0)
+        for c in range(count):
+            off = rng.normal(0, 1, 3) * np.array([0.07, 0.03, 0.07])
+            off -= out * inset
+            sh = (1 - rng.random() * 0.35)
+            m = max(4, int(n * sh))
+            t = np.linspace(0, 1, m)[:, None]
+            clump = 1 - 0.65 * t
+            pts = G0[:m] + off * clump + rng.normal(0, 0.012, (m, 3)) * t
+            strands.append((pts, tone * rng.uniform(0.88, 1.06)))
+hp, hn, huv, ht = [], [], [], []
 base_i = 0
 for pts, tint in strands:
     n = len(pts)
-    w = 0.06 + 0.035 * rng.random()
+    w = 0.07 + 0.035 * rng.random()
     for k in range(n):
-        t = pts[min(k + 1, n - 1)] - pts[max(k - 1, 0)]; t /= np.linalg.norm(t)
+        t = pts[min(k + 1, n - 1)] - pts[max(k - 1, 0)]; t /= max(np.linalg.norm(t), 1e-6)
         o = pts[k] - np.array([0, pts[k][1], cz]); o[1] = 0; o /= max(np.linalg.norm(o), 1e-6)
         sd = np.cross(t, o); sd /= max(np.linalg.norm(sd), 1e-6)
-        ww = w * (1 - 0.55 * (k / (n - 1)) ** 2)
+        ww = w * (1 - 0.6 * (k / (n - 1)) ** 1.5)
         for sgn in (-1, 1):
-            hp.append(pts[k] + sd * ww * sgn * 0.5 + o * 0.004 * sgn)
+            hp.append(pts[k] + sd * ww * sgn * 0.5)
             hn.append(o)
-            huv.append([0.5 + 0.5 * sgn, k / (n - 1)])
-            tt = k / (n - 1)
-            root = lin([0.32, 0.23, 0.13]); tip = lin([0.86, 0.70, 0.43])
-            hc_.append((root + (tip - root) * min(1, tt * 1.6)) * tint)
+            huv.append([0.5 + 0.5 * sgn, (k / (n - 1)) * 0.98 + 0.01, ])
         if k < n - 1:
             a0 = base_i + 2 * k
             ht += [[a0, a0 + 1, a0 + 3], [a0, a0 + 3, a0 + 2]]
     base_i += 2 * n
-hairM = {'name': 'hair', 'P': np.array(hp), 'T': np.array(ht), 'N': np.array(hn), 'UV': np.array(huv), 'C': np.array(hc_)}
+hc_ = None
+hairM = {'name': 'hair', 'P': np.array(hp), 'T': np.array(ht), 'N': np.array(hn), 'UV': np.array(huv)}
 print('hair verts', len(hp))
+
+# 肌の UV（毛穴の凹凸用。縫い目は気にしない）
+UVb = np.zeros((len(vs_b), 2))
+remap_b = -np.ones(len(P), int); remap_b[vs_b] = np.arange(len(vs_b))
+for fi in bodyF:
+    for v, tv in zip(F[fi], FT[fi]):
+        if tv >= 0 and remap_b[v] >= 0: UVb[remap_b[v]] = VT[tv]
 
 meta = {
     'floor': float(new_floor), 'top': float(Pb[:, 1].max()),
@@ -261,7 +289,7 @@ meta = {
 }
 print(json.dumps(meta))
 size = glb.write(sys.argv[1] if len(sys.argv) > 1 else 'avatar.glb', [
-    {'name': 'skin', 'P': Pb, 'T': t_b, 'C': C_b},
+    {'name': 'skin', 'P': Pb, 'T': t_b, 'C': C_b, 'UV': UVb},
     {'name': 'lashes', 'P': P[vs_l], 'T': t_l},
     hairM,
     {'name': 'tee', 'P': Q_t, 'T': t_t},

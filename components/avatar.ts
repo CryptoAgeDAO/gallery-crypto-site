@@ -79,15 +79,15 @@ function hairTexture() {
   c.height = 512;
   const g = c.getContext('2d')!;
   g.clearRect(0, 0, 128, 512);
-  for (let i = 0; i < 70; i++) {
-    const x = 4 + Math.random() * 120;
-    const end = 512 * (0.7 + Math.random() * 0.3);
+  for (let i = 0; i < 140; i++) {
+    const x = 2 + Math.random() * 124;
+    const end = 512 * (0.6 + Math.random() * 0.4);
     const gr = g.createLinearGradient(0, 0, 0, end);
-    gr.addColorStop(0, `rgba(255,255,255,${0.75 + Math.random() * 0.25})`);
-    gr.addColorStop(0.85, `rgba(255,255,255,${0.5 + Math.random() * 0.3})`);
+    gr.addColorStop(0, `rgba(255,255,255,${0.8 + Math.random() * 0.2})`);
+    gr.addColorStop(0.8, `rgba(255,255,255,${0.45 + Math.random() * 0.3})`);
     gr.addColorStop(1, 'rgba(255,255,255,0)');
     g.strokeStyle = gr;
-    g.lineWidth = 1 + Math.random() * 2.2;
+    g.lineWidth = 0.8 + Math.random() * 1.4;
     g.beginPath();
     g.moveTo(x, 0);
     g.bezierCurveTo(x + (Math.random() - 0.5) * 10, end * 0.4, x + (Math.random() - 0.5) * 14, end * 0.7, x + (Math.random() - 0.5) * 16, end);
@@ -95,6 +95,43 @@ function hairTexture() {
   }
   const t = new THREE.CanvasTexture(c);
   t.flipY = false;
+  return t;
+}
+
+// 髪の色（根元は暗め、毛先は明るいブロンド）
+function hairColor() {
+  const c = document.createElement('canvas');
+  c.width = 4;
+  c.height = 256;
+  const g = c.getContext('2d')!;
+  const l = g.createLinearGradient(0, 0, 0, 256);
+  l.addColorStop(0, '#5a4128');
+  l.addColorStop(0.35, '#a8834f');
+  l.addColorStop(1, '#e2c890');
+  g.fillStyle = l;
+  g.fillRect(0, 0, 4, 256);
+  const t = new THREE.CanvasTexture(c);
+  t.flipY = false;
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+// 肌の毛穴（細かいランダムの凹凸）
+function poreBump() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 256;
+  const g = c.getContext('2d')!;
+  g.fillStyle = '#808080';
+  g.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 2600; i++) {
+    g.fillStyle = `rgba(0,0,0,${0.08 + Math.random() * 0.12})`;
+    g.beginPath();
+    g.arc(Math.random() * 256, Math.random() * 256, 0.6 + Math.random() * 0.9, 0, 7);
+    g.fill();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(24, 24);
   return t;
 }
 
@@ -125,10 +162,12 @@ export function buildPerson(): Person {
   const bump = fabricBump();
   const eyeTex = eyeTexture();
   const hairTex = hairTexture();
+  const hairCol = hairColor();
+  const pores = poreBump();
   let printTex = printTexture('', '', '#888');
   const mats = {
-    skin: new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.52, sheen: 0.35, sheenRoughness: 0.55, sheenColor: new THREE.Color('#e9b8a0'), clearcoat: 0.08, clearcoatRoughness: 0.6 }),
-    hair: new THREE.MeshPhysicalMaterial({ vertexColors: true, alphaMap: hairTex, alphaTest: 0.32, side: THREE.DoubleSide, roughness: 0.48, sheen: 0.8, sheenRoughness: 0.35, sheenColor: new THREE.Color('#f2dcae') }),
+    skin: new THREE.MeshPhysicalMaterial({ vertexColors: true, bumpMap: pores, bumpScale: 0.35, roughness: 0.56, sheen: 0.35, sheenRoughness: 0.55, sheenColor: new THREE.Color('#e9b8a0'), clearcoat: 0.08, clearcoatRoughness: 0.6 }),
+    hair: new THREE.MeshPhysicalMaterial({ map: hairCol, alphaMap: hairTex, alphaTest: 0.25, alphaToCoverage: true, side: THREE.DoubleSide, roughness: 0.48, sheen: 0.8, sheenRoughness: 0.35, sheenColor: new THREE.Color('#f2dcae') }),
     lashes: new THREE.MeshStandardMaterial({ color: '#1a1410', side: THREE.DoubleSide, transparent: true, opacity: 0.75 }),
     tee: new THREE.MeshPhysicalMaterial({ color: '#141416', roughness: 0.92, sheen: 0.7, sheenRoughness: 0.45, sheenColor: new THREE.Color('#5c5c66'), bumpMap: bump, bumpScale: 0.6, side: THREE.DoubleSide }),
     pants: new THREE.MeshPhysicalMaterial({ color: '#56677c', roughness: 0.95, sheen: 0.5, sheenColor: new THREE.Color('#9fb3cc'), bumpMap: bump, bumpScale: 0.9, side: THREE.DoubleSide }),
@@ -213,6 +252,8 @@ export function buildPerson(): Person {
       bump.dispose();
       eyeTex.dispose();
       hairTex.dispose();
+      hairCol.dispose();
+      pores.dispose();
       printTex.dispose();
     },
   };
