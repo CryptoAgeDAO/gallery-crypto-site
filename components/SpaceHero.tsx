@@ -1,5 +1,5 @@
 'use client';
-// トップ画像（デモ）：宇宙を背にしたフードの人物。星のまたたき・流れ星・漂う粒子・目の光・ゆっくりした浮遊。
+// トップ画像（デモ）：宇宙を背にしたフードの人物。星のまたたき・流れ星・漂う粒子・ゆっくりした浮遊。
 // 画像はすべてオリジナル（人体は CC0 の MakeHuman から作成、背景は手描きの生成）。
 import { useEffect, useRef } from 'react';
 
@@ -94,7 +94,6 @@ export default function SpaceHero() {
       <canvas className="sh-cv" ref={cv} />
       <div className="sh-fig">
         <div className="sh-l sh-figure" />
-        <div className="sh-l sh-glow" />
       </div>
     </div>
   );
