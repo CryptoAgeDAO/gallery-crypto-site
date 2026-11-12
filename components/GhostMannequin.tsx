@@ -6,11 +6,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { tt } from './Lang';
 
 const MAX = 1600;
-type Layer = { img: HTMLCanvasElement; data: ImageData; mask: Uint8ClampedArray; w: number; h: number };
+export type Layer = { img: HTMLCanvasElement; data: ImageData; mask: Uint8ClampedArray; w: number; h: number };
 type Tool = 'pick' | 'erase' | 'restore' | 'move';
 type Target = 'front' | 'inner';
 
-function loadLayer(file: File): Promise<Layer> {
+export function loadLayer(file: File): Promise<Layer> {
   return new Promise((res, rej) => {
     const url = URL.createObjectURL(file);
     const im = new Image();
@@ -31,7 +31,7 @@ function loadLayer(file: File): Promise<Layer> {
 }
 
 // 指定の色に近い、つながった範囲を塗りつぶす（スタック式）。hit=1 の画素を返す
-function flood(L: Layer, seeds: number[], ref: [number, number, number], tol: number): Uint8Array {
+export function flood(L: Layer, seeds: number[], ref: [number, number, number], tol: number): Uint8Array {
   const { w, h } = L, d = L.data.data;
   const lim = (tol * 2.2) ** 2;
   const hit = new Uint8Array(w * h);
@@ -54,7 +54,7 @@ function flood(L: Layer, seeds: number[], ref: [number, number, number], tol: nu
 }
 
 // 小さな穴や点を消して輪郭を整える（3x3 の多数決を2回）
-function tidy(m: Uint8ClampedArray, w: number, h: number) {
+export function tidy(m: Uint8ClampedArray, w: number, h: number) {
   for (let pass = 0; pass < 2; pass++) {
     const src = m.slice();
     for (let y = 1; y < h - 1; y++)
@@ -66,7 +66,7 @@ function tidy(m: Uint8ClampedArray, w: number, h: number) {
   }
 }
 
-function autoBackground(L: Layer, tol: number) {
+export function autoBackground(L: Layer, tol: number) {
   const { w, h } = L, d = L.data.data;
   // 四辺の画素の中央値を背景色とみなす
   const rs: number[] = [], gs: number[] = [], bs: number[] = [], seeds: number[] = [];

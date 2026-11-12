@@ -6,6 +6,8 @@ import { MODELS_SQL } from '@/lib/modelsSql';
 import ModelViewerLazy from './ModelViewerLazy';
 import type { ModelInfo } from './ModelViewer';
 import { tt } from './Lang';
+import dynamic from 'next/dynamic';
+const PhotoTo3D = dynamic(() => import('./PhotoTo3D'), { ssr: false });
 
 type Row = { item_id: string; path: string; name: string; bytes: number; updated_at: string };
 const MAX = 50 * 1024 * 1024;
@@ -20,6 +22,7 @@ export default function ModelAdmin({ itemId }: { itemId?: string }) {
   const [bad, setBad] = useState('');
   const [st, setSt] = useState('');
   const [busy, setBusy] = useState(false);
+  const [p3, setP3] = useState(false);
 
   const load = useCallback(async () => {
     if (!itemId) return;
@@ -152,6 +155,12 @@ export default function ModelAdmin({ itemId }: { itemId?: string }) {
               <span className="note">{tt('No 3D model yet · up to 50 MB', '3Dモデルはまだありません・50MBまで')}</span>
             </div>
           )}
+          {!draft && (
+            <div className="row" style={{ justifyContent: 'flex-start' }}>
+              <button type="button" className="btn" onClick={() => setP3(!p3)}>{p3 ? tt('Close photo to 3D', '写真から3Dを閉じる') : tt('Make 3D from photos', '写真から3Dをつくる')}</button>
+            </div>
+          )}
+          {p3 && !draft && <PhotoTo3D onGlb={(f) => { setP3(false); pick(f); }} />}
         </>
       )}
       {st && <p className="status">{st}</p>}
