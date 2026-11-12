@@ -10,6 +10,7 @@ import { MusicBar, PlayButton } from '@/components/Music';
 import { sfx } from '@/lib/sfx';
 import { LangToggle, useLang } from '@/components/Lang';
 import type { T } from '@/lib/i18n';
+import SpaceHero from './SpaceHero';
 import GameHud, { hudBanner } from '@/components/GameHud';
 
 // 公開サイト：白と黒だけ、装飾なし。論文のように番号つきの節で並べる（匿名性・静けさ・読みやすさ）。
@@ -245,7 +246,7 @@ export default function Site({ settings: s, items, events = [], sealed = [], mod
   // 作品が少ないあいだは、番号だけの空き枠で列をそろえる
   const slots = Math.max(items.length, 3);
   const heroItem = items.find((i) => i.photos[0]);
-  const hero = demo ? '/demo/hero-bust.jpg' : heroItem ? photoUrl(heroItem.photos[0]) : '';
+  const hero = demo ? ''  : heroItem ? photoUrl(heroItem.photos[0]) : '';
 
   return (
     <div className="mo gx">
@@ -281,7 +282,8 @@ export default function Site({ settings: s, items, events = [], sealed = [], mod
         </header>
       </div>
 
-      <section className={`mo-hero${hero ? ' img' : ''}`} style={hero ? { backgroundImage: `url(${hero})`, backgroundPosition: demo ? '72% center' : undefined } : undefined}>
+      <section className={`mo-hero${hero ? ' img' : ''}${demo ? ' space' : ''}`} style={hero ? { backgroundImage: `url(${hero})` } : undefined}>
+        {demo && <SpaceHero />}
         <div className="mo-hero-in">
           <p className="mo-kicker">{def(s.launch, 'Release 2027 · Date TBA', '2027年発売 · 日程未定')}</p>
           <h1>{def(s.headline, "Founder's Archive", '創業者のアーカイブ')}</h1>
