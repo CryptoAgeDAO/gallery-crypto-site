@@ -7,7 +7,7 @@ import { tt } from './Lang';
 
 const MAX = 1600;
 export type Layer = { img: HTMLCanvasElement; data: ImageData; mask: Uint8ClampedArray; w: number; h: number };
-type Tool = 'pick' | 'erase' | 'restore' | 'move';
+type Tool = 'select' | 'pick' | 'erase' | 'restore' | 'move';
 type Target = 'front' | 'inner';
 
 export function loadLayer(file: File): Promise<Layer> {
@@ -64,6 +64,52 @@ export function tidy(m: Uint8ClampedArray, w: number, h: number) {
         m[y * w + x] = s >= 5 ? 255 : 0;
       }
   }
+}
+
+// 服をタップして選ぶ：タップした色から、なだらかにつながる範囲を広げ（陰影は許す）、
+// 中に囲まれたプリントやタグは穴埋めで含める。背景がごちゃごちゃした写真向け。
+export function selectGarment(L: Layer, sx: number, sy: number, tol: number) {
+  const { w, h } = L, d = L.data.data;
+  const s0 = sy * w + sx;
+  // タップ地点まわり 7x7 の平均色
+  let r0 = 0, g0 = 0, b0 = 0, c0 = 0;
+  for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
+    const x = sx + dx, y = sy + dy;
+    if (x < 0 || y < 0 || x >= w || y >= h) continue;
+    const i = (y * w + x) * 4; r0 += d[i]; g0 += d[i + 1]; b0 += d[i + 2]; c0++;
+  }
+  r0 /= c0; g0 /= c0; b0 /= c0;
+  const far = (tol * 4.2) ** 2, near = (tol * 0.9) ** 2;
+  const dist = (i: number, r: number, g: number, b: number) => { const a = d[i * 4] - r, c = d[i * 4 + 1] - g, e = d[i * 4 + 2] - b; return 0.3 * a * a + 0.59 * c * c + 0.11 * e * e; };
+  const hit = new Uint8Array(w * h);
+  const st = [s0];
+  hit[s0] = 1;
+  while (st.length) {
+    const i = st.pop()!;
+    const x = i % w, y = (i / w) | 0;
+    const r = d[i * 4], g = d[i * 4 + 1], b = d[i * 4 + 2];
+    const nb = [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, y > 0 ? i - w : -1, y < h - 1 ? i + w : -1];
+    for (const j of nb) {
+      if (j < 0 || hit[j]) continue;
+      if (dist(j, r, g, b) < near && dist(j, r0, g0, b0) < far) { hit[j] = 1; st.push(j); }
+    }
+  }
+  // 穴埋め：外側（画像の縁からつながる非選択部分）以外はすべて服
+  const out = new Uint8Array(w * h);
+  const q: number[] = [];
+  const push = (i: number) => { if (!hit[i] && !out[i]) { out[i] = 1; q.push(i); } };
+  for (let x = 0; x < w; x++) { push(x); push((h - 1) * w + x); }
+  for (let y = 0; y < h; y++) { push(y * w); push(y * w + w - 1); }
+  while (q.length) {
+    const i = q.pop()!;
+    const x = i % w, y = (i / w) | 0;
+    if (x > 0) push(i - 1);
+    if (x < w - 1) push(i + 1);
+    if (y > 0) push(i - w);
+    if (y < h - 1) push(i + w);
+  }
+  for (let i = 0; i < w * h; i++) L.mask[i] = out[i] ? 0 : 255;
+  tidy(L.mask, w, h);
 }
 
 export function autoBackground(L: Layer, tol: number) {
@@ -217,6 +263,17 @@ export default function GhostMannequin({ onSave }: { onSave?: (blob: Blob) => Pr
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     const p = toWork(e);
     if (tool === 'move') { drag.current = { on: true, lx: p.x, ly: p.y }; return; }
+    if (tool === 'select') {
+      const L = layer, q = toLayer(p);
+      if (!L || !q) return;
+      const xi = Math.round(q.x), yi = Math.round(q.y);
+      if (xi < 0 || yi < 0 || xi >= L.w || yi >= L.h) return;
+      snap(target);
+      selectGarment(L, xi, yi, tol);
+      setTool('pick');
+      bump();
+      return;
+    }
     if (tool === 'pick') {
       const L = layer, q = toLayer(p);
       if (!L || !q) return;
@@ -342,6 +399,7 @@ export default function GhostMannequin({ onSave }: { onSave?: (blob: Blob) => Pr
               </div>
             )}
             <div className="gm-row">
+              {T('select', tt('Tap the garment', '服をタップして選ぶ'))}
               {T('pick', tt('Tap to remove', 'タップで消す'))}
               {T('erase', tt('Erase', '消しゴム'))}
               {T('restore', tt('Restore', '戻すブラシ'))}
