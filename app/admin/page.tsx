@@ -11,6 +11,7 @@ import ModelAdmin from '@/components/ModelAdmin';
 import GhostMannequin from '@/components/GhostMannequin';
 import dynamic from 'next/dynamic';
 const PhotoTo3D = dynamic(() => import('@/components/PhotoTo3D'), { ssr: false });
+const AIImport = dynamic(() => import('@/components/AIImport'), { ssr: false });
 import SecurityCenter from '@/components/SecurityCenter';
 import { MfaChallenge, TwoStepSettings, useAal } from '@/components/TwoStep';
 import { EVENTS_SQL } from '@/lib/eventsSql';
@@ -21,7 +22,7 @@ import { LangToggle, tt, useLang } from '@/components/Lang';
 type Entry = { id: string; email: string; item_id: string | null; created_at: string; won: boolean; token: string | null; used_at: string | null };
 type Order = { id: string; item_id: string | null; email: string; name: string; amount: number; currency: string; shipping: Record<string, string> | null; shipped_at: string | null; created_at: string };
 type Msg = { id: string; name: string; email: string; body: string; created_at: string };
-type Tab = 'items' | 'ghost' | 'photo3d' | 'entries' | 'events' | 'passport' | 'security' | 'orders' | 'messages' | 'settings';
+type Tab = 'items' | 'aiimport' | 'ghost' | 'photo3d' | 'entries' | 'events' | 'passport' | 'security' | 'orders' | 'messages' | 'settings';
 
 const BLANK: Omit<Item, 'id' | 'serial' | 'created_at'> = {
   photos: [], band: '', title: '', year: '', era: '', size: '', tag: '', stitch: false,
@@ -855,11 +856,12 @@ export default function Admin() {
       <>
         {needPw && <PasswordForm highlight />}
         <div className="adm-tabs">
-          {([['items', tt('Archive', 'アーカイブ')], ['ghost', tt('Ghost mannequin', 'ゴーストマネキン')], ['photo3d', tt('Photo to 3D', '写真から3D')], ['entries', tt('Draw entries', '抽選の応募')], ['events', tt('Events', 'イベント')], ['passport', tt('Passport', 'パスポート')], ['security', tt('Security', 'セキュリティ')], ['orders', tt('Orders', '注文')], ['messages', tt('Messages', 'メッセージ')], ['settings', tt('Settings', '設定')]] as [Tab, string][]).map(([k, l]) => (
+          {([['items', tt('Archive', 'アーカイブ')], ['aiimport', tt('AI import', 'AI取り込み')], ['ghost', tt('Ghost mannequin', 'ゴーストマネキン')], ['photo3d', tt('Photo to 3D', '写真から3D')], ['entries', tt('Draw entries', '抽選の応募')], ['events', tt('Events', 'イベント')], ['passport', tt('Passport', 'パスポート')], ['security', tt('Security', 'セキュリティ')], ['orders', tt('Orders', '注文')], ['messages', tt('Messages', 'メッセージ')], ['settings', tt('Settings', '設定')]] as [Tab, string][]).map(([k, l]) => (
             <button key={k} aria-pressed={tab === k} onClick={() => setTab(k)}>{k === 'events' && <span className="ev-badge">EVENT</span>}{l}{k === 'events' && openEvents > 0 && <sup className="ev-count">{openEvents}</sup>}</button>
           ))}
         </div>
         {tab === 'items' && <Items />}
+        {tab === 'aiimport' && <div className="sec"><h4>{tt('AI import', 'AI取り込み')}</h4><AIImport /><p className="note">{tt('To attach the 3D to a piece, open the piece in Archive and use “AI import” in its 3D section.', '作品に3Dを付けるときは、アーカイブで作品を開き、3Dの欄の「AI取り込み」を使ってください。')}</p></div>}
         {tab === 'photo3d' && <div className="sec"><h4>{tt('Photo to 3D', '写真から3D')}</h4><PhotoTo3D /><p className="note">{tt('To attach the 3D to a piece, open the piece in Archive and use “Make 3D from photos”.', '作品に3Dを付けるときは、アーカイブで作品を開き「写真から3Dをつくる」を使ってください。')}</p></div>}
         {tab === 'ghost' && (
           <GhostMannequin

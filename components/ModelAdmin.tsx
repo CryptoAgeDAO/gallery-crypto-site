@@ -8,6 +8,7 @@ import type { ModelInfo } from './ModelViewer';
 import { tt } from './Lang';
 import dynamic from 'next/dynamic';
 const PhotoTo3D = dynamic(() => import('./PhotoTo3D'), { ssr: false });
+const AIImport = dynamic(() => import('./AIImport'), { ssr: false });
 
 type Row = { item_id: string; path: string; name: string; bytes: number; updated_at: string };
 const MAX = 50 * 1024 * 1024;
@@ -23,6 +24,7 @@ export default function ModelAdmin({ itemId }: { itemId?: string }) {
   const [st, setSt] = useState('');
   const [busy, setBusy] = useState(false);
   const [p3, setP3] = useState(false);
+  const [ai, setAi] = useState(false);
 
   const load = useCallback(async () => {
     if (!itemId) return;
@@ -157,9 +159,11 @@ export default function ModelAdmin({ itemId }: { itemId?: string }) {
           )}
           {!draft && (
             <div className="row" style={{ justifyContent: 'flex-start' }}>
-              <button type="button" className="btn" onClick={() => setP3(!p3)}>{p3 ? tt('Close photo to 3D', '写真から3Dを閉じる') : tt('Make 3D from photos', '写真から3Dをつくる')}</button>
+              <button type="button" className="btn primary" onClick={() => { setAi(!ai); setP3(false); }}>{ai ? tt('Close AI import', 'AI取り込みを閉じる') : tt('AI import (photo → 3D)', 'AI取り込み（写真→3D）')}</button>
+              <button type="button" className="btn" onClick={() => { setP3(!p3); setAi(false); }}>{p3 ? tt('Close photo to 3D', '写真から3Dを閉じる') : tt('Make 3D from photos', '写真から3Dをつくる')}</button>
             </div>
           )}
+          {ai && !draft && <AIImport onGlb={(f) => { setAi(false); pick(f); }} />}
           {p3 && !draft && <PhotoTo3D onGlb={(f) => { setP3(false); pick(f); }} />}
         </>
       )}
