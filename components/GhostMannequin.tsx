@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { tt } from './Lang';
 
 const MAX = 1600;
-export type Layer = { img: HTMLCanvasElement; data: ImageData; mask: Uint8ClampedArray; w: number; h: number };
+export type Layer = { img: HTMLCanvasElement; data: ImageData; mask: Uint8ClampedArray; w: number; h: number; sel?: boolean };
 type Tool = 'select' | 'pick' | 'erase' | 'restore' | 'move';
 type Target = 'front' | 'inner';
 
@@ -68,6 +68,25 @@ export function tidy(m: Uint8ClampedArray, w: number, h: number) {
 
 // 服をタップして選ぶ：タップした色から、なだらかにつながる範囲を広げ（陰影は許す）、
 // 中に囲まれたプリントやタグは穴埋めで含める。背景がごちゃごちゃした写真向け。
+// 正方形の最大／最小フィルタ（縦横に分けて高速に）
+function morph(m: Uint8Array, w: number, h: number, r: number, grow: boolean) {
+  const t = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) {
+    // 横方向：範囲内に1つでも（grow）／すべて（shrink）
+    for (let x = 0; x < w; x++) {
+      let v = grow ? 0 : 1;
+      for (let k = -r; k <= r; k++) { const xx = x + k; const b = xx < 0 || xx >= w ? (grow ? 0 : 1) : m[y * w + xx]; if (grow ? b : !b) { v = grow ? 1 : 0; break; } }
+      t[y * w + x] = v;
+    }
+  }
+  for (let x = 0; x < w; x++)
+    for (let y = 0; y < h; y++) {
+      let v = grow ? 0 : 1;
+      for (let k = -r; k <= r; k++) { const yy = y + k; const b = yy < 0 || yy >= h ? (grow ? 0 : 1) : t[yy * w + x]; if (grow ? b : !b) { v = grow ? 1 : 0; break; } }
+      m[y * w + x] = v;
+    }
+}
+
 export function selectGarment(L: Layer, sx: number, sy: number, tol: number) {
   const { w, h } = L, d = L.data.data;
   const s0 = sy * w + sx;
@@ -94,6 +113,12 @@ export function selectGarment(L: Layer, sx: number, sy: number, tol: number) {
       if (dist(j, r, g, b) < near && dist(j, r0, g0, b0) < far) { hit[j] = 1; st.push(j); }
     }
   }
+  // すでに選んだ範囲があれば足す（左右に分かれた服など、何回かに分けてタップできる）
+  if (L.sel) for (let i = 0; i < w * h; i++) if (L.mask[i] > 127) hit[i] = 1;
+  // ファスナーや縫い目の細いすき間を閉じる（ふくらませてから縮める）
+  const r = Math.max(2, Math.round(Math.max(w, h) * 0.006));
+  morph(hit, w, h, r, true);
+  morph(hit, w, h, r, false);
   // 穴埋め：外側（画像の縁からつながる非選択部分）以外はすべて服
   const out = new Uint8Array(w * h);
   const q: number[] = [];
@@ -110,6 +135,7 @@ export function selectGarment(L: Layer, sx: number, sy: number, tol: number) {
   }
   for (let i = 0; i < w * h; i++) L.mask[i] = out[i] ? 0 : 255;
   tidy(L.mask, w, h);
+  L.sel = true;
 }
 
 export function autoBackground(L: Layer, tol: number) {
@@ -270,7 +296,6 @@ export default function GhostMannequin({ onSave }: { onSave?: (blob: Blob) => Pr
       if (xi < 0 || yi < 0 || xi >= L.w || yi >= L.h) return;
       snap(target);
       selectGarment(L, xi, yi, tol);
-      setTool('pick');
       bump();
       return;
     }

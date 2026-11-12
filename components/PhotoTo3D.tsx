@@ -224,7 +224,7 @@ export default function PhotoTo3D({ onGlb }: { onGlb?: (file: File) => void }) {
     const r = c.getBoundingClientRect();
     const x = Math.round(((e.clientX - r.left) / r.width) * L.w), y = Math.round(((e.clientY - r.top) / r.height) * L.h);
     if (x < 0 || y < 0 || x >= L.w || y >= L.h) return;
-    if (tap3 === 'select') { selectGarment(L, x, y, tol); setTap3('toggle'); setVer((v) => v + 1); return; }
+    if (tap3 === 'select') { selectGarment(L, x, y, tol); setVer((v) => v + 1); return; }
     const i = y * L.w + x, d = L.data.data;
     // 消えている所をタップしたら戻す、残っている所なら消す
     const restore = L.mask[i] < 128;
@@ -274,11 +274,11 @@ export default function PhotoTo3D({ onGlb }: { onGlb?: (file: File) => void }) {
             </div>
             <canvas ref={pv} className="p3-pv" onPointerDown={tap} />
             <p className="note">{tap3 === 'select'
-              ? tt('Busy background? Tap the garment itself (a plain area of the fabric). Prints and tags inside it are kept.', '背景がごちゃごちゃしているときは、服そのもの（無地の生地の部分）をタップしてください。服の中のプリントやタグは残ります。')
+              ? tt('Busy background? Tap the garment itself (a plain area of the fabric). Prints and tags inside it are kept. Tap again to add missing parts.', '背景がごちゃごちゃしているときは、服そのもの（無地の生地の部分）をタップしてください。服の中のプリントやタグは残ります。足りない所は続けてタップすると足されます。')
               : tt('Red = removed. Tap a part to remove it; tap a red part to bring it back.', '赤い所が消えた部分です。タップで消し、赤い所をタップすると戻ります。')}</p>
             <label className="gm-sl">{tt('Tolerance', '色の幅')} <input type="range" min={2} max={45} value={tol} onChange={(e) => setTol(+e.target.value)} /> <b>{tol}</b></label>
             <div className="gm-row">
-              <button type="button" className="btn" onClick={() => { if (layer) { autoBackground(layer, tol); setVer((v) => v + 1); } }}>{tt('Redo background', '背景を消し直す')}</button>
+              <button type="button" className="btn" onClick={() => { if (layer) { autoBackground(layer, tol); layer.sel = false; setTap3('select'); setVer((v) => v + 1); } }}>{tt('Redo background', '背景を消し直す')}</button>
             </div>
           </div>
           <div className="p3-3d">
