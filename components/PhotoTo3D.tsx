@@ -8,6 +8,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 import { autoBackground, flood, loadLayer, selectGarment, tidy, type Layer } from './GhostMannequin';
 import { tt } from './Lang';
+import { buildGarment } from './garment3d';
 
 type Side = 'front' | 'back';
 const GRID = 240; // 長い辺のマス数（細かさ）
@@ -130,13 +131,15 @@ export default function PhotoTo3D({ onGlb }: { onGlb?: (file: File) => void }) {
   const [tol, setTol] = useState(9);
   const [tap3, setTap3] = useState<'select' | 'toggle'>('select');
   const [puff, setPuff] = useState(1);
+  const [shape, setShape] = useState<'garment' | 'flat'>('garment');
+  const [info, setInfo] = useState('');
   const [heightCm, setHeightCm] = useState(72);
   const [ver, setVer] = useState(0);
   const [st, setSt] = useState('');
   const pv = useRef<HTMLCanvasElement>(null);
   const host = useRef<HTMLDivElement>(null);
   const placed = useRef(false);
-  const three = useRef<{ r: THREE.WebGLRenderer; scene: THREE.Scene; cam: THREE.PerspectiveCamera; ctl: OrbitControls; mesh?: THREE.Mesh; raf: number } | null>(null);
+  const three = useRef<{ r: THREE.WebGLRenderer; scene: THREE.Scene; cam: THREE.PerspectiveCamera; ctl: OrbitControls; mesh?: THREE.Object3D; raf: number } | null>(null);
   const layer = side === 'front' ? front : back;
 
   // 2D の確認画面（消えた部分は赤く）
@@ -187,22 +190,35 @@ export default function PhotoTo3D({ onGlb }: { onGlb?: (file: File) => void }) {
   const rebuild = useCallback(() => {
     const T = three.current;
     if (!T || !front) return;
-    const g = buildMesh(front, back, puff, heightCm / 100);
-    if (!g) return;
-    if (T.mesh) { T.scene.remove(T.mesh); T.mesh.geometry.dispose(); (T.mesh.material as THREE.Material[]).forEach((m) => { (m as THREE.MeshStandardMaterial).map?.dispose(); m.dispose(); }); }
-    const tf = texture(front);
-    const mf = new THREE.MeshStandardMaterial({ map: tf.tex, roughness: 0.9, side: THREE.FrontSide });
-    let mb: THREE.MeshStandardMaterial;
-    if (back) mb = new THREE.MeshStandardMaterial({ map: texture(back).tex, roughness: 0.9 });
-    else mb = new THREE.MeshStandardMaterial({ color: tf.mean, roughness: 0.92 });
-    const mesh = new THREE.Mesh(g, [mf, mb]);
-    mesh.name = 'garment';
-    T.scene.add(mesh);
-    T.mesh = mesh;
     const h = heightCm / 100;
+    let obj: THREE.Object3D | null = null;
+    if (shape === 'garment') {
+      const r = buildGarment(front, back, h, puff);
+      if (r) {
+        obj = r.group;
+        setInfo(r.info.sleeves ? tt(`Body + ${r.info.sleeves} sleeve${r.info.sleeves > 1 ? 's' : ''} found`, `胴と袖${r.info.sleeves}本を認識しました`) : tt('Body found (no separate sleeves)', '胴を認識しました（袖は見分けられませんでした）'));
+      }
+    } else {
+      const g = buildMesh(front, back, puff, h);
+      if (g) {
+        const tf = texture(front);
+        const mf = new THREE.MeshStandardMaterial({ map: tf.tex, roughness: 0.9, side: THREE.FrontSide });
+        const mb = back ? new THREE.MeshStandardMaterial({ map: texture(back).tex, roughness: 0.9 }) : new THREE.MeshStandardMaterial({ color: tf.mean, roughness: 0.92 });
+        obj = new THREE.Mesh(g, [mf, mb]);
+        obj.name = 'garment';
+        setInfo('');
+      }
+    }
+    if (!obj) return;
+    if (T.mesh) {
+      T.scene.remove(T.mesh);
+      T.mesh.traverse((o) => { const m = o as THREE.Mesh; if (!m.isMesh) return; m.geometry.dispose(); (Array.isArray(m.material) ? m.material : [m.material]).forEach((mt) => { (mt as THREE.MeshStandardMaterial).map?.dispose(); mt.dispose(); }); });
+    }
+    T.scene.add(obj);
+    T.mesh = obj;
     T.ctl.target.set(0, h / 2, 0);
     if (!placed.current) { T.cam.position.set(0, h / 2, h * 2.9); placed.current = true; }
-  }, [front, back, puff, heightCm, ver]);
+  }, [front, back, puff, heightCm, ver, shape]);
   useEffect(() => { rebuild(); }, [rebuild]);
 
   const pickFile = async (file: File | undefined, s: Side) => {
@@ -238,15 +254,20 @@ export default function PhotoTo3D({ onGlb }: { onGlb?: (file: File) => void }) {
     const T = three.current;
     if (!T?.mesh) return null;
     const ex = new GLTFExporter();
-    const res = await ex.parseAsync(T.mesh, { binary: true, maxTextureSize: 2048 });
+    // 書き出し用：裏地（BackSide）は glTF で表せないので外し、表を両面にする
+    const out = T.mesh.clone();
+    const lining = out.getObjectByName('lining');
+    if (lining) lining.removeFromParent();
+    out.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh && m.name === 'garment' && !Array.isArray(m.material)) { m.material = (m.material as THREE.Material).clone(); m.material.side = THREE.DoubleSide; } });
+    const res = await ex.parseAsync(out, { binary: true, maxTextureSize: 2048 });
     return new File([res as ArrayBuffer], 'photo-3d.glb', { type: 'model/gltf-binary' });
   };
 
   return (
     <div className="p3">
       <p className="note">{tt(
-        'Lay the piece flat (or use the ghost mannequin photo) on a plain background and shoot it straight from the front, then the back. It turns into 3D straight away. This estimates the shape from two photos — it is not a full 3D scan.',
-        '無地の背景に服を平らに置いて（またはゴーストマネキンの写真で）、真上から正面、次に背面を撮ります。その場で3Dになります。2枚の写真から形を推定する方式で、全方向から撮る本格的な3Dスキャンではありません。',
+        'Lay the piece flat (or use the ghost mannequin photo) on a plain background and shoot it straight from the front, then the back. The body and sleeves are detected from the outline and built as real 3D tubes. This estimates the shape from two photos — it is not a full 3D scan.',
+        '無地の背景に服を平らに置いて（またはゴーストマネキンの写真で）、真上から正面、次に背面を撮ります。シルエットから胴と袖を見分けて、筒状の立体の服にします。2枚の写真から形を推定する方式で、全方向から撮る本格的な3Dスキャンではありません。',
       )}</p>
       <div className="row" style={{ justifyContent: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
         <label className="btn primary" style={{ cursor: 'pointer' }}>
@@ -283,7 +304,12 @@ export default function PhotoTo3D({ onGlb }: { onGlb?: (file: File) => void }) {
           </div>
           <div className="p3-3d">
             <div className="p3-view" ref={host} />
-            <label className="gm-sl">{tt('Thickness', '厚み')} <input type="range" min={0.2} max={2.5} step={0.05} value={puff} onChange={(e) => setPuff(+e.target.value)} /> <b>{puff.toFixed(1)}</b></label>
+            <div className="gm-row">
+              <button type="button" className={`btn${shape === 'garment' ? ' primary' : ''}`} onClick={() => setShape('garment')}>{tt('Garment shape (body + sleeves)', '服の形（胴＋袖）')}</button>
+              <button type="button" className={`btn${shape === 'flat' ? ' primary' : ''}`} onClick={() => setShape('flat')}>{tt('Puffed flat', 'ふくらませ')}</button>
+            </div>
+            {info && <p className="note">{info}</p>}
+            <label className="gm-sl">{shape === 'garment' ? tt('Depth', '奥行き') : tt('Thickness', '厚み')} <input type="range" min={0.2} max={2.5} step={0.05} value={puff} onChange={(e) => setPuff(+e.target.value)} /> <b>{puff.toFixed(1)}</b></label>
             <label className="gm-sl">{tt('Length (cm)', '着丈（cm）')} <input type="range" min={20} max={130} value={heightCm} onChange={(e) => setHeightCm(+e.target.value)} /> <b>{heightCm}</b></label>
             <div className="gm-row">
               <button type="button" className="btn" onClick={async () => { const f = await exportGlb(); if (!f) return; const a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = f.name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); }}>{tt('Download .glb', '.glb をダウンロード')}</button>
