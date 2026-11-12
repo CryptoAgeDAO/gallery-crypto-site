@@ -1078,3 +1078,13 @@ html[lang=ja] .gx .mo-iname{font-size:19px;line-height:1.25}
 .p3-pv{width:100%;max-height:60vh;object-fit:contain;border:1px solid var(--line);touch-action:manipulation;cursor:crosshair}
 .p3-view{width:100%;aspect-ratio:1/1;border:1px solid var(--line);background:radial-gradient(circle at 50% 40%,#fafafa,#e6e4df);touch-action:none}
 @media (max-width:820px){.p3-work{grid-template-columns:1fr}}
+
+/* 試作アプリ（/studio） */
+.studio{max-width:1200px;margin:0 auto;padding:16px 16px 80px}
+.studio-hd{display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:1px solid var(--line);padding-bottom:12px}
+.studio-logo{font-family:var(--sans);font-weight:700;letter-spacing:.18em;font-size:14px;margin:0}
+.studio-logo span{font-weight:400;color:#888;margin-left:6px}
+.studio-lead{font-size:12px;color:#666;margin:0}
+@media (max-width:820px){.studio .gm-sl{grid-template-columns:84px 1fr 32px}.studio .btn{padding:11px 14px}}
+.studio{overflow-x:hidden}
+.studio>*,.studio .sec,.studio .gm,.studio .p3,.studio .p3-work>*{min-width:0;max-width:100%}
