@@ -4,8 +4,8 @@
 // AI キーがなくても、輪郭からの推定と組み込みの変換で使える。原寸 SVG／A4 分割印刷／ZIP。
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { autoBackground, flood, loadLayer, selectGarment, tidy, type Layer } from './GhostMannequin';
-import { measure, toSVG, type Measures } from './pattern';
-import { baseSpec, specPieces, type Spec } from './patternSpec';
+import { detectLandmarks, measuresFromLandmarks, LM_LABEL, toSVG, type Landmarks, type LmKey, type Measures } from './pattern';
+import { baseSpec, frontOutline, specPieces, type Spec } from './patternSpec';
 import { analyze, propose, DEFAULT_MODEL } from './gemini';
 import { tt, useLang } from './Lang';
 
@@ -52,6 +52,12 @@ export default function PatternMaker() {
   const [ask, setAsk] = useState('');
   const [busy, setBusy] = useState('');
   const [msg, setMsg] = useState('');
+  const [lm, setLm] = useState<Landmarks | null>(null);
+  const [lmTouched, setLmTouched] = useState(false);
+  const [ruler, setRuler] = useState<{ on: boolean; a: [number, number]; b: [number, number]; cm: number }>({ on: false, a: [0, 0], b: [0, 0], cm: 29.7 });
+  const [showFit, setShowFit] = useState(true);
+  const dragK = useRef<string | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
   const pv = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => { setKey(store.get('gc-gemini-key')); setModel(store.get('gc-gemini-model') || DEFAULT_MODEL); }, []);
@@ -60,7 +66,7 @@ export default function PatternMaker() {
     if (!f) return;
     const l = await loadLayer(f);
     autoBackground(l, tol);
-    setL(l); setPhoto(l.img); setMode('select'); setAiBase(false); setAiSpecs([]); setEdits({}); setSel(0); setMsg('');
+    setL(l); setPhoto(l.img); setMode('select'); setLmTouched(false); setAiBase(false); setAiSpecs([]); setEdits({}); setSel(0); setMsg('');
   };
   useEffect(() => {
     const c = pv.current;
@@ -70,12 +76,37 @@ export default function PatternMaker() {
     for (let i = 0; i < L.mask.length; i++) { const k = L.mask[i] > 127; d.data[i * 4] = k ? s[i * 4] : s[i * 4] * 0.35 + 150; d.data[i * 4 + 1] = k ? s[i * 4 + 1] : s[i * 4 + 1] * 0.35; d.data[i * 4 + 2] = k ? s[i * 4 + 2] : s[i * 4 + 2] * 0.35; d.data[i * 4 + 3] = 255; }
     x.putImageData(d, 0, 0);
   }, [L, ver]);
-  // 輪郭から測る（AI で解析済みのときは上書きしない）
+  // 服の形が変わったら目印の点を置き直す（手で動かした後は動かさない）
   useEffect(() => {
-    if (!L || aiBase) return;
-    const m = measure(L, len);
-    setBase(m ? baseSpec(m) : null);
-  }, [L, ver, len, aiBase]);
+    if (!L || lmTouched) return;
+    const d = detectLandmarks(L);
+    setLm(d);
+    if (d) setRuler((r) => (r.on ? r : { ...r, a: [d.HL[0], d.HL[1] + L.h * 0.03], b: [d.HR[0], d.HR[1] + L.h * 0.03] }));
+  }, [L, ver, lmTouched]);
+  // 縮尺：ものさし（既知の長さ）か、実物の着丈
+  const kScale = useMemo(() => {
+    if (!lm) return 0;
+    if (ruler.on) { const px = Math.hypot(ruler.a[0] - ruler.b[0], ruler.a[1] - ruler.b[1]); return px > 5 ? ruler.cm / px : 0; }
+    const px = (lm.HL[1] + lm.HR[1]) / 2 - (lm.NL[1] + lm.NR[1]) / 2;
+    return px > 5 ? len / px : 0;
+  }, [lm, ruler, len]);
+  const measured = useMemo(() => (lm && kScale ? measuresFromLandmarks(lm, kScale) : null), [lm, kScale]);
+  // 点から測った寸法を型紙に使う。AI は作り（袖・衿など）だけを予測し、寸法は写真の点を優先する
+  useEffect(() => {
+    if (!measured) return;
+    setBase((b) => (b && aiBase ? { ...b, m: { ...b.m, ...measured, hasSleeves: b.m.hasSleeves } } : baseSpec(measured)));
+    setEdits({});
+  }, [measured]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 点のドラッグ
+  const svgPt = (e: React.PointerEvent) => { const r = svgRef.current!.getBoundingClientRect(); return [((e.clientX - r.left) / r.width) * L!.w, ((e.clientY - r.top) / r.height) * L!.h] as [number, number]; };
+  const startDrag = (k: string) => (e: React.PointerEvent) => { e.stopPropagation(); (e.target as Element).setPointerCapture(e.pointerId); dragK.current = k; };
+  const moveDrag = (e: React.PointerEvent) => {
+    const k = dragK.current; if (!k || !L) return;
+    const p = svgPt(e);
+    if (k === 'ra' || k === 'rb') { setRuler((r) => ({ ...r, [k === 'ra' ? 'a' : 'b']: p })); return; }
+    setLm((o) => (o ? { ...o, [k]: p } : o)); setLmTouched(true);
+  };
 
   const tap = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!L) return;
@@ -111,7 +142,7 @@ export default function PatternMaker() {
     setMsg(''); setBusy(tt('AI is reading the garment…', 'AIが服の作りと寸法を読み取っています…'));
     try {
       const s = await analyze(key.trim(), model.trim() || DEFAULT_MODEL, cutPhoto() || photo!, base.m);
-      if (s) { setBase(s); setAiBase(true); setEdits({}); setSel(aiSpecs.length); setMsg(s.note || ''); }
+      if (s) { setBase(measured ? { ...s, m: { ...s.m, ...measured, hasSleeves: s.m.hasSleeves } } : s); setAiBase(true); setEdits({}); setSel(aiSpecs.length); setMsg(s.note || ''); }
     } catch (e) { setMsg(tt('AI error: ', 'AIのエラー：') + (e as Error).message); }
     setBusy('');
   };
@@ -161,14 +192,74 @@ export default function PatternMaker() {
       ) : (
         <div className="pm-main">
           <div className="pm-left">
-            <canvas ref={pv} className="p3-pv" onPointerDown={tap} />
+            <div className="pm-photo">
+              <canvas ref={pv} className="p3-pv" onPointerDown={tap} />
+              {lm && L && (
+                <svg ref={svgRef} className="pm-ov" viewBox={`0 0 ${L.w} ${L.h}`} onPointerMove={moveDrag} onPointerUp={() => { dragK.current = null; }} onPointerCancel={() => { dragK.current = null; }}>
+                  {(() => {
+                    const r = L.w / 95, sw = L.w / 420;
+                    const ln = (a: [number, number], b: [number, number], c: string) => <line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke={c} strokeWidth={sw * 2} strokeDasharray={`${sw * 6} ${sw * 4}`} />;
+                    const hpsY = (lm.NL[1] + lm.NR[1]) / 2, cxI = (lm.NL[0] + lm.NR[0]) / 2;
+                    const cm = (v: number) => (measured ? `${(measured[v as unknown as keyof Measures] as number) ?? ''}` : '');
+                    void cm;
+                    let fit: string | null = null;
+                    if (showFit && cur && kScale) {
+                      const half = frontOutline(cur);
+                      const pts = [...half.map((q) => [cxI + q[0] / kScale, hpsY + q[1] / kScale]), ...[...half].reverse().map((q) => [cxI - q[0] / kScale, hpsY + q[1] / kScale])];
+                      fit = pts.map((q) => q.join(',')).join(' ');
+                    }
+                    const cuffMid: [number, number] = [(lm.CO[0] + lm.CI[0]) / 2, (lm.CO[1] + lm.CI[1]) / 2];
+                    return (
+                      <>
+                        {fit && <polygon points={fit} fill="rgba(45,226,200,.10)" stroke="#12b5a0" strokeWidth={sw * 2.5} />}
+                        {ln(lm.SL, lm.SR, '#ff3d7f')}{ln(lm.AL, lm.AR, '#ff3d7f')}{ln(lm.HL, lm.HR, '#ff3d7f')}{ln(lm.NL, lm.NR, '#ff3d7f')}
+                        {ln([cxI, hpsY], [cxI, (lm.HL[1] + lm.HR[1]) / 2], '#ffb020')}
+                        {lm.hasSleeves && ln(lm.SR, cuffMid, '#ffb020')}{lm.hasSleeves && ln(lm.CO, lm.CI, '#ff3d7f')}
+                        {ruler.on && <><line x1={ruler.a[0]} y1={ruler.a[1]} x2={ruler.b[0]} y2={ruler.b[1]} stroke="#2563eb" strokeWidth={sw * 3} />
+                          {(['ra', 'rb'] as const).map((k) => { const q = k === 'ra' ? ruler.a : ruler.b; return <circle key={k} cx={q[0]} cy={q[1]} r={r} fill="#2563eb" stroke="#fff" strokeWidth={sw * 2} onPointerDown={startDrag(k)} style={{ cursor: 'grab' }} />; })}</>}
+                        {(Object.keys(LM_LABEL) as LmKey[]).filter((k) => lm.hasSleeves || (k !== 'CO' && k !== 'CI')).map((k) => (
+                          <g key={k} onPointerDown={startDrag(k)} style={{ cursor: 'grab' }}>
+                            <circle cx={lm[k][0]} cy={lm[k][1]} r={r * 2.2} fill="transparent" />
+                            <circle cx={lm[k][0]} cy={lm[k][1]} r={r} fill="#fff" stroke="#ff3d7f" strokeWidth={sw * 2.5} />
+                            <text x={lm[k][0] + r * 1.4} y={lm[k][1] - r * 1.2} fontSize={r * 1.7} fill="#111" stroke="#fff" strokeWidth={sw * 2} paintOrder="stroke">{k}</text>
+                          </g>
+                        ))}
+                      </>
+                    );
+                  })()}
+                </svg>
+              )}
+            </div>
+            <p className="note">{tt('Drag the pink points onto the garment: neck (NL/NR/CF), shoulder tips (SL/SR), armpits (AL/AR), hem corners (HL/HR), cuff edges (CO/CI). The pattern is measured from these points. The green outline is the front pattern laid over the photo.', 'ピンクの点を服の位置にドラッグして合わせてください：首の付け根（NL/NR）、前衿の一番下（CF）、肩先（SL/SR）、脇の下（AL/AR）、裾の角（HL/HR）、袖口の両端（CO/CI）。型紙の寸法はこの点から測ります。緑の線は、前身頃の型紙を写真に重ねたものです。')}</p>
+            <div className="gm-row">
+              <label className="gm-ck"><input type="checkbox" checked={showFit} onChange={(e) => setShowFit(e.target.checked)} /> {tt('Overlay pattern', '型紙を重ねる')}</label>
+              <button type="button" className="btn" onClick={() => setLmTouched(false)}>{tt('Re-place points automatically', '点を自動で置き直す')}</button>
+            </div>
             <div className="gm-row">
               <button type="button" className={`btn${mode === 'select' ? ' primary' : ''}`} onClick={() => setMode('select')}>{tt('Tap the garment', '服をタップして選ぶ')}</button>
               <button type="button" className={`btn${mode === 'toggle' ? ' primary' : ''}`} onClick={() => setMode('toggle')}>{tt('Tap to remove / restore', 'タップで消す・戻す')}</button>
             </div>
-            <label className="ai-field">{tt('Real length of the garment (cm) — sets the scale', '実物の着丈（cm）— これで縮尺が決まります')}
-              <input type="number" min={20} max={150} step={0.5} value={len} onChange={(e) => { setLen(+e.target.value || 70); setAiBase(false); }} />
-            </label>
+            <div className="pm-scale">
+              <p className="pm-k">{tt('Scale (how big the garment really is)', '縮尺（実物の大きさ）')}</p>
+              <div className="gm-row">
+                <button type="button" className={`btn${!ruler.on ? ' primary' : ''}`} onClick={() => setRuler((r) => ({ ...r, on: false }))}>{tt('By real length', '実物の着丈で')}</button>
+                <button type="button" className={`btn${ruler.on ? ' primary' : ''}`} onClick={() => setRuler((r) => ({ ...r, on: true }))}>{tt('By a ruler in the photo', '写真の中のものさしで')}</button>
+              </div>
+              {!ruler.on ? (
+                <label className="ai-field">{tt('Measure the real garment from the neck point to the hem (cm)', '実物の首の付け根から裾までを測った長さ（cm）')}
+                  <input type="number" min={20} max={150} step={0.5} value={len} onChange={(e) => setLen(+e.target.value || 70)} />
+                </label>
+              ) : (
+                <>
+                  <p className="note">{tt('Put something of known size next to the garment when you shoot (A4 paper, a ruler…), then drag the blue line onto it.', '撮るときに服の横に大きさの分かる物（A4の紙、定規など）を置き、青い線をその上に合わせてください。')}</p>
+                  <div className="gm-row">
+                    {([[29.7, 'A4 long side', 'A4の長辺'], [21, 'A4 short side', 'A4の短辺'], [30, '30 cm ruler', '30cm定規'], [8.56, 'Card', 'カード']] as [number, string, string][]).map(([v, en, ja]) => <button key={v} type="button" className={`btn${ruler.cm === v ? ' primary' : ''}`} onClick={() => setRuler((r) => ({ ...r, cm: v }))}>{tt(en, ja)}</button>)}
+                  </div>
+                  <label className="ai-field">{tt('Length of the blue line (cm)', '青い線の長さ（cm）')}<input type="number" step={0.1} value={ruler.cm} onChange={(e) => setRuler((r) => ({ ...r, cm: +e.target.value || 1 }))} /></label>
+                </>
+              )}
+              {measured && <p className="note">{tt(`Measured: length ${measured.length} · chest ${measured.chest} · shoulder ${measured.shoulder} · sleeve ${measured.sleeve} cm`, `測った値：着丈 ${measured.length}・身幅 ${measured.chest}・肩幅 ${measured.shoulder}・袖丈 ${measured.sleeve} cm`)}</p>}
+            </div>
 
             <div className="pm-ai">
               <h5>✦ {tt('AI', 'AI')}</h5>

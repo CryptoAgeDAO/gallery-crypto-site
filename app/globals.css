@@ -1182,3 +1182,8 @@ html[lang=ja] .gx .mo-iname{font-size:19px;line-height:1.25}
 .pm-vars span{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .pm-msg{background:#f6f3ec;padding:8px 10px;border-radius:8px}
 .pm select{border:1px solid var(--line);padding:5px;font-size:12px;background:var(--bg)}
+.pm-photo{position:relative}
+.pm-photo .p3-pv{display:block;width:100%;max-height:none}
+.pm-ov{position:absolute;inset:0;width:100%;height:100%;touch-action:none;pointer-events:none}
+.pm-ov g,.pm-ov circle{pointer-events:auto}
+.pm-scale{display:grid;gap:6px;border:1px solid var(--line);border-radius:12px;padding:10px}

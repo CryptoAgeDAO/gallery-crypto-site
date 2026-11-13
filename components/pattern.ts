@@ -258,3 +258,87 @@ export function toSVG(ps: Piece[], lang: 'en' | 'ja', title: string, width = 150
   s += `</svg>`;
   return { svg: s, W, H };
 }
+
+// ---- 目印（ランドマーク）方式：写真の上の点から寸法を直接はかる ----
+// 自動で置いた点を、写真に合わせて指で動かせば、型紙の寸法は写真と必ず一致する。
+export type LmKey = 'NL' | 'NR' | 'CF' | 'SL' | 'SR' | 'AL' | 'AR' | 'HL' | 'HR' | 'CO' | 'CI';
+export type Landmarks = Record<LmKey, Pt> & { hasSleeves: boolean };
+export const LM_LABEL: Record<LmKey, [string, string]> = {
+  NL: ['Neck (left)', '首の付け根・左'], NR: ['Neck (right)', '首の付け根・右'], CF: ['Front neck', '前衿の一番下'],
+  SL: ['Shoulder (left)', '肩先・左'], SR: ['Shoulder (right)', '肩先・右'], AL: ['Armpit (left)', '脇の下・左'], AR: ['Armpit (right)', '脇の下・右'],
+  HL: ['Hem (left)', '裾・左'], HR: ['Hem (right)', '裾・右'], CO: ['Cuff (outer)', '袖口・外'], CI: ['Cuff (inner)', '袖口・内'],
+};
+
+export function detectLandmarks(F: Layer): Landmarks | null {
+  let x0 = F.w, y0 = F.h, x1 = 0, y1 = 0;
+  for (let y = 0; y < F.h; y++) for (let x = 0; x < F.w; x++) if (F.mask[y * F.w + x] > 127) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  if (x1 <= x0) return null;
+  const M = (x: number, y: number) => { const xi = Math.round(x), yi = Math.round(y); return xi >= 0 && yi >= 0 && xi < F.w && yi < F.h && F.mask[yi * F.w + xi] > 127; };
+  const rows = 240, step = (y1 - y0 + 1) / rows;
+  const Y = (j: number) => y0 + j * step;
+  type Run = { a: number; b: number };
+  const runs: Run[][] = [];
+  for (let j = 0; j <= rows; j++) { const rs: Run[] = []; let s = -1; for (let x = x0; x <= x1 + 1; x++) { const m = M(x, Y(j)); if (m && s < 0) s = x; if (!m && s >= 0) { rs.push({ a: s, b: x - 1 }); s = -1; } } runs.push(rs); }
+  const med = (a: number[]) => { const s = [...a].sort((p, q) => p - q); return s.length ? s[s.length >> 1] : 0; };
+  const low = runs.slice(Math.round(rows * 0.72), Math.round(rows * 0.95)).map((rs) => rs.reduce((m, r) => (r.b - r.a > m.b - m.a ? r : m), { a: 0, b: -1 })).filter((r) => r.b > r.a);
+  const cx = med(low.map((r) => (r.a + r.b) / 2)) || (x0 + x1) / 2;
+  const hw0 = med(low.map((r) => (r.b - r.a) / 2)) || (x1 - x0) / 4;
+  const L = new Float32Array(rows + 1).fill(NaN), R = new Float32Array(rows + 1).fill(NaN);
+  for (let j = 0; j <= rows; j++) { const near = runs[j].filter((r) => r.b >= cx - hw0 * 1.6 && r.a <= cx + hw0 * 1.6); if (near.length) { L[j] = Math.min(...near.map((r) => r.a)); R[j] = Math.max(...near.map((r) => r.b)); } }
+  let top = 0; while (top < rows && isNaN(L[top])) top++;
+  let bot = rows; while (bot > 0 && isNaN(L[bot])) bot--;
+  let arm = -1;
+  for (let j = Math.round(rows * 0.9); j > top + 2; j--) { const w = (k: number) => (R[k] - L[k]) / 2; if (w(j) > hw0 * 1.22 && w(j - 1) > hw0 * 1.22 && w(j - 2) > hw0 * 1.22) { arm = j; break; } }
+  const armRow = arm >= 0 ? arm + 2 : top + Math.round((bot - top) * 0.3);
+  const cap = arm >= 0 ? Math.max(hw0, ((R[armRow] - L[armRow]) / 2 || hw0)) : Math.min((R[armRow] - L[armRow]) / 2 || hw0, hw0 * 1.1);
+  const topY = (x: number) => { for (let y = y0; y <= y1; y++) if (M(x, y)) return y; return y0; };
+  // 首：中心の列で、上から見て最初に生地がある所が前衿の一番下
+  let cfY = y0; while (cfY < y1 && !M(cx, cfY)) cfY++;
+  let nl = cx, nr = cx;
+  if (cfY > y0 + 2) { const yy = y0 + Math.min(4, (cfY - y0) / 3); while (nl > x0 && !M(nl, yy)) nl--; while (nr < x1 && !M(nr, yy)) nr++; }
+  else { nl = cx - hw0 * 0.35; nr = cx + hw0 * 0.35; }
+  const sx = Math.min(cap * 0.96, hw0 * 1.12);
+  const lm = {
+    NL: [nl, topY(nl)] as Pt, NR: [nr, topY(nr)] as Pt, CF: [cx, cfY] as Pt,
+    SL: [cx - sx, topY(cx - sx)] as Pt, SR: [cx + sx, topY(cx + sx)] as Pt,
+    AL: [cx - cap, Y(armRow)] as Pt, AR: [cx + cap, Y(armRow)] as Pt,
+    HL: [L[bot - 1], Y(bot)] as Pt, HR: [R[bot - 1], Y(bot)] as Pt,
+    CO: [cx + cap, Y(armRow)] as Pt, CI: [cx + cap, Y(armRow)] as Pt,
+    hasSleeves: false,
+  };
+  // 右袖：胴の外側の点を集め、肩先から一番遠い所を袖口とする
+  const pts: Pt[] = [];
+  for (let j = top; j <= bot; j++) { const r = j <= arm ? Math.min(R[j], cx + cap) : R[j]; for (const rr of runs[j]) for (let x = rr.a; x <= rr.b; x += step) if (x > r + step) pts.push([x, Y(j)]); }
+  if (pts.length > 40) {
+    const S = lm.SR;
+    let far = pts[0], fd = 0;
+    for (const p of pts) { const d = (p[0] - S[0]) ** 2 + (p[1] - S[1]) ** 2; if (d > fd) { fd = d; far = p; } }
+    const len = Math.sqrt(fd);
+    const tipPts = pts.filter((p) => Math.hypot(p[0] - far[0], p[1] - far[1]) < len * 0.3 && (p[0] - S[0]) * (far[0] - S[0]) + (p[1] - S[1]) * (far[1] - S[1]) > len * len * 0.85);
+    const dx = (far[0] - S[0]) / len, dy = (far[1] - S[1]) / len, nx = -dy, ny = dx;
+    let lo = tipPts[0] || far, hi = lo, ls = Infinity, hs = -Infinity;
+    for (const p of tipPts) { const s = (p[0] - S[0]) * nx + (p[1] - S[1]) * ny; if (s < ls) { ls = s; lo = p; } if (s > hs) { hs = s; hi = p; } }
+    // 外（上側）と内（脇側）
+    const [o, i] = lo[1] < hi[1] ? [lo, hi] : [hi, lo];
+    lm.CO = o; lm.CI = i; lm.hasSleeves = true;
+  }
+  return lm as Landmarks;
+}
+
+// 点から寸法（cm）。k = 1px あたりの cm
+export function measuresFromLandmarks(p: Landmarks, k: number): Measures {
+  const d = (a: Pt, b: Pt) => Math.hypot(a[0] - b[0], a[1] - b[1]) * k;
+  const hpsY = (p.NL[1] + p.NR[1]) / 2;
+  const sY = (p.SL[1] + p.SR[1]) / 2, aY = (p.AL[1] + p.AR[1]) / 2, hY = (p.HL[1] + p.HR[1]) / 2;
+  const cuffMid: Pt = [(p.CO[0] + p.CI[0]) / 2, (p.CO[1] + p.CI[1]) / 2];
+  // 袖幅：脇の下から、肩先→袖口の線までの距離
+  const ax = cuffMid[0] - p.SR[0], ay = cuffMid[1] - p.SR[1], al = Math.hypot(ax, ay) || 1;
+  const bicep = (Math.abs((p.AR[0] - p.SR[0]) * ay - (p.AR[1] - p.SR[1]) * ax) / al) * k;
+  const r1 = (v: number) => Math.round(v * 10) / 10;
+  return {
+    length: r1((hY - hpsY) * k), chest: r1(Math.abs(p.AR[0] - p.AL[0]) * k), hem: r1(Math.abs(p.HR[0] - p.HL[0]) * k),
+    shoulder: r1(d(p.SL, p.SR)), armhole: r1(Math.max(8, (aY - sY) * k)),
+    neckW: r1(d(p.NL, p.NR)), neckF: r1(Math.max(1, (p.CF[1] - hpsY) * k)), neckB: 2,
+    sleeve: p.hasSleeves ? r1(d(p.SR, cuffMid)) : 0, bicep: r1(bicep || 10), cuff: r1(d(p.CO, p.CI) || 8), hasSleeves: p.hasSleeves,
+  };
+}

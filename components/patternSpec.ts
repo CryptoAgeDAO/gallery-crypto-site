@@ -255,3 +255,6 @@ export const SPEC_SCHEMA = {
   },
   required: ['name', 'measures', 'sleeve', 'neck', 'hood', 'pocket', 'hem', 'ribHem', 'ribCuff', 'splits'],
 };
+
+// 写真に重ねて確かめる用：前身頃の出来上がり線（半身、cm）
+export function frontOutline(s: Spec): Pt[] { return bodyPiece(s, false).line; }
