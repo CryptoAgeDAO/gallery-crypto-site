@@ -69,7 +69,7 @@ function loadSeg(onProg: (m: string) => void) {
     })().catch((e) => { segP = null; throw e; });
   return segP;
 }
-async function aiMask(src: HTMLCanvasElement, onProg: (m: string) => void): Promise<Uint8ClampedArray> {
+export async function aiMask(src: HTMLCanvasElement, onProg: (m: string) => void): Promise<Uint8ClampedArray> {
   const { seg, RawImage } = await loadSeg(onProg);
   onProg(tt('Removing the background…', '背景を消しています…'));
   const out = await seg(RawImage.fromCanvas(src));
@@ -92,7 +92,7 @@ async function aiMask(src: HTMLCanvasElement, onProg: (m: string) => void): Prom
   }
   return alpha;
 }
-function fallbackMask(src: HTMLCanvasElement) {
+export function fallbackMask(src: HTMLCanvasElement) {
   const x = src.getContext('2d', { willReadFrequently: true })!;
   const L: Layer = { img: src, data: x.getImageData(0, 0, src.width, src.height), mask: new Uint8ClampedArray(src.width * src.height).fill(255), w: src.width, h: src.height };
   autoBackground(L, 9);
