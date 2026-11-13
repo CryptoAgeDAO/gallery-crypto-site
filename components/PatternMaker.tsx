@@ -1,10 +1,12 @@
 'use client';
-// パターンメーカー：取り込んだ服の写真から寸法を推定して型紙を自動でつくり、
-// そこから変換パターン（クロップド、オーバーサイズ、ボクシー、ノースリーブ化、長袖化）も自動で生成する。
-// 原寸の SVG と、家庭のプリンターで印刷できる A4 分割を書き出す。処理はすべてこの端末の中。
+// パターンメーカー：服の写真 → AI（Gemini）が作りと寸法を予測 → 型紙を自動作図 →
+// 変換パターン（ラグラン化、フーディ化、パッチワークの切り替え、アシンメトリー裾 など）を AI が提案・指示どおりに生成。
+// AI キーがなくても、輪郭からの推定と組み込みの変換で使える。原寸 SVG／A4 分割印刷／ZIP。
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { autoBackground, flood, loadLayer, selectGarment, tidy, type Layer } from './GhostMannequin';
-import { measure, pieces, toSVG, transform, VARIANTS, type Measures, type Variant } from './pattern';
+import { measure, toSVG, type Measures } from './pattern';
+import { baseSpec, specPieces, type Spec } from './patternSpec';
+import { analyze, propose, DEFAULT_MODEL } from './gemini';
 import { tt, useLang } from './Lang';
 
 const FIELDS: [keyof Measures, string, string][] = [
@@ -12,26 +14,53 @@ const FIELDS: [keyof Measures, string, string][] = [
   ['armhole', 'Armhole depth', '袖ぐりの深さ'], ['neckW', 'Neck width', '衿ぐり幅'], ['neckF', 'Front neck drop', '前衿ぐりの深さ'],
   ['sleeve', 'Sleeve length', '袖丈'], ['bicep', 'Sleeve width (flat)', '袖幅'], ['cuff', 'Cuff (flat)', '袖口幅'],
 ];
+const store = { get: (k: string) => { try { return localStorage.getItem(k) || ''; } catch { return ''; } }, set: (k: string, v: string) => { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch {} } };
+
+// 組み込みの変換（AI なしでも使える）
+function builtins(b: Spec): Spec[] {
+  const m = b.m;
+  const w = (o: Partial<Spec>, mm: Partial<Measures> = {}): Spec => ({ ...b, ...o, m: { ...m, ...mm }, splits: o.splits || [] });
+  return [
+    { ...b, name: 'Original', nameJa: '原型' },
+    w({ name: 'Cropped', nameJa: 'クロップド', note: '着丈を2割短く、身幅を少し広げたショート丈。' }, { length: m.length * 0.8, chest: m.chest * 1.04, hem: m.chest * 1.04 }),
+    w({ name: 'Drop-shoulder oversize', nameJa: 'オーバーサイズ', sleeve: m.hasSleeves ? 'drop' : 'none', drop: 9, note: '肩を9cm落とし、身幅と袖幅を広げたオーバーサイズ。' }, { chest: m.chest * 1.14, hem: m.hem * 1.14, length: m.length + 3, bicep: m.bicep * 1.15 }),
+    w({ name: 'Raglan', nameJa: 'ラグラン化', sleeve: 'raglan', note: '肩を袖側に入れ、襟ぐりから脇へ斜めに切り替えるラグラン袖に変換。' }, { hasSleeves: true }),
+    w({ name: 'Hoodie', nameJa: 'フーディ化', hood: true, pocket: 'kangaroo', ribHem: true, ribCuff: m.sleeve > 40, sleeve: m.hasSleeves ? 'drop' : 'none', drop: 6, note: 'フードとカンガルーポケット、裾リブを足してパーカーに変換。' }, { chest: m.chest * 1.08, hem: m.hem * 1.04 }),
+    w({ name: 'Patchwork panels', nameJa: 'パッチワーク切り替え', splits: [{ piece: 'front', dir: 'h', at: 0.42 }, { piece: 'front', dir: 'v', at: 0.55 }, { piece: 'back', dir: 'h', at: 0.6 }, { piece: 'sleeve', dir: 'h', at: 0.5 }], note: '前身頃・後身頃・袖を切り替えて、別々の古着から取った布をつなぐ再構築用のパターン。' }),
+    w({ name: 'Asymmetric hem', nameJa: 'アシンメトリー裾', hem: 'asym', hemAmount: 12, note: '左右で着丈を12cm変えた、斜めの裾。前身頃は全身で裁つ。' }),
+    w({ name: 'Curved hem', nameJa: 'カーブ裾', hem: 'curved', hemAmount: 7, note: '脇を7cm上げた、ラウンドの裾。' }, { length: m.length + 3 }),
+    w({ name: 'Sleeveless', nameJa: 'ノースリーブ化', sleeve: 'none', note: '袖をなくし、袖ぐりを深くしてバイアスで始末。' }, { shoulder: m.shoulder * 0.86, hasSleeves: false }),
+    w({ name: 'Mock neck long sleeve', nameJa: 'モックネック長袖', neck: 'mock', ribCuff: true, note: '衿をモックネックに、袖を手首までの長袖に。' }, { hasSleeves: true, sleeve: Math.max(58, m.sleeve), cuff: Math.min(m.cuff, m.bicep * 0.6) }),
+  ];
+}
 
 export default function PatternMaker() {
   const { lang } = useLang();
   const [L, setL] = useState<Layer | null>(null);
+  const [photo, setPhoto] = useState<HTMLCanvasElement | null>(null);
   const [ver, setVer] = useState(0);
   const [len, setLen] = useState(70);
   const [tol, setTol] = useState(9);
   const [mode, setMode] = useState<'select' | 'toggle'>('select');
-  const [base, setBase] = useState<Measures | null>(null);
-  const [over, setOver] = useState<Partial<Measures>>({});
-  const [variant, setVariant] = useState<Variant>('original');
-  const [rib, setRib] = useState(false);
+  const [base, setBase] = useState<Spec | null>(null);
+  const [aiBase, setAiBase] = useState(false);
+  const [aiSpecs, setAiSpecs] = useState<Spec[]>([]);
+  const [sel, setSel] = useState(0);
+  const [edits, setEdits] = useState<Record<number, Spec>>({});
+  const [key, setKey] = useState('');
+  const [model, setModel] = useState(DEFAULT_MODEL);
+  const [ask, setAsk] = useState('');
+  const [busy, setBusy] = useState('');
   const [msg, setMsg] = useState('');
   const pv = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => { setKey(store.get('gc-gemini-key')); setModel(store.get('gc-gemini-model') || DEFAULT_MODEL); }, []);
 
   const pick = async (f?: File) => {
     if (!f) return;
     const l = await loadLayer(f);
     autoBackground(l, tol);
-    setL(l); setMode('select'); setOver({}); setMsg('');
+    setL(l); setPhoto(l.img); setMode('select'); setAiBase(false); setAiSpecs([]); setEdits({}); setSel(0); setMsg('');
   };
   useEffect(() => {
     const c = pv.current;
@@ -41,13 +70,12 @@ export default function PatternMaker() {
     for (let i = 0; i < L.mask.length; i++) { const k = L.mask[i] > 127; d.data[i * 4] = k ? s[i * 4] : s[i * 4] * 0.35 + 150; d.data[i * 4 + 1] = k ? s[i * 4 + 1] : s[i * 4 + 1] * 0.35; d.data[i * 4 + 2] = k ? s[i * 4 + 2] : s[i * 4 + 2] * 0.35; d.data[i * 4 + 3] = 255; }
     x.putImageData(d, 0, 0);
   }, [L, ver]);
-  // 写真・着丈が変わったら寸法を測り直す
+  // 輪郭から測る（AI で解析済みのときは上書きしない）
   useEffect(() => {
-    if (!L) return;
+    if (!L || aiBase) return;
     const m = measure(L, len);
-    setBase(m);
-    if (m && m.sleeve > 40) setRib(true);
-  }, [L, ver, len]);
+    setBase(m ? baseSpec(m) : null);
+  }, [L, ver, len, aiBase]);
 
   const tap = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!L) return;
@@ -59,50 +87,76 @@ export default function PatternMaker() {
     setVer((v) => v + 1);
   };
 
-  const m = useMemo(() => (base ? { ...base, ...over } : null), [base, over]);
-  const sheet = useMemo(() => {
-    if (!m) return null;
-    const mv = transform(m, variant);
-    const ps = pieces(mv, { rib });
-    const v = VARIANTS.find((x) => x.k === variant)!;
-    return { ...toSVG(ps, lang === 'ja' ? 'ja' : 'en', `GALLERY CRYPTO — ${lang === 'ja' ? v.ja : v.en}`), mv };
-  }, [m, variant, rib, lang]);
-  const thumbs = useMemo(() => (m ? VARIANTS.map((v) => ({ v, svg: toSVG(pieces(transform(m, v.k), { rib }), 'en', '').svg })) : []), [m, rib]);
-  const url = (svg: string) => 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  const all = useMemo(() => (base ? [...aiSpecs, ...builtins(base)] : []), [base, aiSpecs]);
+  const cur = all.length ? edits[sel] || all[Math.min(sel, all.length - 1)] : null;
+  const setCur = (p: Partial<Spec>, mm?: Partial<Measures>) => { if (!cur) return; setEdits((e) => ({ ...e, [sel]: { ...cur, ...p, m: { ...cur.m, ...(mm || {}) } } })); };
+  const svgOf = (s: Spec, title = '') => toSVG(specPieces(s), lang === 'ja' ? 'ja' : 'en', title);
+  const sheet = useMemo(() => (cur ? svgOf(cur, `GALLERY CRYPTO — ${lang === 'ja' ? cur.nameJa || cur.name : cur.name}`) : null), [cur, lang]); // eslint-disable-line react-hooks/exhaustive-deps
+  const thumbs = useMemo(() => all.map((s, i) => ({ s, i, url: url(svgOf(edits[i] || s).svg) })), [all, edits, lang]); // eslint-disable-line react-hooks/exhaustive-deps
+  function url(svg: string) { return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg); }
   const dl = (b: Blob, n: string) => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = n; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1500); };
+
+  const needKey = () => { if (key.trim()) { store.set('gc-gemini-key', key.trim()); store.set('gc-gemini-model', model.trim() === DEFAULT_MODEL ? '' : model.trim()); return true; } setMsg(tt('Enter your Gemini API key in AI settings first.', '先に「AIの設定」で Gemini の API キーを入れてください。')); return false; };
+  const cutPhoto = () => {
+    if (!L) return null;
+    // 切り抜いた服を白背景にして AI に渡す
+    const c = document.createElement('canvas'); c.width = L.w; c.height = L.h;
+    const x = c.getContext('2d')!, d = x.createImageData(L.w, L.h), s = L.data.data;
+    for (let i = 0; i < L.mask.length; i++) { const k = L.mask[i] > 127; d.data[i * 4] = k ? s[i * 4] : 255; d.data[i * 4 + 1] = k ? s[i * 4 + 1] : 255; d.data[i * 4 + 2] = k ? s[i * 4 + 2] : 255; d.data[i * 4 + 3] = 255; }
+    x.putImageData(d, 0, 0);
+    return c;
+  };
+  const doAnalyze = async () => {
+    if (!base || !needKey()) return;
+    setMsg(''); setBusy(tt('AI is reading the garment…', 'AIが服の作りと寸法を読み取っています…'));
+    try {
+      const s = await analyze(key.trim(), model.trim() || DEFAULT_MODEL, cutPhoto() || photo!, base.m);
+      if (s) { setBase(s); setAiBase(true); setEdits({}); setSel(aiSpecs.length); setMsg(s.note || ''); }
+    } catch (e) { setMsg(tt('AI error: ', 'AIのエラー：') + (e as Error).message); }
+    setBusy('');
+  };
+  const doPropose = async (instruction: string) => {
+    if (!cur || !needKey()) return;
+    setMsg(''); setBusy(instruction ? tt('AI is converting…', 'AIが指示どおりに変換しています…') : tt('AI is designing variations…', 'AIが変換案を考えています…'));
+    try {
+      const got = await propose(key.trim(), model.trim() || DEFAULT_MODEL, cutPhoto(), instruction ? cur : base!, 4, instruction);
+      if (!got.length) throw new Error(tt('No design came back.', '案が返ってきませんでした。'));
+      const tagged = got.map((g) => ({ ...g, name: '✦ ' + g.name, nameJa: '✦ ' + (g.nameJa || g.name) }));
+      setAiSpecs((a) => [...tagged, ...a].slice(0, 16));
+      setEdits({}); setSel(0); setAsk('');
+    } catch (e) { setMsg(tt('AI error: ', 'AIのエラー：') + (e as Error).message); }
+    setBusy('');
+  };
 
   const printA4 = () => {
     if (!sheet) return;
-    const pw = 19, ph = 27.7; // 余白を除いた印刷範囲（cm）
-    const cols = Math.ceil(sheet.W / pw), rows = Math.ceil(sheet.H / ph);
-    const src = url(sheet.svg);
+    const pw = 19, ph = 27.7, cols = Math.ceil(sheet.W / pw), rows = Math.ceil(sheet.H / ph), src = url(sheet.svg);
     let pages = '';
-    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
-      const label = `${String.fromCharCode(65 + r)}${c + 1}`;
-      pages += `<section class="pg"><div class="win"><img src="${src}" style="width:${sheet.W * 10}mm;height:${sheet.H * 10}mm;left:-${c * pw * 10}mm;top:-${r * ph * 10}mm"></div><b>${label}</b><i class="tl"></i><i class="tr"></i><i class="bl"></i><i class="br"></i></section>`;
-    }
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) pages += `<section class="pg"><div class="win"><img src="${src}" style="width:${sheet.W * 10}mm;height:${sheet.H * 10}mm;left:-${c * pw * 10}mm;top:-${r * ph * 10}mm"></div><b>${String.fromCharCode(65 + r)}${c + 1}</b><i class="tl"></i><i class="tr"></i><i class="bl"></i><i class="br"></i></section>`;
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>Pattern A4</title><style>@page{size:A4;margin:0}body{margin:0}.pg{width:210mm;height:297mm;position:relative;page-break-after:always;overflow:hidden}.win{position:absolute;left:10mm;top:10mm;width:190mm;height:277mm;overflow:hidden}.win img{position:absolute}b{position:absolute;right:12mm;bottom:4mm;font:12px sans-serif}i{position:absolute;width:6mm;height:6mm;border:0 solid #000}.tl{left:4mm;top:4mm;border-width:0.3mm 0 0 0.3mm}.tr{right:4mm;top:4mm;border-width:0.3mm 0.3mm 0 0}.bl{left:4mm;bottom:4mm;border-width:0 0 0.3mm 0.3mm}.br{right:4mm;bottom:4mm;border-width:0 0.3mm 0.3mm 0}</style></head><body>${pages}<script>window.onload=()=>setTimeout(()=>print(),300)<\/script></body></html>`;
     const w = window.open('', '_blank');
     if (!w) { setMsg(tt('Allow pop-ups to print.', '印刷するにはポップアップを許可してください。')); return; }
     w.document.write(html); w.document.close();
   };
   const zipAll = async () => {
-    if (!m) return;
     const { zipSync, strToU8 } = await import('fflate');
     const files: Record<string, Uint8Array> = {};
-    VARIANTS.forEach((v, i) => { files[`${String(i + 1).padStart(2, '0')}-${v.k}.svg`] = strToU8(toSVG(pieces(transform(m, v.k), { rib }), lang === 'ja' ? 'ja' : 'en', `GALLERY CRYPTO — ${lang === 'ja' ? v.ja : v.en}`).svg); });
-    const sizes = VARIANTS.map((v) => { const t = transform(m, v.k); return `${v.k}: ` + FIELDS.map(([k, en]) => `${en} ${(t[k] as number).toFixed(1)}`).join(', '); }).join('\n');
-    files['measurements.txt'] = strToU8(sizes + '\n\nEstimated from a photo. Check with a toile before cutting fabric.\n');
+    all.forEach((s0, i) => { const s = edits[i] || s0; files[`${String(i + 1).padStart(2, '0')}-${s.name.replace(/[^\w-]+/g, '-').replace(/^-|-$/g, '').toLowerCase()}.svg`] = strToU8(svgOf(s, `GALLERY CRYPTO — ${lang === 'ja' ? s.nameJa || s.name : s.name}`).svg); });
+    files['specs.json'] = strToU8(JSON.stringify(all.map((s, i) => edits[i] || s), null, 2));
     dl(new Blob([zipSync(files) as BlobPart], { type: 'application/zip' }), 'gc-patterns.zip');
   };
+
+  const O = <K extends keyof Spec>(k: K, opts: [Spec[K], string, string][]) => (
+    <div className="gm-row">{opts.map(([v, en, ja]) => <button key={String(v)} type="button" className={`btn${cur && cur[k] === v ? ' primary' : ''}`} onClick={() => setCur({ [k]: v } as Partial<Spec>, k === 'sleeve' ? { hasSleeves: v !== 'none' } : undefined)}>{tt(en, ja)}</button>)}</div>
+  );
 
   return (
     <div className="pm">
       {!L ? (
         <label className="ai-drop">
           <input type="file" accept="image/*" hidden onChange={(e) => { pick(e.target.files?.[0]); e.target.value = ''; }} />
-          <b>{tt('Choose a photo of the garment, laid flat from straight above', '服を平らに置いて真上から撮った写真を選ぶ')}</b>
-          <span>{tt('Measurements are estimated from the outline, a sewing pattern is drawn, and new variations are generated from it.', '輪郭から寸法を推定して型紙をつくり、そこから新しい変換パターンも自動でつくります。')}</span>
+          <b>{tt('Choose a photo of the garment', '服の写真を選ぶ')}</b>
+          <span>{tt('AI reads how it is made and its measurements, drafts the pattern, and designs new conversions from it.', 'AIが服の作りと寸法を読み取って型紙をつくり、そこから新しい変換パターンを考えます。')}</span>
         </label>
       ) : (
         <div className="pm-main">
@@ -112,21 +166,60 @@ export default function PatternMaker() {
               <button type="button" className={`btn${mode === 'select' ? ' primary' : ''}`} onClick={() => setMode('select')}>{tt('Tap the garment', '服をタップして選ぶ')}</button>
               <button type="button" className={`btn${mode === 'toggle' ? ' primary' : ''}`} onClick={() => setMode('toggle')}>{tt('Tap to remove / restore', 'タップで消す・戻す')}</button>
             </div>
-            <label className="gm-sl">{tt('Tolerance', '色の幅')} <input type="range" min={2} max={45} value={tol} onChange={(e) => setTol(+e.target.value)} /> <b>{tol}</b></label>
-            <label className="ai-field">{tt('Measured length of the real garment (cm) — sets the scale', '実物の着丈（cm）— これで縮尺が決まります')}
-              <input type="number" min={20} max={150} step={0.5} value={len} onChange={(e) => setLen(+e.target.value || 70)} />
+            <label className="ai-field">{tt('Real length of the garment (cm) — sets the scale', '実物の着丈（cm）— これで縮尺が決まります')}
+              <input type="number" min={20} max={150} step={0.5} value={len} onChange={(e) => { setLen(+e.target.value || 70); setAiBase(false); }} />
             </label>
-            {m && (
+
+            <div className="pm-ai">
+              <h5>✦ {tt('AI', 'AI')}</h5>
+              <button type="button" className="btn primary" disabled={!!busy} onClick={doAnalyze}>{tt('1. AI reads the garment', '① AIで服を解析')}</button>
+              <p className="note">{aiBase ? tt('Measurements and construction predicted by AI.', '寸法と作りはAIの予測です。') : tt('Now: rough estimate from the outline only.', '今は輪郭からの簡易な推定です。')}</p>
+              <button type="button" className="btn" disabled={!!busy} onClick={() => doPropose('')}>{tt('2. AI proposes 4 conversions', '② AIが変換案を4つ提案')}</button>
+              <label className="ai-field">{tt('3. Tell the AI how to convert the selected pattern', '③ 選んだ型紙をどう変えたいか、AIに指示')}
+                <textarea rows={3} value={ask} placeholder={tt('e.g. Make it a cropped raglan hoodie, and split the front into 3 panels for patchwork', '例：クロップド丈のラグランパーカーにして、前身頃をパッチワーク用に3枚に切り替えて')} onChange={(e) => setAsk(e.target.value)} />
+              </label>
+              <button type="button" className="btn" disabled={!!busy || !ask.trim()} onClick={() => doPropose(ask.trim())}>{tt('Convert with AI', 'AIで変換')}</button>
+              <details className="ai-adv">
+                <summary>{tt('AI settings', 'AIの設定')}</summary>
+                <label className="ai-field">{tt('Gemini API key', 'Gemini の API キー')}<input type="password" autoComplete="off" value={key} placeholder="AIza…" onChange={(e) => setKey(e.target.value)} /></label>
+                <p className="note">{tt('Saved only in this browser. Get one free at aistudio.google.com → Get API key. On the free tier, Google may use the content to improve its products.', 'このブラウザにだけ保存します。aistudio.google.com の「Get API key」から無料で作れます。無料枠では、送った内容が Google の製品改善に使われることがあります。')}</p>
+                <label className="ai-field">{tt('Model', 'モデル')}<input value={model} onChange={(e) => setModel(e.target.value)} /></label>
+              </details>
+            </div>
+
+            {cur && (
               <details className="ai-adv" open>
-                <summary>{tt('Estimated measurements (edit if you measured)', '推定した寸法（実測したら書き換えてください）')}</summary>
+                <summary>{tt('Edit the selected pattern', '選んだ型紙を調整')}</summary>
                 <div className="pm-meas">
-                  {FIELDS.filter(([k]) => m.hasSleeves || !['sleeve', 'bicep', 'cuff'].includes(k)).map(([k, en, ja]) => (
-                    <label key={k}>{tt(en, ja)}
-                      <input type="number" step={0.5} value={(m[k] as number).toFixed(1)} onChange={(e) => setOver((o) => ({ ...o, [k]: +e.target.value }))} />
-                    </label>
+                  {FIELDS.filter(([k]) => cur.sleeve !== 'none' || !['sleeve', 'bicep', 'cuff'].includes(k)).map(([k, en, ja]) => (
+                    <label key={k}>{tt(en, ja)}<input type="number" step={0.5} value={(cur.m[k] as number).toFixed(1)} onChange={(e) => setCur({}, { [k]: +e.target.value })} /></label>
                   ))}
                 </div>
-                <label className="gm-ck"><input type="checkbox" checked={rib} onChange={(e) => setRib(e.target.checked)} /> {tt('Rib hem and cuffs (sweatshirt style)', '裾と袖口をリブにする（スウェット仕様）')}</label>
+                <p className="pm-k">{tt('Sleeve', '袖')}</p>
+                {O('sleeve', [['setin', 'Set-in', 'セットイン'], ['raglan', 'Raglan', 'ラグラン'], ['drop', 'Drop shoulder', 'ドロップ'], ['none', 'None', 'なし']])}
+                {cur.sleeve === 'drop' && <label className="gm-sl">{tt('Drop', '肩を落とす')} <input type="range" min={3} max={16} value={cur.drop} onChange={(e) => setCur({ drop: +e.target.value })} /> <b>{cur.drop}</b></label>}
+                <p className="pm-k">{tt('Neck', '衿')}</p>
+                {O('neck', [['crew', 'Crew', 'クルー'], ['v', 'V', 'V'], ['mock', 'Mock', 'モック'], ['boat', 'Boat', 'ボート']])}
+                <p className="pm-k">{tt('Hem', '裾')}</p>
+                {O('hem', [['straight', 'Straight', 'まっすぐ'], ['curved', 'Curved', 'カーブ'], ['asym', 'Asymmetric', 'アシメ'], ['slits', 'Slits', 'スリット']])}
+                {cur.hem !== 'straight' && <label className="gm-sl">{tt('Amount', '量')} <input type="range" min={2} max={25} value={cur.hemAmount} onChange={(e) => setCur({ hemAmount: +e.target.value })} /> <b>{cur.hemAmount}</b></label>}
+                <p className="pm-k">{tt('Pocket', 'ポケット')}</p>
+                {O('pocket', [['none', 'None', 'なし'], ['kangaroo', 'Kangaroo', 'カンガルー'], ['patch', 'Patch', 'パッチ']])}
+                <div className="gm-row">
+                  <label className="gm-ck"><input type="checkbox" checked={cur.hood} onChange={(e) => setCur({ hood: e.target.checked })} /> {tt('Hood', 'フード')}</label>
+                  <label className="gm-ck"><input type="checkbox" checked={cur.ribHem} onChange={(e) => setCur({ ribHem: e.target.checked })} /> {tt('Rib hem', '裾リブ')}</label>
+                  <label className="gm-ck"><input type="checkbox" checked={cur.ribCuff} onChange={(e) => setCur({ ribCuff: e.target.checked })} /> {tt('Rib cuffs', '袖口リブ')}</label>
+                </div>
+                <p className="pm-k">{tt('Panels (split lines)', '切り替え線')}</p>
+                {cur.splits.map((q, i) => (
+                  <div className="gm-row" key={i}>
+                    <select value={q.piece} onChange={(e) => setCur({ splits: cur.splits.map((x, j) => (j === i ? { ...x, piece: e.target.value as 'front' } : x)) })}><option value="front">{tt('Front', '前')}</option><option value="back">{tt('Back', '後ろ')}</option><option value="sleeve">{tt('Sleeve', '袖')}</option></select>
+                    <select value={q.dir} onChange={(e) => setCur({ splits: cur.splits.map((x, j) => (j === i ? { ...x, dir: e.target.value as 'h' } : x)) })}><option value="h">{tt('Across', '横')}</option><option value="v">{tt('Down', '縦')}</option></select>
+                    <input type="range" min={0.1} max={0.9} step={0.05} value={q.at} onChange={(e) => setCur({ splits: cur.splits.map((x, j) => (j === i ? { ...x, at: +e.target.value } : x)) })} />
+                    <button type="button" className="btn" onClick={() => setCur({ splits: cur.splits.filter((_, j) => j !== i) })}>×</button>
+                  </div>
+                ))}
+                <button type="button" className="btn" onClick={() => setCur({ splits: [...cur.splits, { piece: 'front', dir: 'h', at: 0.5 }] })}>{tt('+ Add a split line', '＋ 切り替え線を足す')}</button>
               </details>
             )}
             <label className="btn" style={{ cursor: 'pointer' }}>
@@ -134,24 +227,27 @@ export default function PatternMaker() {
               <input type="file" accept="image/*" hidden onChange={(e) => { pick(e.target.files?.[0]); e.target.value = ''; }} />
             </label>
           </div>
+
           <div className="pm-right">
+            {busy && <div className="ai-busy" style={{ position: 'static' }}><i /> {busy}</div>}
+            {msg && <p className="note pm-msg">{msg}</p>}
             <div className="pm-vars">
-              {thumbs.map(({ v, svg }) => (
-                <button type="button" key={v.k} className={variant === v.k ? 'on' : ''} onClick={() => setVariant(v.k)}>
-                  <img src={url(svg)} alt="" />
-                  <b>{tt(v.en, v.ja)}</b>
-                  <span>{tt(v.desc[0], v.desc[1])}</span>
+              {thumbs.map(({ s, i, url: u }) => (
+                <button type="button" key={i} className={`${sel === i ? 'on' : ''}${s.name.startsWith('✦') ? ' ai' : ''}`} onClick={() => setSel(i)}>
+                  <img src={u} alt="" />
+                  <b>{lang === 'ja' ? s.nameJa || s.name : s.name}</b>
+                  {s.note && <span>{s.note}</span>}
                 </button>
               ))}
             </div>
             {sheet && <div className="pm-sheet"><img src={url(sheet.svg)} alt="" /></div>}
+            {cur?.note && <p className="note">{cur.note}</p>}
             <div className="gm-row">
-              <button type="button" className="btn primary" disabled={!sheet} onClick={() => sheet && dl(new Blob([sheet.svg], { type: 'image/svg+xml' }), `gc-pattern-${variant}.svg`)}>{tt('Full-size SVG', '原寸 SVG')}</button>
+              <button type="button" className="btn primary" disabled={!sheet} onClick={() => sheet && dl(new Blob([sheet.svg], { type: 'image/svg+xml' }), `gc-pattern-${(cur?.name || 'pattern').replace(/[^\w-]+/g, '-').toLowerCase()}.svg`)}>{tt('Full-size SVG', '原寸 SVG')}</button>
               <button type="button" className="btn" disabled={!sheet} onClick={printA4}>{tt('Print on A4 sheets', 'A4で分割印刷')}</button>
-              <button type="button" className="btn" disabled={!m} onClick={zipAll}>{tt('All variations (ZIP)', '全変換パターン（ZIP）')}</button>
+              <button type="button" className="btn" disabled={!all.length} onClick={zipAll}>{tt('All patterns (ZIP)', '全パターン（ZIP）')}</button>
             </div>
-            <p className="note">{tt('Full-size SVG opens at real scale in Illustrator or Inkscape. When printing on A4, keep scale at 100% and check the 5 cm square. These are estimates from a photo — always make a toile first.', '原寸 SVG は Illustrator や Inkscape で実寸で開けます。A4 で印刷するときは倍率100%にし、5cm の四角で大きさを確かめてください。写真からの推定なので、本番の布を切る前に必ず仮縫い（トワル）で確認してください。')}</p>
-            {msg && <p className="note">{msg}</p>}
+            <p className="note">{tt('Measurements are predictions. Check them against the real garment and make a toile before cutting good fabric. Print A4 at 100% and check the 5 cm square.', '寸法は予測です。実物と照らし合わせ、本番の布を切る前に仮縫い（トワル）で確認してください。A4印刷は倍率100%で、5cmの四角を確かめてください。')}</p>
           </div>
         </div>
       )}

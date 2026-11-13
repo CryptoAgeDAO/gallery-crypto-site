@@ -232,7 +232,13 @@ export function toSVG(ps: Piece[], lang: 'en' | 'ja', title: string, width = 150
     s += `<g>`;
     s += `<path d="${path(cut, dx, dy)}" fill="#fbfaf7" stroke="#111" stroke-width="2.2"/>`;
     s += `<path d="${path(p.line, dx, dy)}" fill="none" stroke="#555" stroke-width="1.4" stroke-dasharray="10 6"/>`;
-    if (p.fold) { const a = p.line[p.fold[0]], b = p.line[p.fold[1]]; s += `<line x1="${mm(a[0] + dx)}" y1="${mm(a[1] + dy)}" x2="${mm(b[0] + dx)}" y2="${mm(b[1] + dy)}" stroke="#c0392b" stroke-width="5"/><text transform="translate(${mm(a[0] + dx + 1.2)} ${mm((a[1] + b[1]) / 2 + dy)}) rotate(-90)" font-size="26" fill="#c0392b" text-anchor="middle">${lang === 'ja' ? 'わ（中心で折る）' : 'PLACE ON FOLD'}</text>`; }
+    // 縫い代0の辺＝「わ」（中心で折る）
+    p.line.forEach((a, i) => {
+      if ((p.sa[i] ?? 1) !== 0) return;
+      const b = p.line[(i + 1) % p.line.length];
+      if (Math.hypot(b[0] - a[0], b[1] - a[1]) < 3) return;
+      s += `<line x1="${mm(a[0] + dx)}" y1="${mm(a[1] + dy)}" x2="${mm(b[0] + dx)}" y2="${mm(b[1] + dy)}" stroke="#c0392b" stroke-width="5"/><text transform="translate(${mm(a[0] + dx + 1.2)} ${mm((a[1] + b[1]) / 2 + dy)}) rotate(-90)" font-size="22" fill="#c0392b" text-anchor="middle">${lang === 'ja' ? 'わ（中心で折る）' : 'PLACE ON FOLD'}</text>`;
+    });
     const [g0, g1] = p.grain;
     s += `<line x1="${mm(g0[0] + dx)}" y1="${mm(g0[1] + dy)}" x2="${mm(g1[0] + dx)}" y2="${mm(g1[1] + dy)}" stroke="#111" stroke-width="2"/>`;
     const ang = Math.atan2(g1[1] - g0[1], g1[0] - g0[0]);
@@ -241,7 +247,8 @@ export function toSVG(ps: Piece[], lang: 'en' | 'ja', title: string, width = 150
     const xs = p.line.map((q) => q[0]), ys = p.line.map((q) => q[1]);
     const cx = (Math.min(...xs) + Math.max(...xs)) / 2 + dx, cy = (Math.min(...ys) + Math.max(...ys)) / 2 + dy;
     const pw = Math.max(...xs) - Math.min(...xs), ph = Math.max(...ys) - Math.min(...ys);
-    const fs = Math.max(9, Math.min(40, Math.min(pw * 2.2, ph * 3.2)));
+    const label = lang === 'ja' ? p.ja : p.en;
+    const fs = Math.max(8, Math.min(40, pw * 2.2, ph * 3.2, (pw * 10 * 0.85) / Math.max(1, label.length * (lang === 'ja' ? 1 : 0.55))));
     const big = pw > 20;
     s += `<text x="${mm(cx + (big ? 2 : 0))}" y="${mm(cy)}" font-size="${fs.toFixed(0)}" font-weight="700" text-anchor="middle">${lang === 'ja' ? p.ja : p.en}</text>`;
     s += `<text x="${mm(cx + (big ? 2 : 0))}" y="${(cy * 10 + fs * 1.1).toFixed(1)}" font-size="${(fs * 0.62).toFixed(0)}" text-anchor="middle">${lang === 'ja' ? p.cut[1] : p.cut[0]}</text>`;
