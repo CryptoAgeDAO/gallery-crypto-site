@@ -14,6 +14,7 @@ const PhotoTo3D = dynamic(() => import('@/components/PhotoTo3D'), { ssr: false }
 const AIImport = dynamic(() => import('@/components/AIImport'), { ssr: false });
 const PhotoStudio = dynamic(() => import('@/components/PhotoStudio'), { ssr: false });
 const GraphicStudio = dynamic(() => import('@/components/GraphicStudio'), { ssr: false });
+const PatternMaker = dynamic(() => import('@/components/PatternMaker'), { ssr: false });
 import SecurityCenter from '@/components/SecurityCenter';
 import { MfaChallenge, TwoStepSettings, useAal } from '@/components/TwoStep';
 import { EVENTS_SQL } from '@/lib/eventsSql';
@@ -24,7 +25,7 @@ import { LangToggle, tt, useLang } from '@/components/Lang';
 type Entry = { id: string; email: string; item_id: string | null; created_at: string; won: boolean; token: string | null; used_at: string | null };
 type Order = { id: string; item_id: string | null; email: string; name: string; amount: number; currency: string; shipping: Record<string, string> | null; shipped_at: string | null; created_at: string };
 type Msg = { id: string; name: string; email: string; body: string; created_at: string };
-type Tab = 'items' | 'graphic' | 'photostudio' | 'aiimport' | 'ghost' | 'photo3d' | 'entries' | 'events' | 'passport' | 'security' | 'orders' | 'messages' | 'settings';
+type Tab = 'items' | 'pattern' | 'graphic' | 'photostudio' | 'aiimport' | 'ghost' | 'photo3d' | 'entries' | 'events' | 'passport' | 'security' | 'orders' | 'messages' | 'settings';
 
 const BLANK: Omit<Item, 'id' | 'serial' | 'created_at'> = {
   photos: [], band: '', title: '', year: '', era: '', size: '', tag: '', stitch: false,
@@ -858,11 +859,12 @@ export default function Admin() {
       <>
         {needPw && <PasswordForm highlight />}
         <div className="adm-tabs">
-          {([['items', tt('Archive', 'アーカイブ')], ['graphic', tt('Graphic studio', 'グラフィック')], ['photostudio', tt('Photo studio', 'フォトスタジオ')], ['aiimport', tt('AI import', 'AI取り込み')], ['ghost', tt('Ghost mannequin', 'ゴーストマネキン')], ['photo3d', tt('Photo to 3D', '写真から3D')], ['entries', tt('Draw entries', '抽選の応募')], ['events', tt('Events', 'イベント')], ['passport', tt('Passport', 'パスポート')], ['security', tt('Security', 'セキュリティ')], ['orders', tt('Orders', '注文')], ['messages', tt('Messages', 'メッセージ')], ['settings', tt('Settings', '設定')]] as [Tab, string][]).map(([k, l]) => (
+          {([['items', tt('Archive', 'アーカイブ')], ['pattern', tt('Pattern maker', 'パターン')], ['graphic', tt('Graphic studio', 'グラフィック')], ['photostudio', tt('Photo studio', 'フォトスタジオ')], ['aiimport', tt('AI import', 'AI取り込み')], ['ghost', tt('Ghost mannequin', 'ゴーストマネキン')], ['photo3d', tt('Photo to 3D', '写真から3D')], ['entries', tt('Draw entries', '抽選の応募')], ['events', tt('Events', 'イベント')], ['passport', tt('Passport', 'パスポート')], ['security', tt('Security', 'セキュリティ')], ['orders', tt('Orders', '注文')], ['messages', tt('Messages', 'メッセージ')], ['settings', tt('Settings', '設定')]] as [Tab, string][]).map(([k, l]) => (
             <button key={k} aria-pressed={tab === k} onClick={() => setTab(k)}>{k === 'events' && <span className="ev-badge">EVENT</span>}{l}{k === 'events' && openEvents > 0 && <sup className="ev-count">{openEvents}</sup>}</button>
           ))}
         </div>
         {tab === 'items' && <Items />}
+        {tab === 'pattern' && <div className="sec"><h4>{tt('Pattern maker', 'パターンメーカー')}</h4><PatternMaker /></div>}
         {tab === 'graphic' && <div className="sec"><h4>{tt('Graphic studio', 'グラフィックスタジオ')}</h4><GraphicStudio /></div>}
         {tab === 'photostudio' && (
           <div className="sec">

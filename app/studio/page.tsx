@@ -5,12 +5,13 @@ import dynamic from 'next/dynamic';
 import GhostMannequin from '@/components/GhostMannequin';
 import { LangToggle, tt, useLang } from '@/components/Lang';
 
+const PatternMaker = dynamic(() => import('@/components/PatternMaker'), { ssr: false, loading: () => <p className="status">…</p> });
 const GraphicStudio = dynamic(() => import('@/components/GraphicStudio'), { ssr: false, loading: () => <p className="status">…</p> });
 const PhotoStudio = dynamic(() => import('@/components/PhotoStudio'), { ssr: false, loading: () => <p className="status">…</p> });
 const AIImport = dynamic(() => import('@/components/AIImport'), { ssr: false, loading: () => <p className="status">…</p> });
 const PhotoTo3D = dynamic(() => import('@/components/PhotoTo3D'), { ssr: false, loading: () => <p className="status">…</p> });
 
-type Mode = 'graphic' | 'photo' | 'ai' | '3d' | 'ghost';
+type Mode = 'pattern' | 'graphic' | 'photo' | 'ai' | '3d' | 'ghost';
 
 export default function Studio() {
   useLang();
@@ -26,13 +27,19 @@ export default function Studio() {
         '試作版です。写真はこの端末の中で処理します。「AIで3Dをつくる」を押したときだけ、切り抜いた服の画像を3D AIに送ります。できたものはダウンロードボタンで保存してください。',
       )}</p>
       <div className="adm-tabs">
+        <button aria-pressed={mode === 'pattern'} onClick={() => setMode('pattern')}>{tt('Pattern maker', 'パターン')}</button>
         <button aria-pressed={mode === 'graphic'} onClick={() => setMode('graphic')}>{tt('Graphic studio', 'グラフィック')}</button>
         <button aria-pressed={mode === 'photo'} onClick={() => setMode('photo')}>{tt('Photo studio', 'フォトスタジオ')}</button>
         <button aria-pressed={mode === 'ai'} onClick={() => setMode('ai')}>{tt('AI import', 'AI取り込み')}</button>
         <button aria-pressed={mode === '3d'} onClick={() => setMode('3d')}>{tt('Photo to 3D', '写真から3D')}</button>
         <button aria-pressed={mode === 'ghost'} onClick={() => setMode('ghost')}>{tt('Ghost mannequin', 'ゴーストマネキン')}</button>
       </div>
-      {mode === 'graphic' ? (
+      {mode === 'pattern' ? (
+        <div className="sec">
+          <h4>{tt('Pattern maker', 'パターンメーカー')}</h4>
+          <PatternMaker />
+        </div>
+      ) : mode === 'graphic' ? (
         <div className="sec">
           <h4>{tt('Graphic studio', 'グラフィックスタジオ')}</h4>
           <GraphicStudio />
