@@ -123,7 +123,7 @@ export function transform(m: Measures, v: Variant): Measures {
 }
 
 // ---- 型紙のパーツ ----
-export type Piece = { id: string; en: string; ja: string; cut: [string, string]; line: Pt[]; sa: number[]; fold?: [number, number]; grain: [Pt, Pt]; notches: Pt[] };
+export type Piece = { id: string; en: string; ja: string; cut: [string, string]; line: Pt[]; sa: number[]; fold?: [number, number]; grain: [Pt, Pt]; notches: Pt[]; fabric?: 'A' | 'B' };
 const bez = (p0: Pt, p1: Pt, p2: Pt, p3: Pt, n = 16): Pt[] => Array.from({ length: n + 1 }, (_, i) => { const t = i / n, u = 1 - t; return [u * u * u * p0[0] + 3 * u * u * t * p1[0] + 3 * u * t * t * p2[0] + t * t * t * p3[0], u * u * u * p0[1] + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t * t * t * p3[1]]; });
 const plen = (a: Pt[]) => a.reduce((s, p, i) => (i ? s + Math.hypot(p[0] - a[i - 1][0], p[1] - a[i - 1][1]) : 0), 0);
 
@@ -224,13 +224,13 @@ export function toSVG(ps: Piece[], lang: 'en' | 'ja', title: string, width = 150
   const mm = (v: number) => (v * 10).toFixed(1);
   const path = (pts: Pt[], dx: number, dy: number, close = true) => 'M' + pts.map((p) => `${mm(p[0] + dx)} ${mm(p[1] + dy)}`).join(' L') + (close ? ' Z' : '');
   let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${(W * 10).toFixed(0)}mm" height="${(H * 10).toFixed(0)}mm" viewBox="0 0 ${mm(W)} ${mm(H)}" font-family="Helvetica, Arial, sans-serif">`;
-  s += `<rect width="100%" height="100%" fill="#fff"/>`;
+  s += `<defs><pattern id="fabB" width="24" height="24" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="24" height="24" fill="#eef3fb"/><line x1="0" y1="0" x2="0" y2="24" stroke="#9db4d8" stroke-width="5"/></pattern></defs><rect width="100%" height="100%" fill="#fff"/>`;
   // 原寸確認用の 5cm 四方
   s += `<g><rect x="${mm(W - 7)}" y="${mm(1)}" width="50" height="50" fill="none" stroke="#000" stroke-width="1"/><text x="${mm(W - 4.5)}" y="${mm(3.8)}" font-size="12" text-anchor="middle">5 cm</text></g>`;
   s += `<text x="${mm(2)}" y="${mm(2.2)}" font-size="34" font-weight="700">${title}</text>`;
   for (const { p, dx, dy, cut } of placed) {
     s += `<g>`;
-    s += `<path d="${path(cut, dx, dy)}" fill="#fbfaf7" stroke="#111" stroke-width="2.2"/>`;
+    s += `<path d="${path(cut, dx, dy)}" fill="${p.fabric === 'B' ? 'url(#fabB)' : '#fbfaf7'}" stroke="#111" stroke-width="2.2"/>`;
     s += `<path d="${path(p.line, dx, dy)}" fill="none" stroke="#555" stroke-width="1.4" stroke-dasharray="10 6"/>`;
     // 縫い代0の辺＝「わ」（中心で折る）
     p.line.forEach((a, i) => {
@@ -251,10 +251,10 @@ export function toSVG(ps: Piece[], lang: 'en' | 'ja', title: string, width = 150
     const fs = Math.max(8, Math.min(40, pw * 2.2, ph * 3.2, (pw * 10 * 0.85) / Math.max(1, label.length * (lang === 'ja' ? 1 : 0.55))));
     const big = pw > 20;
     s += `<text x="${mm(cx + (big ? 2 : 0))}" y="${mm(cy)}" font-size="${fs.toFixed(0)}" font-weight="700" text-anchor="middle">${lang === 'ja' ? p.ja : p.en}</text>`;
-    s += `<text x="${mm(cx + (big ? 2 : 0))}" y="${(cy * 10 + fs * 1.1).toFixed(1)}" font-size="${(fs * 0.62).toFixed(0)}" text-anchor="middle">${lang === 'ja' ? p.cut[1] : p.cut[0]}</text>`;
+    s += `<text x="${mm(cx + (big ? 2 : 0))}" y="${(cy * 10 + fs * 1.1).toFixed(1)}" font-size="${(fs * 0.62).toFixed(0)}" text-anchor="middle">${lang === 'ja' ? p.cut[1] : p.cut[0]}${p.fabric === 'B' ? (lang === 'ja' ? '・生地B' : ' · fabric B') : ''}</text>`;
     s += `</g>`;
   }
-  s += `<text x="${mm(2)}" y="${mm(H - 0.6)}" font-size="20" fill="#555">${lang === 'ja' ? '実線＝裁断線（縫い代込み）　点線＝出来上がり線　●＝合印　縫い代1cm（裾2.5cm）　写真からの推定寸法です。仮縫いで確認してください。' : 'Solid = cutting line (with seam allowance) · Dashed = stitching line · ● = notch · 1 cm allowance (hem 2.5 cm) · Estimated from a photo — check with a toile.'}</text>`;
+  s += `<text x="${mm(2)}" y="${mm(H - 0.6)}" font-size="20" fill="#555">${lang === 'ja' ? '実線＝裁断線（縫い代込み）　点線＝出来上がり線　●＝合印　斜線＝生地B（組み合わせる別の古着）　縫い代1cm（裾2.5cm）　写真からの推定です。仮縫いで確認してください。' : 'Solid = cutting line (with seam allowance) · Dashed = stitching line · ● = notch · 1 cm allowance (hem 2.5 cm) · Estimated from a photo — check with a toile.'}</text>`;
   s += `</svg>`;
   return { svg: s, W, H };
 }

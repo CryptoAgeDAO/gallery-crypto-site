@@ -53,3 +53,27 @@ Return ${instruction ? 1 : count} design${instruction ? '' : 's'} as a JSON arra
   const arr = Array.isArray(raw) ? raw : [raw];
   return arr.map((r) => specFromAI(r, base.m)).filter((x): x is Spec => !!x);
 }
+
+// 再構築デザイン（操作の組み合わせ）を AI に考えてもらう
+import { DESIGN_SCHEMA, designFromAI, type Design } from './recon';
+export async function proposeDesigns(key: string, model: string, photo: HTMLCanvasElement | null, summary: Record<string, number>, count: number, instruction: string, hasB: boolean): Promise<Design[]> {
+  const prompt = `You are the design director of GALLERY CRYPTO, a Tokyo studio that deconstructs vintage garments sourced in the US and rebuilds them into one-of-a-kind pieces. References: deconstruction and reconstruction, raw edges, splicing several garments, music culture, sculptural and oversized silhouettes. Be bold but sewable.
+The photo is garment A. Its pattern was traced from the photo: ${JSON.stringify(summary)} (cm). ${hasB ? 'The designer also has a second vintage garment B to splice in.' : 'Fabric B means any second vintage garment or contrast fabric.'}
+Build each design as a list of operations applied to the traced pattern:
+- scale {chest, length}: fractions, e.g. 0.15 = +15%
+- crop {at 0.35–1 of length, angle degrees for a diagonal hem}
+- split {piece front/back/sleeve, dir h (across) / v (down) / d (diagonal), at 0.1–0.9, fabric of the new panel A/B} — panels for patchwork
+- half {fabric}: the left half of the front becomes fabric B
+- widen {cm, fabric}: side panels that add width at each side seam
+- godet {count, h cm, w cm, fabric}: triangles inserted into the hem to flare it
+- extend {cm, fabric}: hem extension (layered look)
+- sleeveExtend {cm, fabric}: lengthen the sleeves with another fabric
+- sleeveless, hood {fabric}, pocket {fabric}, swap (use the back as the front)
+${instruction ? `The designer asks: "${instruction}". Make exactly 1 design that follows it closely, combining as many operations as needed.` : `Make ${count} clearly different designs, each combining 2–5 operations.`}
+For each design give an English name, a Japanese name (nameJa), and a Japanese note (2–3 sentences: the idea and the key sewing steps).
+Return a JSON array.`;
+  const parts: unknown[] = [{ text: prompt }];
+  if (photo) parts.push({ inline_data: { mime_type: 'image/jpeg', data: jpeg(photo, 768) } });
+  const raw = await call(key, model, parts, { type: 'ARRAY', items: DESIGN_SCHEMA }, 0.95);
+  return (Array.isArray(raw) ? raw : [raw]).map(designFromAI).filter((d): d is Design => !!d);
+}

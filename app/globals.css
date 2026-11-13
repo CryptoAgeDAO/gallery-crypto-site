@@ -1187,3 +1187,11 @@ html[lang=ja] .gx .mo-iname{font-size:19px;line-height:1.25}
 .pm-ov{position:absolute;inset:0;width:100%;height:100%;touch-action:none;pointer-events:none}
 .pm-ov g,.pm-ov circle{pointer-events:auto}
 .pm-scale{display:grid;gap:6px;border:1px solid var(--line);border-radius:12px;padding:10px}
+.pm-op{display:flex;flex-wrap:wrap;gap:6px;align-items:center;border-bottom:1px solid var(--line);padding:6px 0;font-size:12px}
+.pm-op b{min-width:84px;font-size:12px}
+.pm-num{display:flex;align-items:center;gap:4px;font-size:11px}
+.pm-num input{width:90px}
+.pm-num em{font-style:normal;color:#777;min-width:30px}
+.pm-fab.b{background:#eef3fb;border-color:#9db4d8}
+.pm-look canvas{width:100%;height:auto;display:block}
+.pm-vars img{object-fit:contain;background:#f3f2ef}
