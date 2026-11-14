@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import GhostMannequin from '@/components/GhostMannequin';
 import { LangToggle, tt, useLang } from '@/components/Lang';
 
-const PatternMaker = dynamic(() => import('@/components/PatternMaker'), { ssr: false, loading: () => <p className="status">…</p> });
+const PatternLab = dynamic(() => import('@/components/PatternLab'), { ssr: false, loading: () => <p className="status">…</p> });
 const GraphicStudio = dynamic(() => import('@/components/GraphicStudio'), { ssr: false, loading: () => <p className="status">…</p> });
 const PhotoStudio = dynamic(() => import('@/components/PhotoStudio'), { ssr: false, loading: () => <p className="status">…</p> });
 const AIImport = dynamic(() => import('@/components/AIImport'), { ssr: false, loading: () => <p className="status">…</p> });
@@ -15,7 +15,7 @@ type Mode = 'pattern' | 'graphic' | 'photo' | 'ai' | '3d' | 'ghost';
 
 export default function Studio() {
   useLang();
-  const [mode, setMode] = useState<Mode>('graphic');
+  const [mode, setMode] = useState<Mode>('pattern');
   return (
     <main className="adm studio">
       <header className="studio-hd">
@@ -36,8 +36,8 @@ export default function Studio() {
       </div>
       {mode === 'pattern' ? (
         <div className="sec">
-          <h4>{tt('Pattern maker', 'パターンメーカー')}</h4>
-          <PatternMaker />
+          <h4>{tt('Pattern lab — measure, draft, sew in 3D', 'パターンラボ ― 採寸・型紙・3D縫製')}</h4>
+          <PatternLab />
         </div>
       ) : mode === 'graphic' ? (
         <div className="sec">

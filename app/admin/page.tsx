@@ -14,7 +14,7 @@ const PhotoTo3D = dynamic(() => import('@/components/PhotoTo3D'), { ssr: false }
 const AIImport = dynamic(() => import('@/components/AIImport'), { ssr: false });
 const PhotoStudio = dynamic(() => import('@/components/PhotoStudio'), { ssr: false });
 const GraphicStudio = dynamic(() => import('@/components/GraphicStudio'), { ssr: false });
-const PatternMaker = dynamic(() => import('@/components/PatternMaker'), { ssr: false });
+const PatternLab = dynamic(() => import('@/components/PatternLab'), { ssr: false });
 import SecurityCenter from '@/components/SecurityCenter';
 import { MfaChallenge, TwoStepSettings, useAal } from '@/components/TwoStep';
 import { EVENTS_SQL } from '@/lib/eventsSql';
@@ -864,7 +864,7 @@ export default function Admin() {
           ))}
         </div>
         {tab === 'items' && <Items />}
-        {tab === 'pattern' && <div className="sec"><h4>{tt('Pattern maker', 'パターンメーカー')}</h4><PatternMaker /></div>}
+        {tab === 'pattern' && <div className="sec"><h4>{tt('Pattern lab', 'パターンラボ')}</h4><PatternLab /></div>}
         {tab === 'graphic' && <div className="sec"><h4>{tt('Graphic studio', 'グラフィックスタジオ')}</h4><GraphicStudio /></div>}
         {tab === 'photostudio' && (
           <div className="sec">

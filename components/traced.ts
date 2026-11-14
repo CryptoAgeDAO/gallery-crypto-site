@@ -19,8 +19,8 @@ const smooth = (a: number[], r: number) => a.map((_, i) => { let s = 0, n = 0; f
 const bez = (p0: Pt, p1: Pt, p2: Pt, p3: Pt, n = 14): Pt[] => Array.from({ length: n + 1 }, (_, i) => { const t = i / n, u = 1 - t; return [u * u * u * p0[0] + 3 * u * u * t * p1[0] + 3 * u * t * t * p2[0] + t * t * t * p3[0], u * u * u * p0[1] + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t * t * t * p3[1]]; });
 export const plen = (a: Pt[]) => a.reduce((s, p, i) => (i ? s + Math.hypot(p[0] - a[i - 1][0], p[1] - a[i - 1][1]) : 0), 0);
 
-type Geo = { cx: number; top: number; bot: number; arm: number; capPx: number; k: number; M: (x: number, y: number) => boolean; L: (y: number) => number; R: (y: number) => number; x0: number; x1: number };
-function geo(F: Layer, lengthCm: number): Geo | null {
+export type Geo = { cx: number; top: number; bot: number; arm: number; capPx: number; k: number; M: (x: number, y: number) => boolean; L: (y: number) => number; R: (y: number) => number; x0: number; x1: number };
+export function geo(F: Layer, lengthCm: number): Geo | null {
   let x0 = F.w, y0 = F.h, x1 = 0, y1 = 0;
   for (let y = 0; y < F.h; y++) for (let x = 0; x < F.w; x++) if (F.mask[y * F.w + x] > 127) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
   if (x1 <= x0) return null;
