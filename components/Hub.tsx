@@ -347,7 +347,7 @@ function EventCard({ ev, put, open, setOpen }: { ev: GcEv; put: (e: GcEv) => voi
 
 const TOOLS: { p: string; items: [string, string, string][] }[] = [
   { p: '01', items: [['/demo', 'Provenance demo', '来歴デモ'], ['/passport/GC-DEMO-1', 'Signed passport', '署名つきパスポート'], ['/demo/nfc', 'NFC tag', 'NFCタグ'], ['/demo/3d', '3D view', '3D表示'], ['/verify', 'Verify offline', 'オフライン検証'], ['/ledger', 'Ledger', '台帳'], ['/proof', 'Proof lab', 'Proof Lab']] },
-  { p: '02', items: [['/studio', 'Photo studio · ghost mannequin · photo → 3D', '写真スタジオ・ゴーストマネキン・写真→3D'], ['/labels', 'Tag labels', 'タグのラベル印刷'], ['/archive', 'Previous archive page', '以前のアーカイブページ']] },
+  { p: '02', items: [['/shop', '3D store', '3Dデジタル店舗'], ['/studio', 'Photo studio · ghost mannequin · photo → 3D', '写真スタジオ・ゴーストマネキン・写真→3D'], ['/labels', 'Tag labels', 'タグのラベル印刷'], ['/archive', 'Previous archive page', '以前のアーカイブページ']] },
   { p: '03', items: [['/studio', 'Graphic studio · pattern lab (measure → pattern → 3D sewing)', 'グラフィック・パターンラボ（採寸→型紙→3D縫製）']] },
   { p: '04', items: [['/admin', 'Organizer admin (real events, tickets)', '運営の管理画面（本番のイベント・チケット）']] },
 ];
@@ -380,6 +380,7 @@ export default function Hub() {
       <header className="hb-top">
         <a className="hb-logo" href="/">Gallery Crypto</a>
         <nav>{PILLARS.map((p) => <a key={p.k} href={`#${p.k}`}><i>{p.n}</i>{L(p)[0]}</a>)}</nav>
+        <a className="ff-shopb" href="/shop">{t('Go to the shop', 'ショップに行く')}</a>
         <SoundBtn />
         <LangToggle />
       </header>
@@ -389,6 +390,7 @@ export default function Hub() {
           <p className="hb-kick">{t('Demo — all pieces and people are fictional samples', 'デモ版 — 作品・人物はすべて架空の見本です')}</p>
           <h1><span className="gt-line">{t('Real things,', '本物に、')}</span><span className="gt-line d2">{t('with a record you can check.', '確かめられる記録を。')}</span></h1>
           <p className="hb-lead">{t('Gallery Crypto links each physical piece to a digital record — from one-of-one vintage to collabs, used clothing and art — and runs fair, verifiable lotteries for its events. Launching 2027.', 'Gallery Crypto は、一点もののヴィンテージからコラボ、普通の古着、アートまで、実物の一つひとつをデジタルの記録と結びつけ、イベントでは確かめられる公平な抽選を行います。2027年始動。')}</p>
+          <a className="ff-shopcta" href="/shop" onClick={() => sfx('select')}><span>{t('Go to the shop', 'ショップに行く')}</span><small>{t('Walk the 3D store', '3Dの店舗を歩く')}</small></a>
           <div className="gt-hud">
             <span><b>{PROJECTS.length}</b>{t('pieces', '作品')}</span>
             <span><b>{evs?.length ?? 0}</b>{t('events', 'イベント')}</span>

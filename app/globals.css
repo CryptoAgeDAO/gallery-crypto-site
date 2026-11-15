@@ -1756,3 +1756,78 @@ body:has(.ff) .gt-res>b{font-family:"Cormorant Garamond",Georgia,serif;font-styl
 body:has(.ff) .gt-res li{transform:none;background:rgba(5,10,45,.55);border-radius:4px;text-align:left}
 body:has(.ff) .gt-go{transform:none;background:linear-gradient(180deg,#ffe39a,#d79a2b);color:#2a1600;border:2px solid #fff;border-radius:6px;font-family:"Cormorant Garamond",Georgia,serif;font-style:normal;font-size:17px}
 @media (prefers-reduced-motion:reduce){.ff-stars,.ff-circle g,.ff-hand{animation:none!important}}
+
+/* ---- デジタル店舗 /shop ---- */
+.sh.store{position:fixed;inset:0;z-index:1;pointer-events:auto;background:#070504;color:#e9e4da;font-family:"Cormorant Garamond",Georgia,"Noto Serif JP",serif;overflow:hidden}
+.sh-3d{position:absolute;inset:0}
+.sh-3d canvas{display:block}
+.sh-top{position:absolute;left:0;right:0;top:0;display:flex;align-items:center;gap:14px;padding:12px 16px;background:linear-gradient(180deg,rgba(0,0,0,.75),transparent);z-index:5}
+.sh-back{color:#cfc9bd;text-decoration:none;font-size:14px;letter-spacing:.08em}
+.sh-name{flex:1;text-align:center;font-weight:600;letter-spacing:.42em;font-size:16px;background:linear-gradient(180deg,#fff,#a9adb5 50%,#e9ebef 55%,#7c8089);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sh-name span{letter-spacing:.3em;font-size:11px}
+.sh-tools{display:flex;gap:6px;align-items:center}
+.sh-tools button,.sh-guide button,.sh-mini{background:rgba(10,8,7,.72);border:1px solid rgba(220,222,228,.45);color:#e9e4da;font:inherit;font-size:13px;letter-spacing:.06em;padding:6px 11px;cursor:pointer;backdrop-filter:blur(6px)}
+.sh-tools button:hover,.sh-guide button:hover{border-color:#fff}
+.sh-cartb i{font-style:normal;display:inline-grid;place-items:center;min-width:18px;height:18px;margin-left:4px;background:linear-gradient(180deg,#f2f3f5,#9a9ea7);color:#111;font-size:11px;border-radius:9px}
+.sh .lang-tg button{color:#cfc9bd}
+.sh-guide{position:absolute;left:50%;bottom:calc(22px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:flex;align-items:center;gap:10px;z-index:5;max-width:calc(100% - 24px)}
+.sh-guide button{width:48px;height:48px;font-size:26px;line-height:1;padding:0;border-radius:50%}
+.sh-guide span{background:rgba(10,8,7,.72);border:1px solid rgba(220,222,228,.3);padding:9px 16px;font-size:14px;letter-spacing:.04em;text-align:center;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;backdrop-filter:blur(6px)}
+.sh-keys{position:absolute;left:16px;bottom:16px;margin:0;font-size:11px;color:#8d8679;letter-spacing:.06em;z-index:4;font-family:var(--sans)}
+.sh-door{position:absolute;inset:0;z-index:20;display:grid;place-items:center;background:radial-gradient(circle at 50% 40%,rgba(60,38,22,.55),rgba(5,4,3,.96) 65%)}
+.sh-door-in{text-align:center;display:grid;gap:14px;justify-items:center;padding:24px;max-width:560px;animation:shIn 1s cubic-bezier(.2,.8,.2,1) both}
+@keyframes shIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+.sh-door h1{margin:0;font-size:clamp(36px,8vw,72px);font-weight:600;letter-spacing:.24em;background:linear-gradient(180deg,#fff,#a9adb5 48%,#eceef2 54%,#70747d);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 4px 12px rgba(0,0,0,.8))}
+.sh-door p{margin:0;font-size:16px;line-height:1.7;color:#cfc9bd}
+.sh-k{letter-spacing:.5em;font-size:12px!important;color:#9a948a!important;text-transform:uppercase}
+.sh-enter,.sh-btn{background:linear-gradient(180deg,#f5f6f8,#a7abb3 50%,#e3e5e9 52%,#8b8f97);color:#111;border:1px solid #fff;font:inherit;font-size:17px;font-weight:600;letter-spacing:.2em;padding:12px 30px;cursor:pointer;box-shadow:0 6px 24px rgba(0,0,0,.6)}
+.sh-btn{font-size:15px;letter-spacing:.1em;padding:11px 18px}
+.sh-btn:disabled{opacity:.4;cursor:default}
+.sh-enter:hover,.sh-btn:hover:not(:disabled){filter:brightness(1.1)}
+.sh-fine{font-size:12.5px!important;color:#9a948a!important;font-family:var(--sans);line-height:1.6;margin:0}
+.sh-err{color:#e07a6a;font-size:13px;margin:0}
+.sh-panel{position:absolute;right:16px;top:64px;bottom:90px;width:min(380px,calc(100% - 32px));overflow:auto;z-index:8;background:rgba(12,10,9,.92);border:1px solid rgba(220,222,228,.35);padding:18px;display:flex;flex-direction:column;gap:8px;backdrop-filter:blur(10px);animation:shPanel .35s cubic-bezier(.2,.8,.2,1) both;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+@keyframes shPanel{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:none}}
+.sh-x{position:absolute;right:8px;top:4px;background:none;border:0;color:#fff;font-size:26px;cursor:pointer}
+.sh-pic{flex:none;aspect-ratio:12/11;background:#e9e6df;overflow:hidden;border:1px solid rgba(220,222,228,.4)}
+.sh-pic img,.sh-pic svg{width:100%;height:100%;object-fit:cover;display:block}
+.sh-code{margin:4px 0 0;font-size:12px;letter-spacing:.2em;color:#a9adb5;font-family:var(--sans)}
+.sh-panel h2{margin:0;font-size:30px;font-weight:600;letter-spacing:.04em;color:#fff}
+.sh-sub{margin:0;color:#b9b2a5;font-size:15px}
+.sh-price{margin:0;font-size:24px;color:#fff;letter-spacing:.06em}
+.sh-desc{margin:0;font-size:15px;line-height:1.7;color:#d6d0c4}
+.sh-facts{margin:0;display:grid;border-top:1px solid rgba(220,222,228,.2);font-family:var(--sans);font-size:12px}
+.sh-facts div{display:grid;grid-template-columns:100px minmax(0,1fr);padding:6px 0;border-bottom:1px solid rgba(220,222,228,.2)}
+.sh-facts dt{color:#9a948a}.sh-facts dd{margin:0}
+.sh-act{display:grid;gap:10px;margin-top:6px}
+.sh-act .mo-btn{background:linear-gradient(180deg,#f5f6f8,#a7abb3 50%,#e3e5e9 52%,#8b8f97);color:#111;border:1px solid #fff}
+.sh-link{color:#d9dce2;font-size:14px;letter-spacing:.06em}
+.sh-drawer{position:absolute;right:16px;top:64px;width:min(340px,calc(100% - 32px));max-height:calc(100% - 170px);overflow:auto;z-index:9;background:rgba(12,10,9,.94);border:1px solid rgba(220,222,228,.35);padding:16px;display:grid;gap:10px;backdrop-filter:blur(10px);animation:shPanel .3s both}
+.sh-drawer>b{font-size:18px;letter-spacing:.14em;color:#fff}
+.sh-drawer input[type=text]{background:#0d0b0a;border:1px solid rgba(220,222,228,.35);color:#fff;font-size:16px;padding:9px}
+.sh-line{display:flex;justify-content:space-between;gap:8px;align-items:center;border-bottom:1px solid rgba(220,222,228,.15);padding-bottom:8px}
+.sh-line span{display:grid;font-size:15px}
+.sh-line small,.sh-row small{color:#a9adb5;font-size:12px;font-family:var(--sans)}
+.sh-row{display:flex;justify-content:space-between;gap:8px;background:none;border:0;border-bottom:1px solid rgba(220,222,228,.15);color:#e9e4da;font:inherit;font-size:15px;padding:8px 0;cursor:pointer;text-align:left}
+.sh-row:hover{color:#fff}
+.sh-file{position:relative;display:grid;place-items:center;aspect-ratio:4/3;border:1px dashed rgba(220,222,228,.45);cursor:pointer;overflow:hidden;color:#b9b2a5}
+.sh-file input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.sh-file img{width:100%;height:100%;object-fit:contain}
+@media (max-width:720px){
+  .sh-top{flex-wrap:wrap;gap:8px;padding:10px 12px}
+  .sh-name{order:-1;flex-basis:100%;font-size:13px}
+  .sh-tools{flex-wrap:wrap}
+  .sh-tools button{font-size:12px;padding:5px 9px}
+  .sh-keys{display:none}
+  .sh-panel{left:0;right:0;top:auto;bottom:0;width:auto;max-height:68vh;border-left:0;border-right:0;border-bottom:0;animation-name:shUp}
+  .sh-drawer{left:12px;right:12px;width:auto;top:96px}
+  .sh-panel .sh-pic{aspect-ratio:16/10}
+}
+@keyframes shUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:none}}
+.ff-shopb{text-decoration:none;font-size:12px;letter-spacing:.08em;padding:6px 12px;border:2px solid #fff;border-radius:6px;background:linear-gradient(180deg,#ffe39a,#d79a2b);color:#2a1600!important;text-shadow:none;white-space:nowrap;font-weight:600}
+.ff-shopcta{justify-self:start;display:grid;gap:2px;text-decoration:none;padding:12px 26px 12px 20px;border:2px solid #fff;border-radius:8px;background:linear-gradient(180deg,#151515,#000);box-shadow:inset 0 0 0 1px rgba(255,255,255,.15),0 0 30px rgba(140,170,255,.35);animation:gtIn .9s .25s both;transition:transform .2s,box-shadow .2s}
+.ff-shopcta:hover{transform:translateY(-2px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.25),0 0 40px rgba(255,211,107,.45)}
+.ff-shopcta span{font-family:"Cormorant Garamond",Georgia,serif;font-size:22px;letter-spacing:.14em;background:linear-gradient(180deg,#fff,#a9adb5 50%,#eceef2 54%,#8b8f97);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none}
+.ff-shopcta small{font-size:11px;color:#c3cbef;letter-spacing:.12em}
+@media (max-width:820px){.ff-shopb{padding:5px 9px;font-size:11px}}
+.sh-panel>*{flex-shrink:0}
