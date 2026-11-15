@@ -1,10 +1,12 @@
 'use client';
 // Gallery Crypto デモ版トップ：❶ RWA ❷ 古着 ❸ アート・その他 ❹ イベント・抽選。
 // 見本はすべて架空。抽選・編集はこの端末のブラウザだけに保存（サーバーには送らない）。
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import { LangToggle, useLang } from './Lang';
 import { ProjectPic } from './HubArt';
+import { Countdown, DrawShow, Meters, Showroom, useReveal } from './HubFX';
+import { onSfxChange, setSfx, sfx, sfxEnabled } from '@/lib/sfx';
 import { PROJECTS, csv, decline, drawOrder, freshEvents, newSeed, renumber, rid, runDraw, sampleEntrants, sha256, slotOf, swap, type Entrant, type GcEv, type Loc, type Pillar, type Project } from '@/lib/hub';
 
 const KEY = 'gc-hub-v2';
@@ -53,13 +55,14 @@ function Detail({ p, onClose, evs, goEvent }: { p: Project; onClose: () => void;
     <div className="hb-over" onClick={onClose}>
       <div className="hb-sheet" role="dialog" aria-modal="true" aria-label={p.title} onClick={(e) => e.stopPropagation()}>
         <button className="hb-x" onClick={onClose} aria-label={t('Close', '閉じる')}>×</button>
-        <div className="hb-pic"><ProjectPic p={p} /></div>
+        <div className="hb-pic gt-turn"><span className="gt-spin"><ProjectPic p={p} /></span><span className="gt-sweep" aria-hidden /></div>
         <div className="hb-info">
           <p className="hb-code">{p.code} · {t('Sample', '見本')}</p>
           <h3>{p.title}</h3>
           <p className="hb-sub">{p.sub} · {p.year}</p>
           {p.price && <p className="hb-price">{yen(p.price)}</p>}
           <p>{lang === 'ja' ? p.story[1] : p.story[0]}</p>
+          <Meters p={p} big />
           <dl className="hb-facts">{p.facts.map(([k, v]) => <div key={k}><dt>{lang === 'ja' ? FACT_JA[k] || k : k}</dt><dd>{v}</dd></div>)}</dl>
           {ev && <button className="hb-btn" onClick={() => goEvent(ev.id)}>{ev.kind === 'sale' ? t('Enter the lottery sale →', '抽選販売に申し込む →') : t('See the event →', 'イベントを見る →')}</button>}
           <div className="hb-rec">
@@ -85,12 +88,13 @@ function Grid({ ps, open, evs }: { ps: Project[]; open: (p: Project) => void; ev
       {ps.map((p) => {
         const ev = evs.find((e) => e.items.some((i) => i.id === p.id));
         return (
-          <button key={p.id} className="hb-card" onClick={() => open(p)}>
+          <button key={p.id} className="hb-card" data-rv onClick={() => { sfx('open'); open(p); }}>
             <span className="hb-cpic"><ProjectPic p={p} />{ev && <em>{ev.kind === 'sale' ? t('Lottery sale', '抽選販売') : t('Event', 'イベント')}</em>}</span>
             <span className="hb-ccode">{p.code}</span>
             <b>{p.title}</b>
             <span className="hb-csub">{p.sub}</span>
             <span className="hb-cprice">{p.price ? yen(p.price) : t('Price TBA', '価格未定')}</span>
+            <Meters p={p} />
           </button>
         );
       })}
@@ -187,6 +191,7 @@ function Fair({ ev }: { ev: GcEv }) {
 function Ops({ ev, put }: { ev: GcEv; put: (e: GcEv) => void }) {
   const { t } = useLang();
   const [busy, setBusy] = useState(false);
+  const pending = useRef<GcEv | null>(null);
   const [view, setView] = useState(ev.locs[0]?.code || '');
   const set = (p: Partial<GcEv>) => put({ ...ev, ...p });
   const setLoc = (i: number, p: Partial<Loc>) => { const locs = ev.locs.map((l, j) => (j === i ? { ...l, ...p } : l)); const n = { ...ev, locs }; put(ev.state === 'drawn' ? renumber(n) : n); };
@@ -253,7 +258,8 @@ function Ops({ ev, put }: { ev: GcEv; put: (e: GcEv) => void }) {
         {ev.state === 'open' && <button className="hb-mini" onClick={() => set({ entrants: [...ev.entrants, ...sampleEntrants(ev, 20)] })}>+20 {t('sample entries', '見本の応募')}</button>}
         {ev.state === 'open' && <button className="hb-mini" onClick={() => set({ state: 'closed' })}>{t('Close entries', '受付を締め切る')}</button>}
         {ev.state === 'closed' && <button className="hb-mini" onClick={() => set({ state: 'open' })}>{t('Reopen', '受付を再開')}</button>}
-        {ev.state !== 'drawn' && <button className="hb-btn" disabled={busy || !ev.entrants.length} onClick={async () => { setBusy(true); put(await runDraw(ev)); setBusy(false); }}>{t('Run the draw', '抽選する')}</button>}
+        {ev.state !== 'drawn' && <button className="hb-btn gt-start" disabled={busy || !ev.entrants.length} onClick={() => { sfx('servo'); setBusy(true); }}>{t('Run the draw', '抽選する')}</button>}
+        {busy && <DrawShow run={async () => { const r = await runDraw(ev); pending.current = r; sfx('fanfare'); const w = r.entrants.filter((e) => e.status === 'win').sort((a, b) => (a.no || '').localeCompare(b.no || '')); return { n: w.length, first: w.slice(0, 5).map((e) => `${e.no}  ${e.slot}  ${e.name}`) }; }} onDone={() => { if (pending.current) put(pending.current); pending.current = null; setBusy(false); }} />}
         {ev.state === 'drawn' && <button className="hb-mini" onClick={() => put(renumber(ev))}>{t('Renumber', '番号を振り直す')}</button>}
         {ev.state === 'drawn' && <button className="hb-mini" onClick={async () => { const seed = newSeed(); put({ ...ev, state: 'open', seed, seedHash: await sha256(seed), orderHash: undefined, drawIds: undefined, entrants: ev.entrants.map((e) => ({ ...e, status: 'entered', k: undefined, no: undefined, slot: undefined, w: undefined })) }); }}>{t('Undo draw (new seed)', '抽選を取り消す（種を新しく）')}</button>}
         <button className="hb-mini" onClick={() => dl(`${ev.id}-entries.csv`, '﻿' + csv(ev, (id) => proj(id)?.title || id), 'text/csv')}>CSV</button>
@@ -292,16 +298,21 @@ function EventCard({ ev, put, open, setOpen }: { ev: GcEv; put: (e: GcEv) => voi
   const [tab, setTab] = useState<'join' | 'ops'>('join');
   const pill = PILLARS.find((p) => p.k === ev.pillar)!;
   const { lang } = useLang();
+  const cap = ev.kind === 'sale' ? ev.items.reduce((a, i) => a + i.stock, 0) : ev.locs.reduce((a, l) => a + l.capacity, 0);
   return (
-    <article className={`hb-ev ${open ? 'open' : ''}`} id={`ev-${ev.id}`}>
-      <button className="hb-evh" onClick={() => setOpen(!open)} aria-expanded={open}>
+    <article className={`hb-ev ${open ? 'open' : ''}`} id={`ev-${ev.id}`} data-rv>
+      <button className="hb-evh" onClick={() => { sfx(open ? 'close' : 'menu'); setOpen(!open); }} aria-expanded={open}>
         <span className="hb-evd"><b>{ev.date.slice(5).replace('-', '/')}</b><i>{ev.date.slice(0, 4)}</i></span>
         <span className="hb-evt">
           <em>{pill.n} {lang === 'ja' ? pill.ja[0] : pill.en[0]} · {ev.kind === 'sale' ? t('Lottery sale', '抽選販売') : t('Entry lottery', '入場抽選')}</em>
           <b>{ev.title}</b>
           <span>{ev.locs.map((l) => l.name).join(' / ')}</span>
         </span>
-        <span className={`hb-state ${ev.state}`}>{ev.state === 'open' ? t('Open', '受付中') : ev.state === 'closed' ? t('Closed', '締切') : t('Drawn', '抽選済み')}</span>
+        <span className="gt-evr">
+          <span className={`hb-state ${ev.state}`}>{ev.state === 'open' ? t('Open', '受付中') : ev.state === 'closed' ? t('Closed', '締切') : t('Drawn', '抽選済み')}</span>
+          {ev.state === 'open' && <Countdown until={ev.entryEnd} />}
+        </span>
+        <span className="gt-gauge" aria-hidden><i style={{ ['--v' as string]: Math.min(1, ev.entrants.length / Math.max(1, cap * 3)) }} /><em>{t(`${ev.entrants.length} entries · ${cap} places`, `応募 ${ev.entrants.length} · 枠 ${cap}`)} · {t('odds', '倍率')} {(ev.entrants.length / Math.max(1, cap)).toFixed(1)}x</em></span>
       </button>
       {open && (
         <div className="hb-evb">
@@ -341,6 +352,13 @@ const TOOLS: { p: string; items: [string, string, string][] }[] = [
   { p: '04', items: [['/admin', 'Organizer admin (real events, tickets)', '運営の管理画面（本番のイベント・チケット）']] },
 ];
 
+function SoundBtn() {
+  const { t } = useLang();
+  const [on, setOn] = useState(true);
+  useEffect(() => { setOn(sfxEnabled()); return onSfxChange(setOn); }, []);
+  return <button className="gt-snd" aria-pressed={on} onClick={() => setSfx(!on)} aria-label={t('Sound', '効果音')}>{on ? '♪ ON' : '♪ OFF'}</button>;
+}
+
 export default function Hub() {
   const { t, lang } = useLang();
   const { evs, put, reset } = useEvents(lang === 'ja' ? 'ja' : 'en');
@@ -351,34 +369,51 @@ export default function Hub() {
   const by = (k: Pillar) => PROJECTS.filter((p) => p.pillar === k);
   const goEvent = (id: string) => { setSel(null); setOpenEv(id); setTimeout(() => document.getElementById(`ev-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60); };
   useEffect(() => { const h = decodeURIComponent(location.hash.slice(1)); const p = PROJECTS.find((x) => x.code === h); if (p) setSel(p); }, []);
+  useReveal(`${vf}${evs ? 1 : 0}`);
   const vint = by('vintage').filter((p) => vf === 'all' || (vf === 'v' ? p.code.startsWith('GC-V') : p.code.startsWith('GC-U')));
 
   return (
-    <div className="hb" translate="no">
+    <div className="hb gt" translate="no">
+      <div className="gt-bg" aria-hidden />
       <header className="hb-top">
         <a className="hb-logo" href="/">Gallery Crypto</a>
         <nav>{PILLARS.map((p) => <a key={p.k} href={`#${p.k}`}><i>{p.n}</i>{L(p)[0]}</a>)}</nav>
+        <SoundBtn />
         <LangToggle />
       </header>
 
-      <section className="hb-hero">
-        <p className="hb-kick">{t('Demo — all pieces and people are fictional samples', 'デモ版 — 作品・人物はすべて架空の見本です')}</p>
-        <h1>{t('Real things, with a record you can check.', '本物に、確かめられる記録を。')}</h1>
-        <p className="hb-lead">{t('Gallery Crypto links each physical piece to a digital record — from one-of-one vintage to collabs, used clothing and art — and runs fair, verifiable lotteries for its events. Launching 2027.', 'Gallery Crypto は、一点もののヴィンテージからコラボ、普通の古着、アートまで、実物の一つひとつをデジタルの記録と結びつけ、イベントでは確かめられる公平な抽選を行います。2027年始動。')}</p>
-        <div className="hb-pills">
-          {PILLARS.map((p) => (
-            <a key={p.k} href={`#${p.k}`} className="hb-pill">
-              <i>{p.n}</i><b>{L(p)[0]}</b><span>{L(p)[1]}</span>
-            </a>
-          ))}
+      <section className="hb-hero gt-hero">
+        <div className="gt-hero-txt">
+          <p className="hb-kick">{t('Demo — all pieces and people are fictional samples', 'デモ版 — 作品・人物はすべて架空の見本です')}</p>
+          <h1><span className="gt-line">{t('Real things,', '本物に、')}</span><span className="gt-line d2">{t('with a record you can check.', '確かめられる記録を。')}</span></h1>
+          <p className="hb-lead">{t('Gallery Crypto links each physical piece to a digital record — from one-of-one vintage to collabs, used clothing and art — and runs fair, verifiable lotteries for its events. Launching 2027.', 'Gallery Crypto は、一点もののヴィンテージからコラボ、普通の古着、アートまで、実物の一つひとつをデジタルの記録と結びつけ、イベントでは確かめられる公平な抽選を行います。2027年始動。')}</p>
+          <div className="gt-hud">
+            <span><b>{PROJECTS.length}</b>{t('pieces', '作品')}</span>
+            <span><b>{evs?.length ?? 0}</b>{t('events', 'イベント')}</span>
+            <span><b>{evs ? evs.reduce((a, e) => a + e.entrants.length, 0) : 0}</b>{t('entries', '応募')}</span>
+            <span><b>2027</b>{t('launch', '始動')}</span>
+          </div>
         </div>
+        <Showroom ps={PROJECTS.filter((p) => p.img)} onOpen={(p) => { sfx('open'); setSel(p); }} />
       </section>
+      <nav className="gt-menu" aria-label={t('Main menu', 'メインメニュー')}>
+        {PILLARS.map((p, i) => {
+          const rep = p.k === 'events' ? PROJECTS.find((x) => x.id === 'a2')! : PROJECTS.find((x) => x.pillar === p.k && (x.img || x.draw || x.art))!;
+          return (
+            <a key={p.k} href={`#${p.k}`} className="gt-tile" style={{ ['--i' as string]: i }} onClick={() => sfx('select')} onMouseEnter={() => sfx('tick')}>
+              <span className="gt-tile-bg"><ProjectPic p={rep} /></span>
+              <span className="gt-tile-tx"><i>{p.n}</i><b>{L(p)[0]}</b><span>{L(p)[1]}</span></span>
+              <span className="gt-tile-go" aria-hidden>→</span>
+            </a>
+          );
+        })}
+      </nav>
 
       {(['rwa', 'vintage', 'art'] as Pillar[]).map((k) => {
         const p = PILLARS.find((x) => x.k === k)!;
         return (
           <section key={k} className="hb-sec" id={k}>
-            <div className="hb-sh"><i>{p.n}</i><h2>{L(p)[0]}</h2><p>{L(p)[1]}</p></div>
+            <div className="hb-sh" data-rv><i>{p.n}</i><h2>{L(p)[0]}</h2><p>{L(p)[1]}</p></div>
             {k === 'rwa' && <p className="hb-note">{t('Vintage originals and collaboration products. Each piece carries an NFC tag and a signed record whose fingerprint is anchored on a public blockchain — provenance and ownership you can verify without trusting us.', 'ヴィンテージの原型とコラボ商品。一点ごとにNFCタグと署名つきの記録を付け、その指紋を公開ブロックチェーンに記録します。私たちを信用しなくても、来歴と持ち主を確かめられます。')}</p>}
             {k === 'vintage' && (
               <div className="hb-tabs">
@@ -392,7 +427,7 @@ export default function Hub() {
       })}
 
       <section className="hb-sec" id="events">
-        <div className="hb-sh"><i>04</i><h2>{t('Events & lottery', 'イベント・抽選')}</h2><p>{t('Pre-entry → fair draw → numbers, times and venues assigned automatically → edit anything', '事前登録 → 公平な抽選 → 番号・時間・場所を自動で割り振り → 何でも編集')}</p></div>
+        <div className="hb-sh" data-rv><i>04</i><h2>{t('Events & lottery', 'イベント・抽選')}</h2><p>{t('Pre-entry → fair draw → numbers, times and venues assigned automatically → edit anything', '事前登録 → 公平な抽選 → 番号・時間・場所を自動で割り振り → 何でも編集')}</p></div>
         <ol className="hb-flow">
           <li><b>1</b>{t('Pre-entry', '事前登録')}</li>
           <li><b>2</b>{t('Seed fingerprint published', '種の指紋を公開')}</li>
@@ -405,7 +440,7 @@ export default function Hub() {
       </section>
 
       <section className="hb-sec" id="tools">
-        <div className="hb-sh"><i>—</i><h2>{t('Everything built so far', 'これまでの機能')}</h2><p>{t('Sorted into the four pillars', '4つの柱に整理')}</p></div>
+        <div className="hb-sh" data-rv><i>—</i><h2>{t('Everything built so far', 'これまでの機能')}</h2><p>{t('Sorted into the four pillars', '4つの柱に整理')}</p></div>
         <div className="hb-map">
           {TOOLS.map((g) => {
             const p = PILLARS.find((x) => x.n === g.p)!;
