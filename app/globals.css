@@ -1831,3 +1831,54 @@ body:has(.ff) .gt-go{transform:none;background:linear-gradient(180deg,#ffe39a,#d
 .ff-shopcta small{font-size:11px;color:#c3cbef;letter-spacing:.12em}
 @media (max-width:820px){.ff-shopb{padding:5px 9px;font-size:11px}}
 .sh-panel>*{flex-shrink:0}
+
+/* ---- 展示室（美術館）: 白い空間・黒い文字 ---- */
+.sh.store{background:#f3f1ec;color:#141414;font-family:var(--sans)}
+.store .sh-top{background:linear-gradient(180deg,rgba(243,241,236,.92),rgba(243,241,236,0))}
+.store .sh-back{color:#333;font-size:13px}
+.store .sh-name{background:none;-webkit-background-clip:initial;background-clip:initial;color:#141414;font-family:var(--sans);font-weight:600;letter-spacing:.32em;font-size:13px}
+.store .sh-name span{color:#777;font-weight:400;letter-spacing:.14em}
+.store .sh-tools button,.store .sh-guide button,.store .sh-mini{background:rgba(255,255,255,.88);border:1px solid #d6d3cc;color:#141414;font-family:var(--sans);font-size:12px;border-radius:0}
+.store .sh-tools button:hover,.store .sh-guide button:hover,.store .sh-mini:hover{border-color:#141414}
+.store .sh-cartb i{background:#141414;color:#fff}
+.store .lang-tg button{color:#555}
+.store .sh-guide span{background:rgba(255,255,255,.9);border-color:#d6d3cc;color:#141414;font-size:13px}
+.store .sh-keys{color:#8a867d}
+.store .sh-door{background:rgba(243,241,236,.9);backdrop-filter:blur(6px)}
+.store .sh-door h1{background:none;-webkit-background-clip:initial;background-clip:initial;color:#141414;filter:none;font-family:var(--sans);font-weight:500;letter-spacing:.3em;font-size:clamp(30px,6vw,56px)}
+.store .sh-door p{color:#444;font-size:15px}
+.store .sh-k{color:#8a867d!important}
+.store .sh-enter,.store .sh-btn{background:#141414;color:#fff;border:1px solid #141414;box-shadow:none;font-family:var(--sans);font-weight:500;letter-spacing:.2em;font-size:13px}
+.store .sh-btn{letter-spacing:.08em}
+.store .sh-fine{color:#7a766d!important}
+.store .sh-panel,.store .sh-drawer{background:rgba(255,255,255,.96);border:1px solid #dcd9d2;color:#141414;box-shadow:0 20px 50px rgba(0,0,0,.12)}
+.store .sh-x{color:#141414}
+.store .sh-pic{background:#f2f1ec;border-color:#e3e0d9}
+.store .sh-code{color:#8a867d}
+.store .sh-panel h2{color:#141414;font-family:var(--sans);font-weight:600;font-size:24px}
+.store .sh-sub{color:#666;font-size:14px}
+.store .sh-price{color:#141414;font-size:18px}
+.store .sh-desc{color:#333;font-size:14px}
+.store .sh-facts{border-color:#e6e3dc}.store .sh-facts div{border-color:#e6e3dc}.store .sh-facts dt{color:#8a867d}
+.store .sh-act .mo-btn{background:#141414;color:#fff;border-color:#141414}
+.store .sh-link{color:#141414}
+.store .sh-drawer>b{color:#141414;font-size:15px;letter-spacing:.1em}
+.store .sh-drawer input[type=text],.store .sh-drawer select{background:#fff;border:1px solid #d6d3cc;color:#141414;font-size:16px;padding:8px}
+.store .sh-line,.store .sh-row{border-color:#ebe8e1;color:#141414}
+.store .sh-line small,.store .sh-row small{color:#8a867d}
+.store .sh-file{border-color:#cfcbc3;color:#777}
+.sh-drawer.wide{width:min(560px,calc(100% - 32px))}
+.sh-glb{position:relative;display:block;border:1px dashed #cfcbc3;padding:10px;font-size:12px;color:#555;cursor:pointer}
+.sh-glb input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.sh-cur{display:grid;grid-template-columns:24px minmax(0,1fr) minmax(0,190px);gap:6px 10px;align-items:center;border-bottom:1px solid #ebe8e1;padding:8px 0}
+.sh-cur.off{opacity:.45}
+.sh-cur-n{font-size:11px;color:#8a867d}
+.sh-cur-t{display:grid;font-size:14px;min-width:0}
+.sh-cur-t small{font-size:11px;color:#8a867d;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sh-cur select{font-size:12px;padding:5px;border:1px solid #d6d3cc;background:#fff;min-width:0}
+.sh-cur-s{display:flex;align-items:center;gap:6px;font-size:11px;color:#666}
+.sh-cur .sh-cur-s{grid-column:2/3}
+.sh-cur-s input{flex:1;min-width:60px}
+.sh-cur-s em{font-style:normal;min-width:44px;text-align:right}
+.sh-cur-b{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+@media (max-width:720px){.sh-cur{grid-template-columns:20px minmax(0,1fr)}.sh-cur select,.sh-cur .sh-cur-s,.sh-cur-b{grid-column:2/3}.sh-cur-b{justify-content:flex-start}}

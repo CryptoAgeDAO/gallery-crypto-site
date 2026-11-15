@@ -12,4 +12,7 @@ export type ShopItem = {
   desc: string;
   facts: [string, string][];
   zone: 'rwa' | 'vintage' | 'art' | 'archive';
+  display?: 'frame' | 'hang' | 'plinth' | 'case';
+  size?: number;
+  glbKey?: string; // この端末に保存した立体（.glb）
 };

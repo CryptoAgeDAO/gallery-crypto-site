@@ -15,6 +15,8 @@ export function toShop(it: Item, saleOpen: boolean): ShopItem {
     desc: it.prov || it.cond || '',
     facts: [['Condition', it.cond], ['Made in', it.made_in], ['Tag', it.tag], ['Dealer', it.dealer]].filter((f) => f[1]) as [string, string][],
     zone: 'archive',
+    display: 'hang',
+    size: 1,
   };
 }
 

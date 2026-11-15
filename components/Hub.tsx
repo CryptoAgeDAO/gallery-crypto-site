@@ -347,7 +347,7 @@ function EventCard({ ev, put, open, setOpen }: { ev: GcEv; put: (e: GcEv) => voi
 
 const TOOLS: { p: string; items: [string, string, string][] }[] = [
   { p: '01', items: [['/demo', 'Provenance demo', '来歴デモ'], ['/passport/GC-DEMO-1', 'Signed passport', '署名つきパスポート'], ['/demo/nfc', 'NFC tag', 'NFCタグ'], ['/demo/3d', '3D view', '3D表示'], ['/verify', 'Verify offline', 'オフライン検証'], ['/ledger', 'Ledger', '台帳'], ['/proof', 'Proof lab', 'Proof Lab']] },
-  { p: '02', items: [['/shop', '3D store', '3Dデジタル店舗'], ['/studio', 'Photo studio · ghost mannequin · photo → 3D', '写真スタジオ・ゴーストマネキン・写真→3D'], ['/labels', 'Tag labels', 'タグのラベル印刷'], ['/archive', 'Previous archive page', '以前のアーカイブページ']] },
+  { p: '02', items: [['/shop', '3D exhibition & shop', '3D展示室とショップ'], ['/studio', 'Photo studio · ghost mannequin · photo → 3D', '写真スタジオ・ゴーストマネキン・写真→3D'], ['/labels', 'Tag labels', 'タグのラベル印刷'], ['/archive', 'Previous archive page', '以前のアーカイブページ']] },
   { p: '03', items: [['/studio', 'Graphic studio · pattern lab (measure → pattern → 3D sewing)', 'グラフィック・パターンラボ（採寸→型紙→3D縫製）']] },
   { p: '04', items: [['/admin', 'Organizer admin (real events, tickets)', '運営の管理画面（本番のイベント・チケット）']] },
 ];
