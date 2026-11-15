@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import { LangToggle, useLang } from './Lang';
 import { ProjectPic } from './HubArt';
-import { Countdown, DrawShow, Meters, Showroom, useReveal } from './HubFX';
+import { Countdown, DrawShow, HandCursor, Meters, Showroom, useReveal } from './HubFX';
 import { onSfxChange, setSfx, sfx, sfxEnabled } from '@/lib/sfx';
 import { PROJECTS, csv, decline, drawOrder, freshEvents, newSeed, renumber, rid, runDraw, sampleEntrants, sha256, slotOf, swap, type Entrant, type GcEv, type Loc, type Pillar, type Project } from '@/lib/hub';
 
@@ -373,8 +373,10 @@ export default function Hub() {
   const vint = by('vintage').filter((p) => vf === 'all' || (vf === 'v' ? p.code.startsWith('GC-V') : p.code.startsWith('GC-U')));
 
   return (
-    <div className="hb gt" translate="no">
+    <div className="hb gt ff" translate="no">
       <div className="gt-bg" aria-hidden />
+      <div className="ff-stars" aria-hidden />
+      <HandCursor />
       <header className="hb-top">
         <a className="hb-logo" href="/">Gallery Crypto</a>
         <nav>{PILLARS.map((p) => <a key={p.k} href={`#${p.k}`}><i>{p.n}</i>{L(p)[0]}</a>)}</nav>
