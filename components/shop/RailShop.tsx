@@ -21,14 +21,14 @@ type Kind = 'garment' | 'cap' | 'art';
 type View = 'rail' | 'lineup';
 
 // 見本の図を、背景なし（切り抜き）で
-function cutout(pid: string) {
+export function cutout(pid: string) {
   const p = PROJECTS.find((x) => x.id === pid);
   if (!p) return '';
   // 服は布の陰影つきの絵に、それ以外は元の図
   const m = p.draw ? realGarment(p.draw, PROJECTS.indexOf(p) + 3) : renderToStaticMarkup(<ProjectPic p={p} />).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" width="720" height="660" ');
   return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(m);
 }
-const kindOf = (i: ShopItem): Kind => (i.zone === 'art' ? 'art' : i.zone === 'rwa' || /cap/i.test(i.sub) ? 'cap' : 'garment');
+export const kindOf = (i: ShopItem): Kind => (i.zone === 'art' ? 'art' : i.zone === 'rwa' || /cap/i.test(i.sub) ? 'cap' : 'garment');
 
 // 位置（小数）→ 見た目。d = その商品の位置 − いま正面の位置
 function railStyle(d: number, w: number): React.CSSProperties {
@@ -145,7 +145,7 @@ export default function RailShop({ initial, saleOpen }: { initial: ShopItem[]; s
     <div className={`rs ${view}`} translate="no">
       <header className="rs-top">
         <div className="rs-row1">
-          <a href="/">[ {t('About', 'サイト')} ]</a>
+          <a href="/shop">[ ← SHOP ]</a>
           <a href="/shop" className="rs-logo">GALLERY CRYPTO</a>
           <span className="rs-r">
             <a href="/shop/room">[ 3D ROOM ]</a>
