@@ -109,7 +109,12 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
         {p.buy === 'demo' && <em className="sf-tag">{t('Sample', '見本')}</em>}
         {p.lottery && <em className="sf-tag lot">{t('Lottery', '抽選')}</em>}
         {p.buy === 'sold' && <em className="sf-tag sold">{t('Sold', '売約済み')}</em>}
-        <span className="sf-quick">{t('Quick view', 'くわしく見る')}</span>
+        {p.buy === 'demo' || p.buy === 'local' ? (
+          <span className="sf-quick" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+            <small>{t('Quick add', 'クイック追加')}</small>
+            {(() => { const sz = (p.facts.find((f) => f[0] === 'Size')?.[1] || '').split(/[\s—]/)[0]; return <button onClick={() => add(p.id)}>{cart.includes(p.id) ? '✓' : sz || 'ONE SIZE'}</button>; })()}
+          </span>
+        ) : <span className="sf-quick">{t('Quick view', 'くわしく見る')}</span>}
       </span>
       <b>{p.title}</b>
       <span className="sf-csub">{p.sub}</span>
@@ -127,7 +132,7 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
   const found = search !== null && search.trim() ? all.filter((i) => (i.title + ' ' + i.sub + ' ' + i.code).toLowerCase().includes(search.trim().toLowerCase())) : [];
 
   return (
-    <div className="sf" translate="no">
+    <div className="sf kx" translate="no">
       <div className="sf-ann">
         <span key={ann}>{ANN[ann]}</span>
         <button onClick={() => setPlay((v) => !v)} aria-label={play ? t('Pause', '一時停止') : t('Play', '再生')}>{play ? '❚❚' : '▶'}</button>
@@ -157,6 +162,20 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
           </section>
 
           <Row title={t('This just in', '新着')} c="new" items={byCat('new')} />
+
+          {/* 2枚並びのキャンペーン */}
+          <section className="kx-split">
+            {([['vintage', '#c9c3b6', t('Vintage', 'ヴィンテージ'), t('One of one, with its history', '一点もの、来歴とともに')], ['art', '#1d1d1d', t('Art & objects', 'アート・オブジェ'), t('One record per piece', '一点ずつ記録')]] as [Cat, string, string, string][]).map(([c, bg, h, sub]) => {
+              const p = byCat(c)[0];
+              return p ? (
+                <a key={c} href={`#c=${c}`} className="kx-camp" style={{ background: bg, color: bg === '#1d1d1d' ? '#fff' : '#111' }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={p.src} alt="" className={p.img ? 'photo' : ''} />
+                  <span><b>{h}</b><small>{sub}</small><em>{t('Shop now', '見る')}</em></span>
+                </a>
+              ) : null;
+            })}
+          </section>
 
           {/* 特集のタイル */}
           <section className="sf-sec">
