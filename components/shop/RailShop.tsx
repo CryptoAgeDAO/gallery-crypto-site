@@ -30,16 +30,30 @@ export function cutout(pid: string) {
 }
 export const kindOf = (i: ShopItem): Kind => (i.zone === 'art' ? 'art' : i.zone === 'rwa' || /cap/i.test(i.sub) ? 'cap' : 'garment');
 
-// 位置（小数）→ 見た目。d = その商品の位置 − いま正面の位置
-function railStyle(d: number, w: number): React.CSSProperties {
-  const a = Math.abs(d), s = Math.sign(d);
-  const A = w * 0.62, B = Math.max(26, w * 0.13);
-  const x = a < 1 ? d * A : s * (A + (a - 1) * B);
-  const ry = -Math.max(-1, Math.min(1, d)) * 72;
-  const z = -Math.min(a, 1) * 70 - Math.max(0, a - 1) * 4;
-  // 3D の入れ子（preserve-3d）や filter は iPhone の Safari で消えることがあるので、要素ごとの perspective だけで回す
-  return { transform: `translateX(${x}px) perspective(1400px) rotateY(${ry}deg) scale(${1 + z / 1400})`, zIndex: 1000 - Math.round(a * 10), opacity: a > 0.5 ? 1 - Math.min(0.25, (a - 0.5) * 0.04) : 1 };
+// レール：全部が横向きで詰めて掛かり、指した一着だけが正面を向いて飛び出す（e = その服 − 指している位置）
+function hoverStyle(i: number, c: number, h: number, on: number, w: number): React.CSSProperties {
+  const gap = Math.max(20, w * 0.15), spread = w * 0.36 * on;
+  const e = i - h, pop = on * Math.max(0, 1 - Math.abs(e));
+  const x = (i - c) * gap + Math.sign(e) * spread * Math.min(1, Math.abs(e));
+  const ry = 66 * (1 - pop);
+  return { transform: `translateX(${x}px) translateY(${-pop * 10}px) perspective(1400px) rotateY(${ry}deg) scale(${0.84 + pop * 0.26})`, zIndex: 500 + Math.round(pop * 100) - Math.round(Math.abs(e)) };
 }
+// 文字がいったん崩れてから、正しい文字に落ち着く
+function useScramble(text: string) {
+  const [s, set] = useState(text);
+  useEffect(() => {
+    const ch = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#%&<>/+';
+    let f = 0;
+    const id = setInterval(() => {
+      f++; const r = f * 1.5;
+      set(text.split('').map((c, i) => (c === ' ' || i < r ? c : ch[Math.floor(Math.random() * ch.length)])).join(''));
+      if (r >= text.length) clearInterval(id);
+    }, 26);
+    return () => clearInterval(id);
+  }, [text]);
+  return s;
+}
+function Scr({ text, className }: { text: string; className?: string }) { return <span className={className}>{useScramble(text)}</span>; }
 function lineStyle(d: number, w: number): React.CSSProperties {
   const a = Math.min(Math.abs(d), 3);
   return { transform: `translateX(${d * w * 0.78}px) scale(${1 - a * 0.16})`, opacity: Math.max(0, 1 - a * 0.36), filter: a > 0.08 ? `blur(${a * 3.2}px)` : undefined, zIndex: 100 - Math.round(a * 10) };
@@ -57,6 +71,9 @@ export default function RailShop({ initial, saleOpen }: { initial: ShopItem[]; s
   const ph = useRef({ pos: 0, vel: 0, to: null as number | null, sway: 0, swayV: 0, drag: false, hist: [] as { t: number; p: number }[] });
   const tgt = { get current() { return ph.current.to ?? Math.round(ph.current.pos); } };
   const [open, setOpen] = useState<string | null>(null);
+  const [hov, setHov] = useState<number | null>(null); // レールで指している一着
+  const [focus, setFocus] = useState<number | null>(null); // 大きく見ている一着
+  const hs = useRef({ h: 0, on: 0 }); // 指している位置（なめらか）
   const [panel, setPanel] = useState<'' | 'cart' | 'add'>('');
   const [w, setW] = useState(420);
   const stage = useRef<HTMLDivElement>(null);
@@ -86,6 +103,10 @@ export default function RailShop({ initial, saleOpen }: { initial: ShopItem[]; s
     r(); addEventListener('resize', r); return () => removeEventListener('resize', r);
   }, []);
   const nRef = useRef(n); nRef.current = n;
+  const hovR = useRef<number | null>(null); hovR.current = hov;
+  // レールは最初、全体の真ん中を見せる
+  const centered = useRef(false);
+  useEffect(() => { if (!centered.current && n) { centered.current = true; ph.current.pos = ph.current.to = Math.floor((n - 1) / 2); } }, [n]);
   useEffect(() => {
     let raf = 0, last = performance.now(), lastIdx = 0;
     const tick = (now: number) => {
@@ -109,6 +130,8 @@ export default function RailShop({ initial, saleOpen }: { initial: ShopItem[]; s
       s.sway = Math.max(-16, Math.min(16, s.sway + s.swayV * f));
       const k = Math.round(Math.max(0, Math.min(N - 1, s.pos)));
       if (k !== lastIdx) { lastIdx = k; sfx('tick'); }
+      const H = hs.current, tg = hovR.current;
+      if (tg !== null) { H.h += (tg - H.h) * Math.min(1, 0.22 * f); H.on += (1 - H.on) * Math.min(1, 0.2 * f); } else H.on += (0 - H.on) * Math.min(1, 0.15 * f);
       setFrame({ pos: s.pos, sway: s.sway, t: now / 1000 });
       raf = requestAnimationFrame(tick);
     };
@@ -120,6 +143,7 @@ export default function RailShop({ initial, saleOpen }: { initial: ShopItem[]; s
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement)?.closest?.('input,textarea,select')) return;
+      if (focus !== null) { if (e.key === 'ArrowRight') { const j = (focus + 1) % n; setFocus(j); setHov(j); } if (e.key === 'ArrowLeft') { const j = (focus - 1 + n) % n; setFocus(j); setHov(j); } if (e.key === 'Escape' && !open) setFocus(null); return; }
       if (e.key === 'ArrowRight') go(Math.round(tgt.current) + 1);
       if (e.key === 'ArrowLeft') go(Math.round(tgt.current) - 1);
       if (e.key === 'Enter' && !open && all[Math.round(tgt.current)]) setOpen(all[Math.round(tgt.current)].id);
@@ -134,7 +158,7 @@ export default function RailShop({ initial, saleOpen }: { initial: ShopItem[]; s
     const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
     const s = ph.current; s.to = null; s.vel = Math.max(-0.6, Math.min(0.6, s.vel + d * 0.0011));
   };
-  const scale = () => (view === 'rail' ? w * 0.42 : w * 0.7);
+  const scale = () => (view === 'rail' ? Math.max(20, w * 0.15) : w * 0.7);
 
   const add = (id: string) => { setCart((c) => (c.includes(id) ? c : [...c, id])); sfx('coin'); };
   const inCart = all.filter((i) => cart.includes(i.id));
@@ -142,7 +166,7 @@ export default function RailShop({ initial, saleOpen }: { initial: ShopItem[]; s
   const story = (i: (typeof all)[number]) => (lang === 'ja' && i.pid ? PROJECTS.find((p) => p.id === i.pid)?.story[1] : i.desc);
 
   return (
-    <div className={`rs ${view}`} translate="no">
+    <div className={`rs ${view} ${view === 'rail' && focus !== null ? 'focused' : ''}`} translate="no">
       <header className="rs-top">
         <div className="rs-row1">
           <a href="/shop">[ ← SHOP ]</a>
@@ -191,20 +215,35 @@ export default function RailShop({ initial, saleOpen }: { initial: ShopItem[]; s
         style={{ ['--w' as string]: `${w}px` }}
       >
         {view === 'rail' && <div className="rs-rail" aria-hidden><i /><b /><b /></div>}
-        <div className="rs-track">
+        <div className="rs-track" onPointerLeave={(e) => { if (e.pointerType === 'mouse') setHov(null); }}>
           {all.map((it, i) => {
             const d = i - pos;
-            if (Math.abs(d) > (view === 'rail' ? 14 : 4)) return null;
+            if (view === 'lineup' && Math.abs(d) > 4) return null;
             const front = i === idx;
             return (
               <button
                 key={it.id}
-                className={`rs-piece ${it.kind} ${it.img ? 'photo' : 'cut'} ${front ? 'front' : ''}`}
-                style={view === 'rail' ? railStyle(d, w) : lineStyle(d, w)}
-                onClick={() => { if (dragged.current) return; if (front) { sfx('open'); setOpen(it.id); } else go(i); }}
+                className={`rs-piece ${it.kind} ${it.img ? 'photo' : 'cut'} ${(view === 'rail' ? hov === i : front) ? 'front' : ''}`}
+                style={view === 'rail' ? hoverStyle(i, pos, hs.current.h, hs.current.on, w) : lineStyle(d, w)}
+                onPointerEnter={(e) => { if (view === 'rail' && e.pointerType === 'mouse') { if (hov !== i) sfx('tick'); setHov(i); } }}
+                onClick={(ev) => {
+                  if (dragged.current) return;
+                  if (view === 'rail') {
+                    if (matchMedia('(hover: hover)').matches) { sfx('open'); setFocus(i); return; }
+                    // タッチ：服が重なっているので、触った横位置から一着を決める（1回目で飛び出し、2回目で大きく）
+                    const r = stage.current!.getBoundingClientRect(), dx = ev.clientX - (r.left + r.width / 2);
+                    const gap = Math.max(20, w * 0.15), H = hs.current, sp = w * 0.36 * H.on;
+                    const xh = (H.h - pos) * gap;
+                    let k = Math.abs(dx - xh) < w * 0.3 * H.on ? Math.round(H.h) : Math.round(pos + (dx - Math.sign(dx - xh) * sp) / gap);
+                    k = Math.max(0, Math.min(n - 1, k));
+                    if (hov === k && H.on > 0.6) { sfx('open'); setFocus(k); } else { sfx('tick'); setHov(k); }
+                    return;
+                  }
+                  if (front) { sfx('open'); setOpen(it.id); } else go(i);
+                }}
                 aria-label={front ? t(`${it.title}, open`, `${it.title} を開く`) : it.title}
               >
-                <span className="rs-swing" style={view === 'rail' ? { transform: `rotate(${(frame.sway * (0.75 + ((i * 0.37) % 1) * 0.5) + Math.sin(frame.t * 0.9 + i * 1.7) * 0.35 * (1 - Math.min(1, Math.abs(d) / 3))).toFixed(2)}deg)` } : undefined}>
+                <span className="rs-swing" style={view === 'rail' ? { transform: `rotate(${(frame.sway * (0.75 + ((i * 0.37) % 1) * 0.5) + Math.sin(frame.t * 0.9 + i * 1.7) * 0.35 * (1 - Math.min(1, Math.abs(i - hs.current.h) / 3) * hs.current.on)).toFixed(2)}deg)` } : undefined}>
                   {view === 'rail' && (it.kind === 'garment' && !it.img ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img className="rs-hanger" src={HANGER_URL} alt="" draggable={false} />
@@ -231,7 +270,14 @@ export default function RailShop({ initial, saleOpen }: { initial: ShopItem[]; s
         )}
       </main>
 
-      {cur && (
+      {view === 'rail' && focus === null && (
+        <div className="rs-cap rs-hcap">
+          <span className="rs-mono">{hov !== null ? `${pad2(hov + 1)} / ${pad2(n)} · ${all[hov].code}` : `${n} ${t('PIECES', '点')}`}</span>
+          <b><Scr text={hov !== null ? `${all[hov].title.toUpperCase()} — ${all[hov].sub.toUpperCase()}` : t('HOVER THE RAIL', 'レールに触れて選ぶ')} /></b>
+          <span className="rs-mono">{hov !== null ? all[hov].price : t('Tap a piece to see it large', '服をタップすると大きく見られます')}</span>
+        </div>
+      )}
+      {view === 'lineup' && cur && (
         <div className="rs-cap" key={cur.id + view}>
           <span className="rs-mono">{pad2(idx + 1)} / {pad2(n)} · {cur.code}</span>
           <b>{cur.title.toUpperCase()} — {cur.sub.toUpperCase()}</b>
@@ -244,12 +290,37 @@ export default function RailShop({ initial, saleOpen }: { initial: ShopItem[]; s
         </div>
       )}
 
+      {view === 'rail' && focus !== null && all[focus] && (() => {
+        const f = all[focus];
+        const step = (k: number) => { const j = (focus + k + n) % n; setFocus(j); setHov(j); sfx('tick'); };
+        return (
+          <section className="rs-focus" key={f.id}
+            onPointerDown={(e) => { (e.currentTarget as HTMLElement).dataset.x = String(e.clientX); }}
+            onPointerUp={(e) => { const x0 = Number((e.currentTarget as HTMLElement).dataset.x || e.clientX), dx = e.clientX - x0; if (Math.abs(dx) > 50) step(dx < 0 ? 1 : -1); }}>
+            <button className="rs-fclose" onClick={() => setFocus(null)}>[ {t('Close', '閉じる')} ]</button>
+            <b className="rs-fnum" aria-hidden>{pad2(focus + 1)}</b>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img className={`rs-fimg ${f.img ? 'photo' : ''}`} src={f.src} alt="" draggable={false} />
+            <div className="rs-finfo">
+              <Scr className="rs-fname" text={f.title.toUpperCase()} />
+              <span className="rs-mono">{f.sub} · {f.code}</span>
+              <span className="rs-fbtns">
+                {f.buy === 'stripe' ? <BuyButton itemId={f.id} label={`${t('Buy', '購入')} — ${f.price}`} /> : f.buy === 'sold' ? <span className="rs-pill off">SOLD</span> : <button className="rs-pill" onClick={() => add(f.id)}>{cart.includes(f.id) ? t('In cart ✓', 'カートに入っています ✓') : `${t('Add', 'カートに入れる')} — ${f.price}`}</button>}
+                <button className="rs-pill ghost" onClick={() => setOpen(f.id)}>{t('Details', '詳細')}</button>
+              </span>
+            </div>
+            <button className="rs-farrow l" onClick={() => step(-1)} aria-label={t('Previous', '前へ')}>‹</button>
+            <button className="rs-farrow r" onClick={() => step(1)} aria-label={t('Next', '次へ')}>›</button>
+          </section>
+        );
+      })()}
+
       <footer className="rs-foot">
         <div className="rs-big" aria-hidden>GALLERY CRYPTO</div>
         <div className="rs-ticker" aria-hidden>
           <div>{Array.from({ length: 2 }, (_, k) => <span key={k}>{['ONE OF ONE', 'RECORDED ON CHAIN', 'NFC TAGGED', 'DROP 01 — ' + pad2(n) + ' PIECES', 'NO RESTOCKS', 'ARCHIVE · ART · OBJECTS', 'TOKYO', 'SALES OPEN 2027'].map((s) => <i key={s}>{s}</i>)}</span>)}</div>
         </div>
-        <p className="rs-hint">{t('Slide to browse · tap the piece in front to buy', 'スライドで選ぶ · 正面の商品をタップで購入画面へ')}</p>
+        <p className="rs-hint">{view === 'rail' ? t('Hover the rail · click a piece to see it large · drag to pan', 'レールに触れて選ぶ · タップで大きく · ドラッグで横に送る') : t('Slide to browse · tap the piece in front to buy', 'スライドで選ぶ · 正面の商品をタップで購入画面へ')}</p>
       </footer>
 
       {/* 購入画面（詳細） */}
