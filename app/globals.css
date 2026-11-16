@@ -1904,15 +1904,15 @@ body:has(.ff) .gt-go{transform:none;background:linear-gradient(180deg,#ffe39a,#d
 .rs-views button{padding:3px 9px;font-family:var(--mono);font-size:9.5px;letter-spacing:.1em}
 .rs-views button[aria-pressed=true]{background:var(--ink);color:var(--paper)}
 /* 舞台 */
-.rs-stage{position:relative;z-index:2;perspective:1700px;perspective-origin:50% 20%;touch-action:pan-y;cursor:grab;display:grid;place-items:center;overflow:hidden}
+.rs-stage{position:relative;z-index:2;touch-action:pan-y;cursor:grab;display:grid;place-items:center;overflow:hidden}
 .rs-stage:active{cursor:grabbing}
 .rs-rail{position:absolute;left:50%;top:15%;width:min(1100px,92%);transform:translateX(-50%);height:40px;pointer-events:none}
 .rs-rail i{position:absolute;left:0;right:0;bottom:0;height:5px;border-radius:3px;background:linear-gradient(180deg,#f8f8f8,#9c9c9c 60%,#6d6d6d);box-shadow:0 2px 3px rgba(0,0,0,.18)}
 .rs-rail b{position:absolute;bottom:4px;width:2px;height:120%;background:#7a7a7a}
 .rs-rail b:nth-of-type(1){left:4%}.rs-rail b:nth-of-type(2){right:4%}
-.rs-track{position:absolute;left:50%;top:15%;width:0;height:100%;transform-style:preserve-3d}
+.rs-track{position:absolute;left:50%;top:15%;width:0;height:100%}
 .rs-piece{position:absolute;left:calc(var(--w) / -2);top:30px;width:var(--w);transform-origin:50% 0;will-change:transform;display:grid;justify-items:center;transition:filter .3s}
-.rs-piece img{width:100%;height:auto;max-height:52vh;object-fit:contain;mix-blend-mode:multiply;pointer-events:none;-webkit-user-drag:none}
+.rs-piece img{width:100%;height:auto;max-height:52vh;object-fit:contain;pointer-events:none;-webkit-user-drag:none}
 .rs-piece img.framed{width:62%;border:10px solid #161616;outline:1px solid #000;padding:10px;background:#fbfaf6;mix-blend-mode:normal;box-shadow:0 10px 24px rgba(0,0,0,.18)}
 .rs-hanger{width:44%;margin-top:-30px;margin-bottom:-14%;position:relative;z-index:2}
 .rs-hook{width:16px;margin-top:-30px;position:relative;z-index:2}
@@ -1924,7 +1924,7 @@ body:has(.ff) .gt-go{transform:none;background:linear-gradient(180deg,#ffe39a,#d
 .rs-piece.front{cursor:pointer}
 .rs-piece.front:hover img{transform:translateY(-4px);transition:transform .25s}
 /* LINEUP */
-.rs.lineup .rs-track{top:10%;transform-style:flat}
+.rs.lineup .rs-track{top:10%}
 .rs.lineup .rs-piece{top:0;transform-origin:50% 50%}
 .rs.lineup .rs-piece img{max-height:62vh}
 .rs.lineup .rs-piece.art img,.rs.lineup .rs-piece.cap img{width:80%}
@@ -1958,7 +1958,7 @@ body:has(.ff) .gt-go{transform:none;background:linear-gradient(180deg,#ffe39a,#d
 .rs-detail{width:min(1080px,94vw);height:min(720px,88vh);background:var(--paper);border:1px solid var(--ink);display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);animation:rsUp .45s cubic-bezier(.2,.8,.2,1) both;user-select:text}
 @keyframes rsUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
 .rs-dpic{position:relative;border-right:1px solid var(--ink);display:grid;place-items:center;padding:30px;background:#e4e2dc;overflow:hidden}
-.rs-dpic img{max-width:100%;max-height:100%;object-fit:contain;mix-blend-mode:multiply;animation:rsZoom .7s cubic-bezier(.2,.8,.2,1) both}
+.rs-dpic img{max-width:100%;max-height:100%;object-fit:contain;animation:rsZoom .7s cubic-bezier(.2,.8,.2,1) both}
 @keyframes rsZoom{from{transform:scale(.9);opacity:0}to{transform:none;opacity:1}}
 .rs-dpic .rs-mono{position:absolute;left:14px;bottom:12px}
 .rs-dinfo{position:relative;padding:26px;display:flex;flex-direction:column;gap:10px;overflow:auto}
@@ -2006,3 +2006,4 @@ body:has(.ff) .gt-go{transform:none;background:linear-gradient(180deg,#ffe39a,#d
 }
 @media (prefers-reduced-motion:reduce){.rs-ticker>div{animation:none}}
 .rs .lang-tg{background:none!important;border:1px solid var(--ink);border-radius:0;padding:0}.rs .lang-tg button{color:var(--ink)!important;background:none!important;font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:0}.rs .lang-tg button[aria-pressed=true]{background:var(--ink)!important;color:var(--paper)!important}
+html:has(.rs),body:has(.rs){background:#ecebe6}

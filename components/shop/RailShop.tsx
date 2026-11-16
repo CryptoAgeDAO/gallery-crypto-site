@@ -36,7 +36,8 @@ function railStyle(d: number, w: number): React.CSSProperties {
   const x = a < 1 ? d * A : s * (A + (a - 1) * B);
   const ry = -Math.max(-1, Math.min(1, d)) * 72;
   const z = -Math.min(a, 1) * 70 - Math.max(0, a - 1) * 4;
-  return { transform: `translateX(${x}px) translateZ(${z}px) rotateY(${ry}deg)`, zIndex: 1000 - Math.round(a * 10), filter: a > 0.5 ? `brightness(${1 - Math.min(0.28, (a - 0.5) * 0.12)})` : undefined };
+  // 3D の入れ子（preserve-3d）や filter は iPhone の Safari で消えることがあるので、要素ごとの perspective だけで回す
+  return { transform: `translateX(${x}px) perspective(1400px) rotateY(${ry}deg) scale(${1 + z / 1400})`, zIndex: 1000 - Math.round(a * 10), opacity: a > 0.5 ? 1 - Math.min(0.25, (a - 0.5) * 0.04) : 1 };
 }
 function lineStyle(d: number, w: number): React.CSSProperties {
   const a = Math.min(Math.abs(d), 3);
