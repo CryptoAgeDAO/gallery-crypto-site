@@ -2370,7 +2370,7 @@ img.rs-hanger{width:46%;height:auto;margin-top:-34px;margin-bottom:-15%;position
 }
 
 /* 石と真鍮：トラバーチン（温かい石）・大理石・真鍮の細い線 */
-.sf.kx,.mo.st{--trav:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22600%22%20height%3D%22600%22%3E%3Cfilter%20id%3D%22t%22%3E%3CfeTurbulence%20type%3D%22fractalNoise%22%20baseFrequency%3D%220.004%200.06%22%20numOctaves%3D%224%22%20seed%3D%227%22/%3E%3CfeColorMatrix%20values%3D%220%200%200%200%200.55%20%200%200%200%200%200.46%20%200%200%200%200%200.34%20%200%200%200%200.35%200%22/%3E%3C/filter%3E%3Crect%20width%3D%22600%22%20height%3D%22600%22%20fill%3D%22%23e9e1d3%22/%3E%3Crect%20width%3D%22600%22%20height%3D%22600%22%20filter%3D%22url%28%23t%29%22%20opacity%3D%22.55%22/%3E%3C/svg%3E");--marble:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22700%22%20height%3D%22700%22%3E%3Cfilter%20id%3D%22m%22%3E%3CfeTurbulence%20type%3D%22turbulence%22%20baseFrequency%3D%220.006%200.012%22%20numOctaves%3D%225%22%20seed%3D%223%22/%3E%3CfeColorMatrix%20values%3D%220%200%200%200%200.62%20%200%200%200%200%200.6%20%200%200%200%200%200.58%20%200%200%200%20-1.4%201.1%22/%3E%3C/filter%3E%3Crect%20width%3D%22700%22%20height%3D%22700%22%20fill%3D%22%23f4f2ee%22/%3E%3Crect%20width%3D%22700%22%20height%3D%22700%22%20filter%3D%22url%28%23m%29%22%20opacity%3D%22.5%22/%3E%3C/svg%3E");--brass:#a8834a;--stone:#efe9df}
+.sf.kx,.mo.st,.hb.kh{--trav:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22600%22%20height%3D%22600%22%3E%3Cfilter%20id%3D%22t%22%3E%3CfeTurbulence%20type%3D%22fractalNoise%22%20baseFrequency%3D%220.004%200.06%22%20numOctaves%3D%224%22%20seed%3D%227%22/%3E%3CfeColorMatrix%20values%3D%220%200%200%200%200.55%20%200%200%200%200%200.46%20%200%200%200%200%200.34%20%200%200%200%200.35%200%22/%3E%3C/filter%3E%3Crect%20width%3D%22600%22%20height%3D%22600%22%20fill%3D%22%23e9e1d3%22/%3E%3Crect%20width%3D%22600%22%20height%3D%22600%22%20filter%3D%22url%28%23t%29%22%20opacity%3D%22.55%22/%3E%3C/svg%3E");--marble:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22700%22%20height%3D%22700%22%3E%3Cfilter%20id%3D%22m%22%3E%3CfeTurbulence%20type%3D%22turbulence%22%20baseFrequency%3D%220.006%200.012%22%20numOctaves%3D%225%22%20seed%3D%223%22/%3E%3CfeColorMatrix%20values%3D%220%200%200%200%200.62%20%200%200%200%200%200.6%20%200%200%200%200%200.58%20%200%200%200%20-1.4%201.1%22/%3E%3C/filter%3E%3Crect%20width%3D%22700%22%20height%3D%22700%22%20fill%3D%22%23f4f2ee%22/%3E%3Crect%20width%3D%22700%22%20height%3D%22700%22%20filter%3D%22url%28%23m%29%22%20opacity%3D%22.5%22/%3E%3C/svg%3E");--brass:#a8834a;--stone:#efe9df}
 .kx .sf-slide{background-image:var(--trav)!important;background-size:600px!important;color:#1a1612!important}
 .kx .sf-slide img.photo{object-fit:contain;height:70%;width:auto;max-width:86%;align-self:center;margin-top:-6%;box-shadow:0 30px 60px -30px rgba(60,40,20,.45)}
 .kx .sf-slide img{height:70%;margin-top:-6%}
@@ -2443,3 +2443,132 @@ img.rs-hanger{width:46%;height:auto;margin-top:-34px;margin-bottom:-15%;position
   .st-foot{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 .mo.st{display:flex;flex-direction:column}.st .st-foot{margin-top:auto}.st .mo-doc>.mo-btn,.st .mo-doc>a.mo-btn{justify-self:center}
+
+/* ---- トップ（ホーム）も旗艦店の雰囲気に ---- */
+.hb.kh{--ac:#a8834a;--brass:#a8834a;--stone:#efe9df;--line:#e7e1d6;max-width:none;padding:0;background:#fff;color:#14120f;font-family:"Archivo","Helvetica Neue",Arial,"Noto Sans JP",sans-serif}
+.kh .st-ann{position:relative;z-index:21}
+.kh .hb-top{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:16px;padding:16px clamp(16px,4vw,40px);background:rgba(255,255,255,.95);border-bottom:1px solid var(--line)}
+.kh .hb-top nav{display:flex;gap:22px;overflow:hidden}
+.kh .hb-top nav a,.kh-r a{font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:#14120f;white-space:nowrap}
+.kh .hb-top nav a:hover,.kh-r a:hover{color:var(--brass)}
+.kh .hb-logo{font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;font-size:26px;letter-spacing:.3em;text-transform:uppercase;font-style:normal;color:#14120f;background:none;-webkit-text-fill-color:#14120f;filter:none;text-shadow:none}
+.kh-r{justify-self:end;display:flex;gap:16px;align-items:center}
+.kh .gt-snd{border:1px solid var(--line);color:#14120f;border-radius:0;font-size:9.5px}
+/* ヒーロー：トラバーチンの上に作品、中央に文字 */
+.kh-hero{position:relative;display:grid;place-items:center;min-height:min(88vh,820px);background:var(--trav);background-size:600px;overflow:hidden;border-bottom:1px solid var(--line)}
+.kh-pics{position:absolute;inset:0}
+.kh-pic{position:absolute;width:min(30vw,380px);aspect-ratio:1;mix-blend-mode:multiply;opacity:.95;animation:khIn 1.4s cubic-bezier(.2,.8,.2,1) both}
+.kh-pic img{width:100%;height:100%;object-fit:contain}
+.kh-pic.p0{left:4%;top:12%;transform:rotate(-6deg)}
+.kh-pic.p1{right:5%;top:8%;transform:rotate(5deg);animation-delay:.15s}
+.kh-pic.p2{right:22%;bottom:-4%;width:min(22vw,280px);transform:rotate(-3deg);animation-delay:.3s}
+@keyframes khIn{from{opacity:0;translate:0 24px}to{opacity:.95;translate:0 0}}
+.kh-txt{position:relative;display:grid;justify-items:center;gap:18px;text-align:center;max-width:680px;padding:60px 24px;background:radial-gradient(closest-side,rgba(239,233,223,.92),rgba(239,233,223,.6) 70%,transparent)}
+.kh-kick{margin:0;font-size:10.5px;letter-spacing:.3em;text-transform:uppercase;color:#77716a}
+.kh-txt h1{margin:0;font-family:"Cormorant Garamond",Georgia,"Noto Serif JP",serif;font-weight:500;font-size:clamp(30px,4.6vw,58px);line-height:1.15;letter-spacing:.02em}
+.kh-txt h1::after{content:"";display:block;width:36px;height:1px;background:var(--brass);margin:18px auto 0}
+.kh-lead{margin:0;font-size:14px;line-height:1.85;color:#3a352f;max-width:52ch}
+.kh-ctas{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:6px}
+.kh-ctas a{background:#14120f;color:#fff;border:1px solid #14120f;padding:14px 28px;font-size:10.5px;letter-spacing:.22em;text-transform:uppercase}
+.kh-ctas a:hover{background:var(--brass);border-color:var(--brass)}
+.kh-ctas a.ghost{background:transparent;color:#14120f;border-color:var(--brass)}
+.kh-ctas a.ghost:hover{background:var(--brass);color:#fff}
+.kh-stats{display:flex;gap:28px;margin-top:8px}
+.kh-stats span{display:grid;font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:#77716a}
+.kh-stats b{font-family:"Cormorant Garamond",Georgia,serif;font-size:26px;font-weight:500;color:#14120f;letter-spacing:0}
+/* 4つの柱のタイル */
+.kh-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:4px 0}
+.kh-tile{display:grid;justify-items:center;align-content:end;gap:6px;aspect-ratio:3/4;padding:22px;background:var(--stone);text-align:center;position:relative;overflow:hidden}
+.kh-tpic{position:absolute;inset:8% 12% 30%;display:grid;place-items:center}
+.kh-tpic img,.kh-tpic svg{width:100%;height:100%;object-fit:contain;mix-blend-mode:multiply;transition:transform .9s cubic-bezier(.2,.8,.2,1)}
+.kh-tile:hover .kh-tpic img,.kh-tile:hover .kh-tpic svg{transform:scale(1.05)}
+.kh-tile b{position:relative;font-size:11px;font-weight:500;letter-spacing:.22em;text-transform:uppercase}
+.kh-tile span:last-child{position:relative;font-size:11.5px;color:#77716a;max-width:26ch;line-height:1.5}
+/* 各セクション */
+.kh .hb-sec{max-width:1240px;margin:0 auto;padding:72px clamp(16px,4vw,40px) 24px;border-top:0}
+.kh .hb-sh{display:grid;justify-items:center;text-align:center;gap:6px;margin-bottom:10px}
+.kh .hb-sh i{font-style:normal;font-family:"Cormorant Garamond",Georgia,serif;font-size:18px;color:var(--brass);grid-row:auto}
+.kh .hb-sh h2{font-size:13px;font-weight:500;letter-spacing:.26em;text-transform:uppercase}
+.kh .hb-sh h2::after{content:"";display:block;width:28px;height:1px;background:var(--brass);margin:10px auto 0}
+.kh .hb-sh p{font-size:12px;color:#77716a}
+.kh .hb-note{text-align:center;margin:0 auto;font-family:"Cormorant Garamond",Georgia,"Noto Serif JP",serif;font-size:17px;color:#3a352f;max-width:60ch}
+.kh .hb-tabs{justify-content:center}
+.kh .hb-tabs button{border:0;border-radius:0;background:none;font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:#77716a;padding:6px 4px;border-bottom:1px solid transparent}
+.kh .hb-tabs button[aria-pressed=true]{background:none;color:#14120f;border-color:#14120f}
+.kh .hb-grid{grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:34px 4px}
+.kh .hb-card{text-align:center;justify-items:center;gap:3px}
+.kh .hb-cpic{background:var(--stone);aspect-ratio:1/1.1;width:100%}
+.kh .hb-cpic img,.kh .hb-cpic svg{object-fit:contain;padding:9%;mix-blend-mode:multiply}
+.kh .hb-cpic em{background:var(--brass);font-size:9px;letter-spacing:.14em}
+.kh .hb-ccode{font-size:9.5px;color:#77716a;margin-top:10px}
+.kh .hb-card b{font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase}
+.kh .hb-csub,.kh .hb-cprice{font-size:11px;color:#55504a}
+.kh .gt-meters{display:none}
+/* イベント */
+.kh .hb-flow li{border:0;border-top:1px solid var(--brass);border-radius:0;background:none;font-size:11px;letter-spacing:.06em}
+.kh .hb-flow b{background:none;color:var(--brass);font-family:"Cormorant Garamond",Georgia,serif;font-size:16px}
+.kh .hb-ev{border:1px solid var(--line);background:#fff}
+.kh .hb-ev.open,.kh .hb-ev:hover{border-color:var(--brass)}
+.kh .hb-evh{background:none}
+.kh .hb-evd{border-right-color:var(--line)}
+.kh .hb-evd b{font-family:"Cormorant Garamond",Georgia,serif;font-weight:500;font-size:26px}
+.kh .hb-evt em{color:var(--brass);letter-spacing:.14em;text-transform:uppercase;font-size:9.5px}
+.kh .hb-evt b{font-weight:500;letter-spacing:.06em}
+.kh .hb-state{background:var(--stone);color:#14120f;border-radius:0;letter-spacing:.12em;text-transform:uppercase;font-size:9.5px}
+.kh .hb-state.drawn{background:#14120f;color:#fff}
+.kh .gt-cd b{color:#14120f;font-family:"Cormorant Garamond",Georgia,serif;font-size:17px}
+.kh .gt-cd em{color:#77716a}
+.kh .gt-cd .s{color:var(--brass)}
+.kh .gt-gauge i{background:var(--stone);height:3px}
+.kh .gt-gauge i::before{background:var(--brass)}
+.kh .gt-gauge em{color:#77716a}
+.kh .hb-locc,.kh .hb-form,.kh .hb-check,.kh .hb-fair,.kh .hb-sub2{border:1px solid var(--line);background:#fff}
+.kh .hb-btn{background:#14120f;border-color:#14120f;border-radius:0;font-size:10.5px;letter-spacing:.2em;text-transform:uppercase}
+.kh .hb-btn:hover:not(:disabled){background:var(--brass);border-color:var(--brass)}
+.kh .hb-btn.ghost{background:#fff;color:#14120f;border-color:var(--brass)}
+.kh .hb-mini{border-radius:0;border-color:var(--line)}
+.kh .hb-ticket{background:var(--trav);background-size:600px;border:1px solid var(--brass)}
+.kh .hb-ticket.win strong,.kh .hb-ticket.checked strong{color:#5a7a3a}
+.kh .hb-tr .no{color:var(--brass)}
+.kh .hb-map>div{border:1px solid var(--line);background:#fff}
+.kh .hb-map b i{color:var(--brass)}
+.kh .hb-foot{max-width:none;margin:60px 0 0;padding:36px clamp(16px,4vw,40px);background:var(--marble);background-size:700px;border-top:1px solid var(--line);color:#55504a}
+/* 詳細 */
+.kh .hb-over{background:rgba(20,18,15,.45)}
+.kh .hb-sheet{border-radius:0}
+.kh .hb-pic{background:var(--stone)}
+.kh .hb-info h3{font-weight:500;letter-spacing:.1em;text-transform:uppercase;font-size:20px}
+.kh .hb-code{color:var(--brass)}
+.kh .hb-log{border-left-color:var(--brass)}
+/* 抽選の演出（ホームが明るいときは石と真鍮で） */
+body:has(.kh) .gt-draw{background:radial-gradient(circle at 50% 50%,rgba(168,131,74,.18),transparent 60%),rgba(239,233,223,.97);color:#14120f}
+body:has(.kh) .gt-count{color:#14120f;text-shadow:none;font-family:"Cormorant Garamond",Georgia,serif;font-style:normal;font-weight:500}
+body:has(.kh) .gt-count.go{color:#a8834a}
+body:has(.kh) .gt-roll{color:#a8834a;text-shadow:none;font-family:"Cormorant Garamond",Georgia,serif}
+body:has(.kh) .gt-res{color:#14120f;background:#fff;border:1px solid #a8834a;padding:24px 28px}
+body:has(.kh) .gt-res em{color:#77716a}
+body:has(.kh) .gt-res>b{font-family:"Cormorant Garamond",Georgia,serif;font-style:normal;font-weight:500}
+body:has(.kh) .gt-res li{transform:none;background:#efe9df}
+body:has(.kh) .gt-go{transform:none;background:#14120f;color:#fff;font-style:normal;font-size:11px;letter-spacing:.2em;text-transform:uppercase}
+@media (max-width:820px){
+  .kh .hb-top{grid-template-columns:auto 1fr;gap:8px}
+  .kh .hb-logo{grid-column:1/-1;order:-1;justify-self:center;font-size:19px;letter-spacing:.2em}
+  .kh .hb-top nav{gap:14px;overflow-x:auto}
+  .kh-pic{width:46vw}
+  .kh-pic.p0{left:-8%;top:4%}.kh-pic.p1{right:-10%;top:2%}.kh-pic.p2{display:none}
+  .kh-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .kh .hb-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+.hb.kh{overflow-x:clip}
+.kh a{text-decoration:none}
+.kh .hb-sh{grid-template-columns:minmax(0,1fr)}
+.kh .hb-sh i{grid-row:auto}
+@media (max-width:820px){
+  .kh .hb-top{grid-template-columns:minmax(0,1fr);justify-items:center;gap:10px;padding:12px 16px}
+  .kh .hb-top nav{display:none}
+  .kh-r{justify-self:center}
+  .kh-tile{padding:14px 10px}
+  .kh-tpic{inset:6% 10% 40%}
+  .kh-tile span:last-child{font-size:10.5px}
+  .kh .hb-sec{padding-top:56px}
+}

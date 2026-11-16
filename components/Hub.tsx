@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import { LangToggle, useLang } from './Lang';
 import { ProjectPic } from './HubArt';
-import { Countdown, DrawShow, HandCursor, Meters, Showroom, useReveal } from './HubFX';
+import { Countdown, DrawShow, Meters, useReveal } from './HubFX';
 import { onSfxChange, setSfx, sfx, sfxEnabled } from '@/lib/sfx';
 import { PROJECTS, csv, decline, drawOrder, freshEvents, newSeed, renumber, rid, runDraw, sampleEntrants, sha256, slotOf, swap, type Entrant, type GcEv, type Loc, type Pillar, type Project } from '@/lib/hub';
 
@@ -373,41 +373,44 @@ export default function Hub() {
   const vint = by('vintage').filter((p) => vf === 'all' || (vf === 'v' ? p.code.startsWith('GC-V') : p.code.startsWith('GC-U')));
 
   return (
-    <div className="hb gt ff" translate="no">
-      <div className="gt-bg" aria-hidden />
-      <div className="ff-stars" aria-hidden />
-      <HandCursor />
+    <div className="hb kh" translate="no">
+      <div className="st-ann">{t('Demo — all pieces and people are fictional samples · Launching 2027', 'デモ版 — 作品・人物はすべて架空の見本です · 2027年始動')}</div>
       <header className="hb-top">
-        <a className="hb-logo" href="/">Gallery Crypto</a>
-        <nav>{PILLARS.map((p) => <a key={p.k} href={`#${p.k}`}><i>{p.n}</i>{L(p)[0]}</a>)}</nav>
-        <a className="ff-shopb" href="/shop">{t('Go to the shop', 'ショップに行く')}</a>
-        <SoundBtn />
-        <LangToggle />
+        <nav>{PILLARS.map((p) => <a key={p.k} href={`#${p.k}`}>{L(p)[0]}</a>)}</nav>
+        <a className="hb-logo notranslate" translate="no" href="/">Gallery Crypto</a>
+        <span className="kh-r">
+          <a href="/shop">{t('Shop', 'ショップ')}</a>
+          <SoundBtn />
+          <LangToggle />
+        </span>
       </header>
 
-      <section className="hb-hero gt-hero">
-        <div className="gt-hero-txt">
-          <p className="hb-kick">{t('Demo — all pieces and people are fictional samples', 'デモ版 — 作品・人物はすべて架空の見本です')}</p>
-          <h1><span className="gt-line">{t('Real things,', '本物に、')}</span><span className="gt-line d2">{t('with a record you can check.', '確かめられる記録を。')}</span></h1>
-          <p className="hb-lead">{t('Gallery Crypto links each physical piece to a digital record — from one-of-one vintage to collabs, used clothing and art — and runs fair, verifiable lotteries for its events. Launching 2027.', 'Gallery Crypto は、一点もののヴィンテージからコラボ、普通の古着、アートまで、実物の一つひとつをデジタルの記録と結びつけ、イベントでは確かめられる公平な抽選を行います。2027年始動。')}</p>
-          <a className="ff-shopcta" href="/shop" onClick={() => sfx('select')}><span>{t('Go to the shop', 'ショップに行く')}</span><small>{t('Walk the 3D store', '3Dの店舗を歩く')}</small></a>
-          <div className="gt-hud">
+      <section className="kh-hero">
+        <div className="kh-pics" aria-hidden>
+          {PROJECTS.filter((p) => p.img).slice(0, 3).map((p, i) => <span key={p.id} className={`kh-pic p${i}`}><ProjectPic p={p} /></span>)}
+        </div>
+        <div className="kh-txt">
+          <p className="kh-kick">Gallery Crypto — Tokyo</p>
+          <h1>{t('Real things, with a record you can check.', '本物に、確かめられる記録を。')}</h1>
+          <p className="kh-lead">{t('Each physical piece — one-of-one vintage, collabs, used clothing and art — is linked to a digital record, and events run on fair, verifiable lotteries.', '一点もののヴィンテージ、コラボ、古着、アート。実物の一つひとつをデジタルの記録と結びつけ、イベントは確かめられる公平な抽選で。')}</p>
+          <div className="kh-ctas">
+            <a href="/shop" onClick={() => sfx('select')}>{t('Shop now', 'ショップへ')}</a>
+            <a href="/shop/room" className="ghost">{t('Walk the 3D room', '3D展示室を歩く')}</a>
+          </div>
+          <div className="kh-stats">
             <span><b>{PROJECTS.length}</b>{t('pieces', '作品')}</span>
             <span><b>{evs?.length ?? 0}</b>{t('events', 'イベント')}</span>
             <span><b>{evs ? evs.reduce((a, e) => a + e.entrants.length, 0) : 0}</b>{t('entries', '応募')}</span>
-            <span><b>2027</b>{t('launch', '始動')}</span>
           </div>
         </div>
-        <Showroom ps={PROJECTS.filter((p) => p.img)} onOpen={(p) => { sfx('open'); setSel(p); }} />
       </section>
-      <nav className="gt-menu" aria-label={t('Main menu', 'メインメニュー')}>
-        {PILLARS.map((p, i) => {
+      <nav className="kh-tiles" aria-label={t('Main menu', 'メインメニュー')}>
+        {PILLARS.map((p) => {
           const rep = p.k === 'events' ? PROJECTS.find((x) => x.id === 'a2')! : PROJECTS.find((x) => x.pillar === p.k && (x.img || x.draw || x.art))!;
           return (
-            <a key={p.k} href={`#${p.k}`} className="gt-tile" style={{ ['--i' as string]: i }} onClick={() => sfx('select')} onMouseEnter={() => sfx('tick')}>
-              <span className="gt-tile-bg"><ProjectPic p={rep} /></span>
-              <span className="gt-tile-tx"><i>{p.n}</i><b>{L(p)[0]}</b><span>{L(p)[1]}</span></span>
-              <span className="gt-tile-go" aria-hidden>→</span>
+            <a key={p.k} href={`#${p.k}`} className="kh-tile" onClick={() => sfx('select')}>
+              <span className="kh-tpic"><ProjectPic p={rep} /></span>
+              <b>{L(p)[0]}</b><span>{L(p)[1]}</span>
             </a>
           );
         })}
