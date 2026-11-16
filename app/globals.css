@@ -2007,3 +2007,12 @@ body:has(.ff) .gt-go{transform:none;background:linear-gradient(180deg,#ffe39a,#d
 @media (prefers-reduced-motion:reduce){.rs-ticker>div{animation:none}}
 .rs .lang-tg{background:none!important;border:1px solid var(--ink);border-radius:0;padding:0}.rs .lang-tg button{color:var(--ink)!important;background:none!important;font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:0}.rs .lang-tg button[aria-pressed=true]{background:var(--ink)!important;color:var(--paper)!important}
 html:has(.rs),body:has(.rs){background:#ecebe6}
+/* レール：写真スタジオのような光、揺れる服 */
+.rs{background:radial-gradient(120% 80% at 50% 28%,#f6f5f1 0,#ecebe6 55%,#dcdad3 100%)}
+.rs-stage::after{content:"";position:absolute;left:0;right:0;bottom:0;height:22%;pointer-events:none;background:linear-gradient(180deg,transparent,rgba(0,0,0,.05))}
+.rs-swing{display:grid;justify-items:center;width:100%;transform-origin:50% 0;will-change:transform}
+img.rs-hanger{width:46%;height:auto;margin-top:-34px;margin-bottom:-15%;position:relative;z-index:2;max-height:none!important;pointer-events:none}
+.rs-rail i{height:7px;border-radius:4px;background:linear-gradient(180deg,#ffffff 0,#d9dbde 30%,#8d9095 62%,#5e6166 100%);box-shadow:0 6px 10px -4px rgba(0,0,0,.35),0 14px 30px -10px rgba(0,0,0,.25)}
+.rs-rail b{width:3px;background:linear-gradient(90deg,#6a6d72,#e8e9eb,#6a6d72);box-shadow:3px 0 6px rgba(0,0,0,.15)}
+.rs-rail b::after{content:"";position:absolute;top:-6px;left:-6px;width:15px;height:6px;border-radius:2px;background:linear-gradient(180deg,#d9dbde,#7d8085)}
+.rs-piece.cut img:not(.rs-hanger){filter:none}

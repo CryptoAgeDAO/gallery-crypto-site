@@ -14,6 +14,7 @@ import { sfx } from '@/lib/sfx';
 import type { ShopItem } from './types';
 import { toShop } from './toShop';
 import { demoItems, shrink } from './ShopClient';
+import { HANGER_URL, realGarment } from './garmentArt';
 
 const LKEY = 'gc-shop-local', CKEY = 'gc-shop-cart';
 type Kind = 'garment' | 'cap' | 'art';
@@ -23,8 +24,8 @@ type View = 'rail' | 'lineup';
 function cutout(pid: string) {
   const p = PROJECTS.find((x) => x.id === pid);
   if (!p) return '';
-  let m = renderToStaticMarkup(<ProjectPic p={p} />).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" width="720" height="660" ');
-  if (p.draw) m = m.replace(/<rect width="240" height="220" fill="[^"]+"(?:\/>|><\/rect>)/, '').replace(/<ellipse[^>]*(?:\/>|><\/ellipse>)/, '');
+  // 服は布の陰影つきの絵に、それ以外は元の図
+  const m = p.draw ? realGarment(p.draw, PROJECTS.indexOf(p) + 3) : renderToStaticMarkup(<ProjectPic p={p} />).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" width="720" height="660" ');
   return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(m);
 }
 const kindOf = (i: ShopItem): Kind => (i.zone === 'art' ? 'art' : i.zone === 'rwa' || /cap/i.test(i.sub) ? 'cap' : 'garment');
@@ -50,9 +51,11 @@ export default function RailShop({ initial, saleOpen }: { initial: ShopItem[]; s
   const [local, setLocal] = useState<ShopItem[]>([]);
   const [cart, setCart] = useState<string[]>([]);
   const [view, setView] = useState<View>('rail');
-  const [pos, setPos] = useState(0); // 表示中の位置（なめらかに動く）
-  const tgt = useRef(0); // 目標の位置
-  const posR = useRef(0);
+  const [frame, setFrame] = useState({ pos: 0, sway: 0, t: 0 }); // 位置・ゆれ・時間（毎フレーム）
+  const pos = frame.pos;
+  // 動き：自由にすべる（慣性）→ ゆっくり止まって一番近い一着に吸い付く。服は動きに合わせてハンガーごと揺れる
+  const ph = useRef({ pos: 0, vel: 0, to: null as number | null, sway: 0, swayV: 0, drag: false, hist: [] as { t: number; p: number }[] });
+  const tgt = { get current() { return ph.current.to ?? Math.round(ph.current.pos); } };
   const [open, setOpen] = useState<string | null>(null);
   const [panel, setPanel] = useState<'' | 'cart' | 'add'>('');
   const [w, setW] = useState(420);
@@ -82,14 +85,37 @@ export default function RailShop({ initial, saleOpen }: { initial: ShopItem[]; s
     const r = () => setW(Math.max(220, Math.min(520, (stage.current?.clientWidth || 800) * (innerWidth < 720 ? 0.62 : 0.3))));
     r(); addEventListener('resize', r); return () => removeEventListener('resize', r);
   }, []);
-  // なめらかに目標へ
+  const nRef = useRef(n); nRef.current = n;
   useEffect(() => {
-    let raf = 0;
-    const tick = () => { const p = posR.current, g = tgt.current; const nx = Math.abs(g - p) < 0.001 ? g : p + (g - p) * 0.14; if (nx !== p) { posR.current = nx; setPos(nx); } raf = requestAnimationFrame(tick); };
+    let raf = 0, last = performance.now(), lastIdx = 0;
+    const tick = (now: number) => {
+      const f = Math.min(3, (now - last) / 16.7); last = now;
+      const s = ph.current, N = Math.max(1, nRef.current);
+      const v0 = s.vel;
+      if (!s.drag) {
+        if (s.to !== null) { s.vel = (s.vel + (s.to - s.pos) * 0.055 * f) * Math.pow(0.8, f); if (Math.abs(s.to - s.pos) < 0.002 && Math.abs(s.vel) < 0.002) { s.pos = s.to; s.vel = 0; s.to = null; } }
+        else {
+          s.vel *= Math.pow(0.955, f); // すべりの摩擦
+          if (s.pos < 0) s.vel += -s.pos * 0.12 * f; // 端のゴム
+          if (s.pos > N - 1) s.vel += (N - 1 - s.pos) * 0.12 * f;
+          if (Math.abs(s.vel) < 0.03) { const k = Math.round(Math.max(0, Math.min(N - 1, s.pos))); s.vel += (k - s.pos) * 0.03 * f; s.vel *= Math.pow(0.88, f); } // 近い一着に吸い付く
+        }
+        s.pos += s.vel * f;
+      }
+      // ゆれ：レールの加速度で服が振り子のように揺れる
+      const acc = s.drag ? 0 : (s.vel - v0) / f;
+      const dv = s.drag && s.hist.length > 1 ? (s.hist[s.hist.length - 1].p - s.hist[s.hist.length - 2].p) : 0;
+      s.swayV += (-(acc + dv * 0.25) * 240 - s.sway * 0.07 - s.swayV * 0.09) * f;
+      s.sway = Math.max(-16, Math.min(16, s.sway + s.swayV * f));
+      const k = Math.round(Math.max(0, Math.min(N - 1, s.pos)));
+      if (k !== lastIdx) { lastIdx = k; sfx('tick'); }
+      setFrame({ pos: s.pos, sway: s.sway, t: now / 1000 });
+      raf = requestAnimationFrame(tick);
+    };
     raf = requestAnimationFrame(tick); return () => cancelAnimationFrame(raf);
   }, []);
-  const go = (k: number) => { const v = Math.max(0, Math.min(n - 1, k)); if (Math.round(tgt.current) !== v) sfx('tick'); tgt.current = v; };
-  useEffect(() => { if (tgt.current > n - 1) go(n - 1); }, [n]); // eslint-disable-line react-hooks/exhaustive-deps
+  const go = (k: number) => { ph.current.to = Math.max(0, Math.min(n - 1, k)); };
+  useEffect(() => { if (ph.current.pos > n - 1) go(n - 1); }, [n]); // eslint-disable-line react-hooks/exhaustive-deps
   // キー
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
@@ -104,12 +130,11 @@ export default function RailShop({ initial, saleOpen }: { initial: ShopItem[]; s
   // スライド（ドラッグ・スワイプ・ホイール）
   const drag = useRef<{ x: number; p: number; moved: boolean } | null>(null);
   const dragged = useRef(false); // スライドした直後のタップは「選ぶ」にしない
-  const wheelT = useRef<number | undefined>(undefined);
   const onWheel = (e: React.WheelEvent) => {
     const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
-    tgt.current = Math.max(-0.3, Math.min(n - 0.7, tgt.current + d * 0.006));
-    clearTimeout(wheelT.current); wheelT.current = window.setTimeout(() => go(Math.round(tgt.current)), 140);
+    const s = ph.current; s.to = null; s.vel = Math.max(-0.6, Math.min(0.6, s.vel + d * 0.0011));
   };
+  const scale = () => (view === 'rail' ? w * 0.42 : w * 0.7);
 
   const add = (id: string) => { setCart((c) => (c.includes(id) ? c : [...c, id])); sfx('coin'); };
   const inCart = all.filter((i) => cart.includes(i.id));
@@ -144,10 +169,25 @@ export default function RailShop({ initial, saleOpen }: { initial: ShopItem[]; s
       <main
         className="rs-stage" ref={stage}
         onWheel={onWheel}
-        onPointerDown={(e) => { drag.current = { x: e.clientX, p: tgt.current, moved: false }; }}
-        onPointerMove={(e) => { const d = drag.current; if (!d) return; const dx = e.clientX - d.x; if (Math.abs(dx) > 5) d.moved = true; if (d.moved) tgt.current = Math.max(-0.4, Math.min(n - 0.6, d.p - dx / (view === 'rail' ? w * 0.45 : w * 0.7))); }}
-        onPointerUp={() => { const d = drag.current; drag.current = null; if (d?.moved) { dragged.current = true; setTimeout(() => { dragged.current = false; }, 60); go(Math.round(tgt.current)); } }}
-        onPointerLeave={() => { if (drag.current?.moved) go(Math.round(tgt.current)); drag.current = null; }}
+        onPointerDown={(e) => { const s = ph.current; drag.current = { x: e.clientX, p: s.pos, moved: false }; s.to = null; s.vel = 0; s.hist = [{ t: performance.now(), p: s.pos }]; }}
+        onPointerMove={(e) => {
+          const d = drag.current; if (!d) return; const s = ph.current;
+          const dx = e.clientX - d.x;
+          if (!d.moved && Math.abs(dx) > 5) { d.moved = true; s.drag = true; (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId); }
+          if (!d.moved) return;
+          let p = d.p - dx / scale();
+          const N = n - 1; if (p < 0) p = p * 0.35; if (p > N) p = N + (p - N) * 0.35; // 端は重く
+          s.pos = p; s.hist.push({ t: performance.now(), p }); if (s.hist.length > 8) s.hist.shift();
+        }}
+        onPointerUp={() => {
+          const d = drag.current; drag.current = null; const s = ph.current;
+          if (!d?.moved) return;
+          // 指を離した速さのまま、すべり続ける
+          const h = s.hist, a = h[0], b = h[h.length - 1], dt = Math.max(16, b.t - a.t);
+          s.vel = Math.max(-0.9, Math.min(0.9, ((b.p - a.p) / dt) * 16.7)); s.drag = false;
+          dragged.current = true; setTimeout(() => { dragged.current = false; }, 60);
+        }}
+        onPointerCancel={() => { drag.current = null; ph.current.drag = false; }}
         style={{ ['--w' as string]: `${w}px` }}
       >
         {view === 'rail' && <div className="rs-rail" aria-hidden><i /><b /><b /></div>}
@@ -164,13 +204,16 @@ export default function RailShop({ initial, saleOpen }: { initial: ShopItem[]; s
                 onClick={() => { if (dragged.current) return; if (front) { sfx('open'); setOpen(it.id); } else go(i); }}
                 aria-label={front ? t(`${it.title}, open`, `${it.title} を開く`) : it.title}
               >
-                {view === 'rail' && (it.kind === 'garment' && !it.img ? (
-                  <svg className="rs-hanger" viewBox="0 0 200 70" aria-hidden><path d="M100 4 c-9 0 -11 13 -2 16 l2 1 v6 M100 27 L12 62 Q6 66 14 66 H186 Q194 66 188 62 Z" fill="none" stroke="#2b2b2b" strokeWidth="3.4" strokeLinejoin="round" strokeLinecap="round" /></svg>
-                ) : (
-                  <svg className="rs-hook" viewBox="0 0 40 70" aria-hidden><path d="M20 2 c-8 0 -9 11 -1 13 v22" fill="none" stroke="#2b2b2b" strokeWidth="3" strokeLinecap="round" /><path d={it.kind === 'art' ? 'M20 37 L2 66 M20 37 L38 66' : 'M20 37 v20'} stroke="#2b2b2b" strokeWidth="1.6" /></svg>
-                ))}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={it.src} alt="" draggable={false} className={view === 'rail' && (it.kind === 'art' || it.img) ? (it.img ? 'card' : 'framed') : ''} />
+                <span className="rs-swing" style={view === 'rail' ? { transform: `rotate(${(frame.sway * (0.75 + ((i * 0.37) % 1) * 0.5) + Math.sin(frame.t * 0.9 + i * 1.7) * 0.35 * (1 - Math.min(1, Math.abs(d) / 3))).toFixed(2)}deg)` } : undefined}>
+                  {view === 'rail' && (it.kind === 'garment' && !it.img ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img className="rs-hanger" src={HANGER_URL} alt="" draggable={false} />
+                  ) : (
+                    <svg className="rs-hook" viewBox="0 0 40 70" aria-hidden><defs><linearGradient id="rsm" x1="0" x2="1"><stop offset="0" stopColor="#6d6f73" /><stop offset=".45" stopColor="#f2f3f5" /><stop offset="1" stopColor="#7c7f84" /></linearGradient></defs><path d="M20 2 c-8 0 -9 11 -1 13 v22" fill="none" stroke="url(#rsm)" strokeWidth="3.4" strokeLinecap="round" /><path d={it.kind === 'art' ? 'M20 37 L2 66 M20 37 L38 66' : 'M20 37 v20'} stroke="#555" strokeWidth="1.2" /></svg>
+                  ))}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={it.src} alt="" draggable={false} className={view === 'rail' && (it.kind === 'art' || it.img) ? (it.img ? 'card' : 'framed') : ''} />
+                </span>
               </button>
             );
           })}
@@ -262,7 +305,7 @@ export default function RailShop({ initial, saleOpen }: { initial: ShopItem[]; s
           {inCart.some((i) => i.buy !== 'stripe') && <p className="rs-fine">{t('Samples and previews cannot be bought. Sales open in 2027.', '見本とプレビューの商品は購入できません。販売は2027年からです。')}</p>}
         </aside>
       )}
-      {panel === 'add' && <AddPiece onAdd={(it) => { setLocal((l) => [it, ...l]); setPanel(''); tgt.current = 0; }} />}
+      {panel === 'add' && <AddPiece onAdd={(it) => { setLocal((l) => [it, ...l]); setPanel(''); go(0); }} />}
     </div>
   );
 }
