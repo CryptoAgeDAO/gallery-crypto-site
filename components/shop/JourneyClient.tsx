@@ -9,6 +9,7 @@ import type { ShopItem } from './types';
 import { demoItems } from './ShopClient';
 import { realGarment } from './garmentArt';
 import type { JourneyApi, JState, Look } from './Journey3D';
+import { makeAmbience, type Amb } from './ambience';
 
 const Journey3D = dynamic(() => import('./Journey3D'), { ssr: false });
 const ZN: [string, string, string][] = [['01', 'Store', '店'], ['02', 'City', '街'], ['03', 'Forest', '森'], ['04', 'Summit', '山頂']];
@@ -32,6 +33,13 @@ export default function JourneyClient({ initial }: { initial: ShopItem[] }) {
   const [zoneCard, setZoneCard] = useState(0);
   const hold = useRef<number | undefined>(undefined);
   const prevGot = useRef(0);
+  const [wearing, setWearing] = useState<string | null>(null);
+  const [snd, setSnd] = useState(true);
+  const amb = useRef<Amb | null>(null);
+  const [shot, setShot] = useState('');
+  useEffect(() => { amb.current?.setZone(st.zone); }, [st.zone]);
+  useEffect(() => { amb.current?.setOn(snd); }, [snd]);
+  useEffect(() => () => amb.current?.close(), []);
   useEffect(() => { if (st.got > prevGot.current) sfx('coin'); prevGot.current = st.got; }, [st.got]);
   useEffect(() => { if (!started) return; setZoneCard(Date.now()); sfx(st.zone === 3 ? 'fanfare' : 'drop'); }, [st.zone, started]);
   const cur = st.station !== null ? items.find((i) => i.id === looks[st.station!]?.id) : null;
@@ -42,7 +50,7 @@ export default function JourneyClient({ initial }: { initial: ShopItem[] }) {
 
   return (
     <div className="jr" translate="no">
-      <Journey3D looks={looks} apiRef={api} onState={(s) => { setSt(s); if (s.station === null) setV360(false); }} onPick={(id) => { const k = looks.findIndex((l) => l.id === id); if (k >= 0) { api.current?.goStation(k); sfx('open'); } }} />
+      <Journey3D looks={looks} apiRef={api} onState={(s) => { setSt(s); if (s.station === null) setV360(false); }} onPick={(id) => { const k = looks.findIndex((l) => l.id === id); if (k < 0) return; if (st.station === k) { api.current?.pose(k); sfx('select'); } else { api.current?.goStation(k); sfx('open'); } }} />
 
       <header className="jr-top">
         <a href="/shop">← {t('Shop', 'ショップ')}</a>
@@ -72,6 +80,11 @@ export default function JourneyClient({ initial }: { initial: ShopItem[] }) {
             <button className="jr-next" onClick={() => { const k = st.station === null ? looks.findIndex((_, i) => (i + 0.5) / looks.length > st.u) : st.station + 1; api.current?.goStation(Math.max(0, k)); sfx('tick'); }}>{t('Next look', '次の服へ')}</button>
             <button onPointerDown={() => press(1)} onPointerUp={release} onPointerLeave={release} aria-label={t('Walk', '進む')}>▶</button>
           </div>
+          <div className="jr-ctl jr-fun">
+            <button onClick={() => { api.current?.jump(); sfx('drop'); }}>{t('Jump', 'ジャンプ')}</button>
+            <button onClick={() => { const u = api.current?.photo(); if (u) { setShot(u); sfx('coin'); } }}>{t('Photo', '撮影')}</button>
+            <button aria-pressed={snd} onClick={() => setSnd((v) => !v)}>{snd ? t('Sound on', '音 ON') : t('Sound off', '音 OFF')}</button>
+          </div>
           <p>{t('Scroll, swipe up or hold ▶ to walk · drag to look around', 'スクロール・上スワイプ・▶長押しで進む · ドラッグで見回す')}</p>
         </div>
       )}
@@ -86,16 +99,32 @@ export default function JourneyClient({ initial }: { initial: ShopItem[] }) {
             <button onClick={() => { const on = !v360; setV360(on); api.current?.view360(on); sfx('select'); }}>{v360 ? t('Back to the walk', '旅に戻る') : t('View 360°', '360°で見る')}</button>
             <a href={`/shop#p=${encodeURIComponent(cur.id)}`}>{t('Buy →', '購入画面へ →')}</a>
           </div>
+          <div>
+            {looks[st.station]?.shape && <button onClick={() => { const on = wearing !== cur.id; const ok = api.current?.tryOn(on ? cur.id : null); setWearing(on && ok ? cur.id : null); sfx('select'); }}>{wearing === cur.id ? t('Take it off', '脱ぐ') : t('Try it on', '着てみる')}</button>}
+            <button onClick={() => { api.current?.pose(st.station!); sfx('select'); }}>{t('Pose', 'ポーズ')}</button>
+          </div>
           {v360 && <small>{t('Drag to turn the look', 'ドラッグで回す')}</small>}
         </aside>
       )}
+
+      {shot && (
+        <div className="jr-shot" onClick={() => setShot('')}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={shot} alt="" />
+          <div onClick={(e) => e.stopPropagation()}>
+            <a href={shot} download="gallery-crypto-walk.jpg">{t('Save photo', '写真を保存')}</a>
+            <button onClick={() => setShot('')}>{t('Close', '閉じる')}</button>
+          </div>
+        </div>
+      )}
+      {wearing && started && <div className="jr-wear">{t('Wearing', '試着中')}: {looks.find((l) => l.id === wearing)?.title}</div>}
 
       {!started && (
         <div className="jr-start">
           <em>{t('Gallery Crypto — Drop 01', 'Gallery Crypto — Drop 01')}</em>
           <h1>{t('The walk', '旅するショールーム')}</h1>
           <p>{t('Walk from the store through a rainy future city and a misty forest to a summit at dawn. Every look stands on the way — collect the glowing records, stop, turn a look 360°, and buy.', '店から雨の未来の街、霧の森を抜けて、夜明けの山頂へ。道の途中に一着ずつ立っています。光る「記録」のかけらを集めながら進み、立ち止まって360°で見て、そのまま購入へ。')}</p>
-          <button onClick={() => { setStarted(true); sfx('select'); }}>{t('Start', '旅を始める')}</button>
+          <button onClick={() => { setStarted(true); sfx('select'); try { amb.current = amb.current || makeAmbience(); amb.current?.setOn(snd); amb.current?.setZone(0); } catch { /* 音なしで続ける */ } }}>{t('Start', '旅を始める')}</button>
           <small>{t('Samples are fictional. Sales open in 2027.', '見本は架空の商品です。販売は2027年から。')}</small>
         </div>
       )}

@@ -2281,3 +2281,15 @@ img.rs-hanger{width:46%;height:auto;margin-top:-34px;margin-bottom:-15%;position
 @keyframes jrPop{0%{transform:scale(1.25)}100%{transform:none}}
 .jr-end p{margin:0;font-size:14px;opacity:.85}
 @media (max-width:720px){.jr-tok{top:52px;left:10px}}
+.jr-fun button{font-size:11px!important;padding:8px 12px!important;letter-spacing:.1em}
+.jr-fun button[aria-pressed=false]{opacity:.6}
+.jr-card div+div{margin-top:4px}
+.jr-card div+div>*{background:rgba(255,255,255,.08);color:#fff!important}
+.jr-wear{position:absolute;left:16px;top:58px;z-index:6;font-size:11px;letter-spacing:.1em;text-transform:uppercase;background:rgba(10,10,10,.6);border:1px solid rgba(255,255,255,.35);padding:6px 10px}
+.jr-shot{position:absolute;inset:0;z-index:20;background:rgba(0,0,0,.8);display:grid;place-content:center;gap:12px;padding:20px;animation:jrFade .3s both}
+.jr-shot img{max-width:min(90vw,900px);max-height:70vh;border:6px solid #fff;box-shadow:0 20px 60px rgba(0,0,0,.6);animation:jrSnap .5s cubic-bezier(.2,.8,.2,1) both}
+@keyframes jrSnap{from{transform:scale(1.15) rotate(-2deg);filter:brightness(3)}to{transform:none;filter:none}}
+.jr-shot div{display:flex;gap:10px;justify-content:center}
+.jr-shot a,.jr-shot button{border:1px solid #fff;background:#fff;color:#111!important;padding:10px 20px;font-size:12px;letter-spacing:.14em;text-transform:uppercase}
+.jr-shot button{background:transparent;color:#fff!important}
+@media (max-width:720px){.jr-wear{top:auto;bottom:190px}}

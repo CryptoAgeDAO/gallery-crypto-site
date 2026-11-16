@@ -12,7 +12,7 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { BODY } from './garmentArt';
 
 export type Look = { id: string; title: string; kind: 'garment' | 'cap' | 'art'; tex: string; shape?: keyof typeof BODY; color?: string };
-export type JourneyApi = { move: (v: number) => void; goStation: (k: number) => void; view360: (on: boolean) => void; restart: () => void };
+export type JourneyApi = { move: (v: number) => void; goStation: (k: number) => void; view360: (on: boolean) => void; restart: () => void; tryOn: (id: string | null) => boolean; jump: () => void; pose: (k: number) => void; photo: () => string };
 export type JState = { u: number; zone: number; station: number | null; end: boolean; got: number; tokens: number; gate: number };
 
 const ZONES = [
@@ -69,7 +69,7 @@ export default function Journey3D({ looks, onState, onPick, apiRef }: { looks: L
     const el = host.current;
     if (!el) return;
     let renderer: THREE.WebGLRenderer;
-    try { renderer = new THREE.WebGLRenderer({ antialias: true }); } catch { el.innerHTML = '<p style="color:#ccc;padding:20px">3D is not available in this browser.</p>'; return; }
+    try { renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); } catch { el.innerHTML = '<p style="color:#ccc;padding:20px">3D is not available in this browser.</p>'; return; }
     const mobile = matchMedia('(pointer: coarse)').matches;
     renderer.setPixelRatio(Math.min(mobile ? 1.5 : 2, devicePixelRatio));
     renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -319,6 +319,8 @@ export default function Journey3D({ looks, onState, onPick, apiRef }: { looks: L
     const dark = new THREE.MeshStandardMaterial({ color: 0x1c1c1e, roughness: 0.7 });
     const av = mannequin(dark); avatar.add(av);
     const coat = garmentMesh('jacket', 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="240" height="220"><rect width="240" height="220" fill="#2a2b2e"/></svg>'), () => {}); coat.position.set(0, 1.47, 0.02); coat.scale.y *= 1.35; avatar.add(coat);
+    let worn: THREE.Mesh | null = null; // 試着中の服
+    let jumpV = 0, jumpY = 0; const spins = new Map<number, number>(); // ジャンプ・マネキンのポーズ
     scene.add(avatar);
 
     // ---- 動き ----
@@ -328,6 +330,15 @@ export default function Journey3D({ looks, onState, onPick, apiRef }: { looks: L
       move: (dv) => { st.vel = Math.max(-0.35, Math.min(0.35, st.vel + dv)); },
       goStation: (k) => { const s = stationS[Math.max(0, Math.min(stations.length - 1, k))]; if (s !== undefined) { st.vel = 0; target = s; } },
       view360: (on) => { st.view360 = on; st.orbit = 0; },
+      tryOn: (id) => {
+        if (worn) { avatar.remove(worn); worn.geometry.dispose(); worn = null; }
+        const lk = id ? looks.find((l) => l.id === id) : null;
+        if (!lk || !lk.shape) { coat.visible = true; return false; }
+        worn = garmentMesh(lk.shape, lk.tex, () => {}); worn.position.set(0, 1.47, 0.03); avatar.add(worn); coat.visible = false; jumpV = 0.06; return true;
+      },
+      jump: () => { if (jumpY <= 0.001) jumpV = 0.13; },
+      pose: (k) => { spins.set(k, 0); },
+      photo: () => { if (composer) composer.render(); else renderer.render(scene, cam); return renderer.domElement.toDataURL('image/jpeg', 0.92); },
       restart: () => { st.s = 0; st.vel = 0; target = null; st.view360 = false; st.end = false; got = 0; tokens.forEach((t) => { t.got = false; t.m.visible = true; t.m.scale.setScalar(1); }); },
     };
     let target: number | null = null;
@@ -388,7 +399,11 @@ export default function Journey3D({ looks, onState, onPick, apiRef }: { looks: L
       avatar.position.copy(p); avatar.rotation.y = heading;
       walk += Math.abs(st.vel) * f * 2.2;
       const legs = av.userData.legs as THREE.Mesh[]; legs[0].rotation.x = Math.sin(walk) * 0.5 * Math.min(1, Math.abs(st.vel) * 12); legs[1].rotation.x = -legs[0].rotation.x;
-      avatar.position.y = p.y + Math.abs(Math.sin(walk)) * 0.03 * Math.min(1, Math.abs(st.vel) * 12);
+      // ジャンプ（重力つき）
+      if (keys.has(' ')) { keys.delete(' '); if (jumpY <= 0.001) jumpV = 0.13; }
+      if (jumpV !== 0 || jumpY > 0) { jumpY += jumpV * f; jumpV -= 0.0075 * f; if (jumpY <= 0) { jumpY = 0; jumpV = 0; } }
+      avatar.position.y = p.y + jumpY + Math.abs(Math.sin(walk)) * 0.03 * Math.min(1, Math.abs(st.vel) * 12);
+      av.rotation.x = jumpY > 0 ? -Math.min(0.25, jumpV * 2) : 0;
       // いまの服（近いマネキン）
       let si: number | null = null; stationS.forEach((s, k) => { if (Math.abs(s - st.s) < 1.6) si = k; });
       if (si !== st.station) { st.station = si; }
@@ -425,6 +440,7 @@ export default function Journey3D({ looks, onState, onPick, apiRef }: { looks: L
       (flies.material as THREE.PointsMaterial).opacity = 0.6 + Math.sin(tt * 3) * 0.3;
       stations.forEach((s2, k2) => {
         const fig = s2.g.userData.fig as THREE.Group;
+        if (spins.has(k2)) { const t0 = spins.get(k2)! + dt; spins.set(k2, t0); const e = Math.min(1, t0 / 1.4); fig.rotation.y = (1 - Math.pow(1 - e, 3)) * Math.PI * 2; fig.position.y = 0.12 + Math.sin(e * Math.PI) * 0.35; if (e >= 1) { spins.delete(k2); fig.rotation.y = 0; fig.position.y = 0.12; } return; }
         if (st.view360) { fig.rotation.y *= 0.95; return; }
         // 近づくと、マネキンがこちらを向く
         const d = s2.g.position.distanceTo(p);
