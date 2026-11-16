@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import ShopClient from '@/components/shop/ShopClient';
+import RailShop from '@/components/shop/RailShop';
 import { supabase } from '@/lib/supabase';
 import { PUBLIC_ITEM_COLUMNS, type Item } from '@/lib/types';
 import type { ShopItem } from '@/components/shop/types';
@@ -24,5 +24,5 @@ export default async function Shop() {
     saleOpen = Boolean(s.data?.sale_open);
     items = (((i.data as unknown) as Item[]) || []).map((it) => toShop(it, saleOpen));
   }
-  return <ShopClient initial={items} saleOpen={saleOpen} />;
+  return <RailShop initial={items} saleOpen={saleOpen} />;
 }

@@ -29,7 +29,7 @@ const DISPLAYS: { k: Display; en: string; ja: string }[] = [
   { k: 'frame', en: 'Wall (art, framed)', ja: '壁（アート・額装）' },
 ];
 
-function demoItems(): ShopItem[] {
+export function demoItems(): ShopItem[] {
   return PROJECTS.map((p) => ({
     id: 'demo-' + p.id, code: p.code, title: p.title, sub: `${p.sub} · ${p.year}`, price: yen(p.price), img: p.img, pid: p.id,
     buy: 'demo', passport: p.passport, desc: p.story[0], facts: p.facts, zone: p.pillar,
@@ -37,13 +37,13 @@ function demoItems(): ShopItem[] {
     size: p.id === 'a1' ? 1.4 : p.id === 'a2' ? 1.1 : 1,
   }));
 }
-function svgUrl(pid: string) {
+export function svgUrl(pid: string) {
   const p = PROJECTS.find((x) => x.id === pid);
   if (!p) return '';
   const m = renderToStaticMarkup(<ProjectPic p={p} />).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" width="720" height="660" ');
   return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(m);
 }
-async function shrink(f: File): Promise<string> {
+export async function shrink(f: File): Promise<string> {
   const img = await createImageBitmap(f);
   const k = Math.min(1, 1100 / Math.max(img.width, img.height));
   const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
