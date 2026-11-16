@@ -1882,3 +1882,7 @@ body:has(.ff) .gt-go{transform:none;background:linear-gradient(180deg,#ffe39a,#d
 .sh-cur-s em{font-style:normal;min-width:44px;text-align:right}
 .sh-cur-b{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
 @media (max-width:720px){.sh-cur{grid-template-columns:20px minmax(0,1fr)}.sh-cur select,.sh-cur .sh-cur-s,.sh-cur-b{grid-column:2/3}.sh-cur-b{justify-content:flex-start}}
+.sh-fade{position:absolute;inset:0;background:#f4f2ee;opacity:0;pointer-events:none;z-index:2;will-change:opacity}
+.sh-3d canvas{position:absolute;inset:0}
+.sh-sort{display:flex;flex-wrap:wrap;gap:6px}
+.store .sh-mini[aria-pressed=true]{background:#141414;color:#fff;border-color:#141414}

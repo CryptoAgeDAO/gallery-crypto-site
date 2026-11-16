@@ -13,19 +13,20 @@ import { PUBLIC_ITEM_COLUMNS, type Item } from '@/lib/types';
 import { sfx } from '@/lib/sfx';
 import type { ShopItem } from './types';
 import { toShop } from './toShop';
-import type { Display, Shown } from './Store3D';
+import type { Display, Scene, Shown, StoreApi } from './Store3D';
 
 const Store3D = dynamic(() => import('./Store3D'), { ssr: false });
 const LKEY = 'gc-shop-local', CKEY = 'gc-shop-cart', XKEY = 'gc-shop-curate';
 const yen = (n: number | null) => (n ? '¥' + n.toLocaleString('ja-JP') : 'Price on request');
 type Cfg = { display?: Display; size?: number; hidden?: boolean };
-type Curate = { order: string[]; cfg: Record<string, Cfg> };
+type Sort = 'arrival' | 'random' | 'custom';
+type Curate = { order: string[]; cfg: Record<string, Cfg>; sort?: Sort; seed?: number };
 
 const DISPLAYS: { k: Display; en: string; ja: string }[] = [
-  { k: 'frame', en: 'Framed (painting, print, photo)', ja: '額装（絵画・版画・写真）' },
-  { k: 'hang', en: 'Shadow box (garment)', ja: 'シャドーボックス（服）' },
-  { k: 'plinth', en: 'Plinth (sculpture, object)', ja: '台座（立体・オブジェ）' },
-  { k: 'case', en: 'Glass case (small pieces)', ja: 'ガラスケース（小物・帽子）' },
+  { k: 'hang', en: 'Rack (garments)', ja: 'ラック（服）' },
+  { k: 'case', en: 'Shelf (caps, small pieces)', ja: '棚（帽子・小物）' },
+  { k: 'plinth', en: 'Shelf (objects, 3D)', ja: '棚（立体・3Dモデル）' },
+  { k: 'frame', en: 'Wall (art, framed)', ja: '壁（アート・額装）' },
 ];
 
 function demoItems(): ShopItem[] {
@@ -65,7 +66,8 @@ export default function ShopClient({ initial, saleOpen }: { initial: ShopItem[];
   const [panel, setPanel] = useState<'' | 'cart' | 'list' | 'place' | 'curate'>('');
   const [entered, setEntered] = useState(false);
   const [cur, setCur] = useState(-1);
-  const api = useRef<{ go: (i: number) => void } | null>(null);
+  const api = useRef<StoreApi | null>(null);
+  const [scene, setScene] = useState<{ i: number; s: Scene } | null>(null);
 
   useEffect(() => {
     try {
@@ -94,28 +96,33 @@ export default function ShopClient({ initial, saleOpen }: { initial: ShopItem[];
 
   const base = useMemo(() => [...local, ...real, ...(real.length ? [] : demoItems())], [local, real]);
   const ordered = useMemo(() => {
-    const ix = (id: string) => { const k = cur8.order.indexOf(id); return k < 0 ? 1e6 + base.findIndex((b) => b.id === id) : k; };
+    // 入荷順（新しいものから）／ランダム／手動
+    const sort = cur8.sort || 'arrival';
+    const h = (id: string) => { let x = (cur8.seed || 1) ^ 0x9e3779b9; for (let i = 0; i < id.length; i++) x = Math.imul(x ^ id.charCodeAt(i), 0x85ebca6b); return (x >>> 0) / 4294967296; };
+    const ix = (id: string) => { if (sort === 'random') return h(id); const k = sort === 'custom' ? cur8.order.indexOf(id) : -1; return k < 0 ? 1e6 + base.findIndex((b) => b.id === id) : k; };
     return [...base].sort((a, b) => ix(a.id) - ix(b.id)).map((i) => ({ ...i, display: cur8.cfg[i.id]?.display || i.display || 'frame', size: cur8.cfg[i.id]?.size || i.size || 1, hidden: !!cur8.cfg[i.id]?.hidden }));
   }, [base, cur8]);
   const all = ordered.filter((i) => !i.hidden);
-  const shown: Shown[] = useMemo(() => all.map((i) => ({ id: i.id, title: i.title, sub: i.sub, price: i.price, tex: i.img || (i.pid ? svgUrl(i.pid) : ''), sold: i.buy === 'sold', local: i.buy === 'local', display: i.display as Display, size: i.size as number, glb: glbs[i.id] })).filter((s) => s.tex), [all, glbs]);
+  const newest = useMemo(() => new Set(base.filter((b) => b.buy !== 'demo').slice(0, 3).map((b) => b.id)), [base]);
+  const shown: Shown[] = useMemo(() => all.map((i) => ({ id: i.id, title: i.title, sub: i.sub, price: i.price, tex: i.img || (i.pid ? svgUrl(i.pid) : ''), sold: i.buy === 'sold', local: i.buy === 'local', isNew: newest.has(i.id), display: i.display as Display, size: i.size as number, glb: glbs[i.id] })).filter((s) => s.tex), [all, glbs, newest]);
   const item = all.find((i) => i.id === sel) || null;
-  const go = (d: number) => { const n = shown.length; if (!n) return; setSel(null); const i = (cur + d + n) % n; setCur(i); api.current?.go(i); sfx('tick'); };
+  const go = (d: number) => { setSel(null); if (scene) api.current?.go(scene.i + d, d); sfx('tick'); };
+  const goItem = (id: string) => { setSel(null); api.current?.goItem(id); };
   const inCart = base.filter((i) => cart.includes(i.id));
   const setCfg = (id: string, c: Cfg) => setCur8((x) => ({ ...x, cfg: { ...x.cfg, [id]: { ...x.cfg[id], ...c } } }));
-  const move = (id: string, d: number) => setCur8((x) => { const ids = ordered.map((o) => o.id); const k = ids.indexOf(id), j = k + d; if (j < 0 || j >= ids.length) return x; [ids[k], ids[j]] = [ids[j], ids[k]]; return { ...x, order: ids }; });
+  const move = (id: string, d: number) => setCur8((x) => { const ids = ordered.map((o) => o.id); const k = ids.indexOf(id), j = k + d; if (j < 0 || j >= ids.length) return x; [ids[k], ids[j]] = [ids[j], ids[k]]; return { ...x, order: ids, sort: 'custom' }; });
 
   return (
     <div className="sh store" translate="no">
-      <Store3D items={shown} onPick={(id) => { sfx('open'); setSel(id); setCur(shown.findIndex((s) => s.id === id)); }} apiRef={api} />
+      <Store3D items={shown} onPick={(id) => { sfx('open'); setSel(id); setCur(shown.findIndex((s) => s.id === id)); }} apiRef={api} onScene={(i, s) => setScene({ i, s })} />
 
       <header className="sh-top">
         <a className="sh-back" href="/">← {t('Site', 'サイト')}</a>
-        <b className="sh-name">GALLERY CRYPTO <span>{t('Exhibition & Shop', '展示室とショップ')}</span></b>
+        <b className="sh-name">GALLERY CRYPTO <span>{t('Store', 'ストア')}</span></b>
         <span className="sh-tools">
           <button onClick={() => setPanel(panel === 'list' ? '' : 'list')}>{t('Works', '作品')} {shown.length}</button>
-          <button onClick={() => { setSel(null); setPanel(panel === 'curate' ? '' : 'curate'); }}>{t('Edit the exhibition', '展示を編集')}</button>
-          <button onClick={() => setPanel(panel === 'place' ? '' : 'place')}>{t('Add a work', '作品を置く')}</button>
+          <button onClick={() => { setSel(null); setPanel(panel === 'curate' ? '' : 'curate'); }}>{t('Arrange', '陳列を編集')}</button>
+          <button onClick={() => setPanel(panel === 'place' ? '' : 'place')}>{t('New arrival', '入荷する')}</button>
           <button className="sh-cartb" onClick={() => setPanel(panel === 'cart' ? '' : 'cart')}>{t('Cart', 'カート')} <i>{cart.length}</i></button>
           <LangToggle />
         </span>
@@ -123,17 +130,17 @@ export default function ShopClient({ initial, saleOpen }: { initial: ShopItem[];
 
       <nav className="sh-guide" aria-label={t('Walk between works', '作品のあいだを歩く')}>
         <button onClick={() => go(-1)} aria-label={t('Previous work', '前の作品')}>‹</button>
-        <span>{cur >= 0 && shown[cur] ? shown[cur].title : t('Drag to look · tap the floor to walk · tap a work', 'ドラッグで見回す・床をタップで歩く・作品をタップ')}</span>
+        <span>{scene ? `${lang === 'ja' ? scene.s.label[1] : scene.s.label[0]} · ${scene.i + 1}/${api.current?.scenes.length || 1}` : '…'}</span>
         <button onClick={() => go(1)} aria-label={t('Next work', '次の作品')}>›</button>
       </nav>
-      <p className="sh-keys">{t('Keys: W A S D / arrows to walk, Q E to turn', 'キー：W A S D・矢印で歩く、Q E で向きを変える')}</p>
+      <p className="sh-keys">{t('Swipe sideways (or ← →) to move through the store · tap a piece to see it', '横にスワイプ（または ← →）で店内を移動・商品をタップで詳しく')}</p>
 
       {!entered && (
         <div className="sh-door">
           <div className="sh-door-in">
-            <p className="sh-k">{t('Exhibition & Shop', '展示室とショップ')}</p>
+            <p className="sh-k">{t('Store', 'ストア')}</p>
             <h1>GALLERY CRYPTO</h1>
-            <p>{t('Art, objects and garments shown like a museum. Everything published on the site is hung the moment it goes live — walk through, look closely, and buy.', 'アート・オブジェ・服を、美術館のように展示します。サイトで公開した作品はその瞬間に展示室に並びます。歩いて、近くで見て、購入へ。')}</p>
+            <p>{t('A store with racks on every wall. Everything that arrives on the site is put on display automatically, in order. Swipe to move through the store, tap a piece to see it.', '壁一面のラックと棚。サイトに入荷した商品は、入荷順に自動で陳列されます。横にスワイプで店内を移動、商品をタップで詳しく。')}</p>
             <button className="sh-enter" onClick={() => { setEntered(true); sfx('drop'); }}>{t('Enter', '入る')}</button>
             {!real.length && <p className="sh-fine">{t('No pieces are published yet, so fictional samples are on display. Nothing is for sale until 2027.', 'まだ公開中の作品がないため、架空の見本を展示しています。販売は2027年からです。')}</p>}
           </div>
@@ -180,14 +187,17 @@ export default function ShopClient({ initial, saleOpen }: { initial: ShopItem[];
       {panel === 'list' && (
         <aside className="sh-drawer">
           <b>{t('In the exhibition', '展示中の作品')}</b>
-          {shown.map((s, i) => <button key={s.id} className="sh-row" onClick={() => { setCur(i); api.current?.go(i); setPanel(''); }}><span>{s.title}</span><small>{s.price}</small></button>)}
+          {shown.map((s, i) => <button key={s.id} className="sh-row" onClick={() => { setCur(i); goItem(s.id); setPanel(''); }}><span>{s.title}</span><small>{s.price}</small></button>)}
         </aside>
       )}
 
       {panel === 'curate' && (
         <aside className="sh-drawer wide">
-          <b>{t('Edit the exhibition', '展示を編集')}</b>
-          <p className="sh-fine">{t('Choose how each work is shown, its size and its place in the order. The room rearranges itself at once.', '作品ごとに、展示のしかた・大きさ・順番を決められます。展示室はすぐに並べ替わります。')}</p>
+          <b>{t('Arrange the store', '陳列を編集')}</b>
+          <p className="sh-fine">{t('Pieces are displayed automatically, rack by rack, in the order they arrive. Change the order, where each piece goes, or its size — the store rearranges at once.', '商品は入荷（アップロード）した順に、ラックから自動で陳列されます。並べ方・置き場所・大きさを変えると、すぐに陳列し直します。')}</p>
+          <div className="sh-sort">
+            {([['arrival', t('Arrival order (newest first)', '入荷順（新しい順）')], ['random', t('Random', 'ランダム')], ['custom', t('Manual', '手動')]] as [Sort, string][]).map(([k, l]) => <button key={k} className="sh-mini" aria-pressed={(cur8.sort || 'arrival') === k} onClick={() => setCur8((x) => ({ ...x, sort: k, seed: k === 'random' ? Math.floor(Math.random() * 1e9) : x.seed }))}>{l}</button>)}
+          </div>
           {ordered.map((i, k) => (
             <div key={i.id} className={`sh-cur ${i.hidden ? 'off' : ''}`}>
               <span className="sh-cur-n">{k + 1}</span>
@@ -200,16 +210,16 @@ export default function ShopClient({ initial, saleOpen }: { initial: ShopItem[];
                 <button className="sh-mini" onClick={() => move(i.id, -1)} aria-label="up">↑</button>
                 <button className="sh-mini" onClick={() => move(i.id, 1)} aria-label="down">↓</button>
                 <button className="sh-mini" aria-pressed={!i.hidden} onClick={() => setCfg(i.id, { hidden: !i.hidden })}>{i.hidden ? t('Hidden', '非表示') : t('Shown', '展示中')}</button>
-                {!i.hidden && <button className="sh-mini" onClick={() => { const n = shown.findIndex((s) => s.id === i.id); if (n >= 0) { setCur(n); api.current?.go(n); } }}>{t('Go', '見に行く')}</button>}
+                {!i.hidden && <button className="sh-mini" onClick={() => goItem(i.id)}>{t('Go', '見に行く')}</button>}
               </span>
             </div>
           ))}
-          <button className="sh-mini" onClick={() => setCur8({ order: [], cfg: {} })}>{t('Reset the layout', '展示を最初に戻す')}</button>
+          <button className="sh-mini" onClick={() => setCur8({ order: [], cfg: {}, sort: 'arrival' })}>{t('Reset the layout', '展示を最初に戻す')}</button>
           <p className="sh-fine">{t('The layout is saved on this device for now.', '展示の設定は、いまはこの端末に保存されます。')}</p>
         </aside>
       )}
 
-      {panel === 'place' && <Place onAdd={async (it, glb) => { if (glb && it.glbKey) { await glbPut(it.glbKey, glb); setGlbs((g) => ({ ...g, [it.id]: URL.createObjectURL(glb) })); } setLocal((l) => [it, ...l]); setPanel(''); setCur(0); setTimeout(() => api.current?.go(0), 500); }} />}
+      {panel === 'place' && <Place onAdd={async (it, glb) => { if (glb && it.glbKey) { await glbPut(it.glbKey, glb); setGlbs((g) => ({ ...g, [it.id]: URL.createObjectURL(glb) })); } setLocal((l) => [it, ...l]); setPanel(''); setTimeout(() => api.current?.goItem(it.id), 700); }} />}
     </div>
   );
 }
@@ -222,12 +232,12 @@ function Place({ onAdd }: { onAdd: (i: ShopItem, glb?: Blob) => void }) {
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('');
   const [price, setPrice] = useState('');
-  const [display, setDisplay] = useState<Display>('frame');
+  const [display, setDisplay] = useState<Display>('hang');
   const [size, setSize] = useState(1.2);
   const [err, setErr] = useState('');
   return (
     <aside className="sh-drawer">
-      <b>{t('Add a work to the exhibition', '作品を展示室に置く')}</b>
+      <b>{t('New arrival — display it now', '入荷：すぐに陳列する')}</b>
       <select value={display} onChange={(e) => setDisplay(e.target.value as Display)}>{DISPLAYS.map((d) => <option key={d.k} value={d.k}>{lang === 'ja' ? d.ja : d.en}</option>)}</select>
       <label className="sh-file">
         <input type="file" accept="image/*" onChange={async (e) => { const f = e.target.files?.[0]; if (!f) return; try { setImg(await shrink(f)); setErr(''); } catch { setErr(t('Could not read this image.', 'この画像は読めませんでした。')); } }} />
@@ -243,7 +253,7 @@ function Place({ onAdd }: { onAdd: (i: ShopItem, glb?: Blob) => void }) {
       <input type="text" placeholder={t('Artist · year · medium', '作家・年・技法')} value={artist} onChange={(e) => setArtist(e.target.value)} />
       <input type="text" inputMode="numeric" placeholder={t('Price (yen, optional)', '価格（円・任意）')} value={price} onChange={(e) => setPrice(e.target.value.replace(/[^\d]/g, ''))} />
       <label className="sh-cur-s">{t('Size', '大きさ')} <input type="range" min={0.6} max={2.4} step={0.1} value={size} onChange={(e) => setSize(+e.target.value)} /> <em>{Math.round(size * 100)}cm</em></label>
-      <button className="sh-btn" disabled={!img || !title.trim()} onClick={() => { const id = 'local-' + Date.now(); onAdd({ id, code: 'PREVIEW', title: title.trim(), sub: artist.trim() || t('Placed on this device', 'この端末で配置'), price: price ? '¥' + Number(price).toLocaleString('ja-JP') : t('Price on request', '価格はお問い合わせ'), img, buy: 'local', desc: '', facts: [], zone: 'archive', display, size, glbKey: glb ? id : undefined }, glb || undefined); }}>{t('Hang it', '展示する')}</button>
+      <button className="sh-btn" disabled={!img || !title.trim()} onClick={() => { const id = 'local-' + Date.now(); onAdd({ id, code: 'PREVIEW', title: title.trim(), sub: artist.trim() || t('Placed on this device', 'この端末で配置'), price: price ? '¥' + Number(price).toLocaleString('ja-JP') : t('Price on request', '価格はお問い合わせ'), img, buy: 'local', desc: '', facts: [], zone: 'archive', display, size, glbKey: glb ? id : undefined }, glb || undefined); }}>{t('Display it', '陳列する')}</button>
       <p className="sh-fine">{t('Preview on this device only. Works you publish in the admin appear in everyone’s exhibition automatically.', 'この端末だけのプレビューです。管理画面で公開した作品は、全員の展示室に自動で並びます。')}</p>
       {err && <p className="sh-err">{err}</p>}
     </aside>
