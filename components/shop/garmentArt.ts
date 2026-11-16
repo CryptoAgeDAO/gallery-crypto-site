@@ -3,7 +3,7 @@
 import type { Project } from '@/lib/hub';
 
 type D = NonNullable<Project['draw']>;
-const BODY: Record<D['kind'], string> = {
+export const BODY: Record<D['kind'], string> = {
   tee: 'M70 40 L100 28 Q120 44 140 28 L170 40 L200 78 L176 92 L164 78 L164 196 L76 196 L76 78 L64 92 L40 78 Z',
   sweat: 'M72 40 L102 28 Q120 42 138 28 L168 40 L206 150 L186 158 L162 82 L162 196 L78 196 L78 82 L54 158 L34 150 Z',
   jacket: 'M72 38 L104 26 L120 46 L136 26 L168 38 L204 150 L184 158 L162 84 L162 198 L78 198 L78 84 L56 158 L36 150 Z',

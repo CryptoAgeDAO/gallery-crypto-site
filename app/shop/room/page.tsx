@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import ShopClient from '@/components/shop/ShopClient';
+import JourneyClient from '@/components/shop/JourneyClient';
 import { supabase } from '@/lib/supabase';
 import { PUBLIC_ITEM_COLUMNS, type Item } from '@/lib/types';
 import type { ShopItem } from '@/components/shop/types';
@@ -7,22 +7,20 @@ import { toShop } from '@/components/shop/toShop';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = {
-  title: '3D Room — Gallery Crypto',
-  description: 'Walk through the Gallery Crypto store in 3D. Every piece registered on the site is placed on display the moment it is published.',
+  title: 'The Walk — Gallery Crypto',
+  description: 'A game-like 3D showroom: walk from the store through a city and a forest to a summit, and see every look in 360°.',
 };
 
-// サイトに登録・公開された商品を読む（管理画面で公開した瞬間に店に並ぶ）
+// 公開中の商品を読み、旅の道に一着ずつ立たせる
 export default async function ShopRoom() {
   const db = supabase();
   let items: ShopItem[] = [];
-  let saleOpen = false;
   if (db) {
     const [s, i] = await Promise.all([
       db.from('settings').select('sale_open').eq('id', 1).maybeSingle(),
-      db.from('items').select(PUBLIC_ITEM_COLUMNS).eq('published', true).order('serial', { ascending: false }).limit(60),
+      db.from('items').select(PUBLIC_ITEM_COLUMNS).eq('published', true).order('serial', { ascending: false }).limit(40),
     ]);
-    saleOpen = Boolean(s.data?.sale_open);
-    items = (((i.data as unknown) as Item[]) || []).map((it) => toShop(it, saleOpen));
+    items = (((i.data as unknown) as Item[]) || []).map((it) => toShop(it, Boolean(s.data?.sale_open)));
   }
-  return <ShopClient initial={items} saleOpen={saleOpen} />;
+  return <JourneyClient initial={items} />;
 }
