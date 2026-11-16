@@ -2273,3 +2273,11 @@ img.rs-hanger{width:46%;height:auto;margin-top:-34px;margin-bottom:-15%;position
 .rs-fclose{top:4px}
 .rs-fimg{margin-top:-12%}
 @media (max-width:720px){.rs-focus{top:96px}.rs-fimg{margin-top:-24%}}
+.jr-flash{position:absolute;inset:0;z-index:9;pointer-events:none;background:radial-gradient(circle,rgba(255,255,255,.9),rgba(255,255,255,0) 70%);animation:jrFlash .9s ease-out both}
+@keyframes jrFlash{0%{opacity:0}15%{opacity:1}100%{opacity:0}}
+.jr-tok{position:absolute;left:16px;top:56px;z-index:6;display:flex;align-items:center;gap:8px;padding:7px 12px;background:rgba(10,10,10,.55);border:1px solid rgba(255,214,120,.5);font-size:12px;letter-spacing:.08em;backdrop-filter:blur(6px);animation:jrPop .5s cubic-bezier(.2,.8,.2,1)}
+.jr-tok i{width:10px;height:10px;background:#ffd27a;transform:rotate(45deg);box-shadow:0 0 12px #ffc23a}
+.jr-tok b{color:#ffd27a;font-size:15px}
+@keyframes jrPop{0%{transform:scale(1.25)}100%{transform:none}}
+.jr-end p{margin:0;font-size:14px;opacity:.85}
+@media (max-width:720px){.jr-tok{top:52px;left:10px}}

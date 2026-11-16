@@ -26,11 +26,13 @@ export default function JourneyClient({ initial }: { initial: ShopItem[] }) {
     return { id: i.id, title: i.title, kind, tex: i.img || '' };
   }).filter((l) => l.tex), [items]);
   const api = useRef<JourneyApi | null>(null);
-  const [st, setSt] = useState<JState>({ u: 0, zone: 0, station: null, end: false });
+  const [st, setSt] = useState<JState>({ u: 0, zone: 0, station: null, end: false, got: 0, tokens: 0, gate: 0 });
   const [started, setStarted] = useState(false);
   const [v360, setV360] = useState(false);
   const [zoneCard, setZoneCard] = useState(0);
   const hold = useRef<number | undefined>(undefined);
+  const prevGot = useRef(0);
+  useEffect(() => { if (st.got > prevGot.current) sfx('coin'); prevGot.current = st.got; }, [st.got]);
   useEffect(() => { if (!started) return; setZoneCard(Date.now()); sfx(st.zone === 3 ? 'fanfare' : 'drop'); }, [st.zone, started]);
   const cur = st.station !== null ? items.find((i) => i.id === looks[st.station!]?.id) : null;
   const press = (d: number) => { api.current?.move(d * 0.06); clearInterval(hold.current); hold.current = window.setInterval(() => api.current?.move(d * 0.03), 80); };
@@ -55,6 +57,13 @@ export default function JourneyClient({ initial }: { initial: ShopItem[] }) {
         </div>
       )}
 
+      {started && st.gate > 0 && <div className="jr-flash" key={st.gate} />}
+      {started && st.tokens > 0 && (
+        <div className="jr-tok" key={st.got}>
+          <i />
+          <span>{t('Records', '記録')} <b>{st.got}</b> / {st.tokens}</span>
+        </div>
+      )}
       {started && (
         <div className="jr-hud">
           <div className="jr-prog"><i style={{ width: `${st.u * 100}%` }} />{[0.2, 0.5, 0.8].map((x) => <s key={x} style={{ left: `${x * 100}%` }} />)}</div>
@@ -85,7 +94,7 @@ export default function JourneyClient({ initial }: { initial: ShopItem[] }) {
         <div className="jr-start">
           <em>{t('Gallery Crypto — Drop 01', 'Gallery Crypto — Drop 01')}</em>
           <h1>{t('The walk', '旅するショールーム')}</h1>
-          <p>{t('Walk from the store through a future city and a misty forest to a summit at dawn. Every look stands on the way — stop, turn it 360°, and buy.', '店から未来の街、霧の森を抜けて、夜明けの山頂へ。道の途中に一着ずつ立っています。立ち止まって360°で見て、そのまま購入へ。')}</p>
+          <p>{t('Walk from the store through a rainy future city and a misty forest to a summit at dawn. Every look stands on the way — collect the glowing records, stop, turn a look 360°, and buy.', '店から雨の未来の街、霧の森を抜けて、夜明けの山頂へ。道の途中に一着ずつ立っています。光る「記録」のかけらを集めながら進み、立ち止まって360°で見て、そのまま購入へ。')}</p>
           <button onClick={() => { setStarted(true); sfx('select'); }}>{t('Start', '旅を始める')}</button>
           <small>{t('Samples are fictional. Sales open in 2027.', '見本は架空の商品です。販売は2027年から。')}</small>
         </div>
@@ -95,6 +104,7 @@ export default function JourneyClient({ initial }: { initial: ShopItem[] }) {
         <div className="jr-end">
           <em>{t('Dawn', '夜明け')}</em>
           <b>{t('End of the walk', '旅はここまで')}</b>
+          <p>{st.got >= st.tokens ? t(`You collected every record (${st.got}/${st.tokens}).`, `記録をすべて集めました（${st.got}/${st.tokens}）。`) : t(`Records collected: ${st.got}/${st.tokens}. Walk again to find the rest.`, `集めた記録：${st.got}/${st.tokens}。もう一度歩いて残りを探してみてください。`)}</p>
           <div>
             <a href="/shop">{t('Go to the shop', 'ショップへ')}</a>
             <button onClick={() => api.current?.restart()}>{t('Walk again', 'もう一度歩く')}</button>

@@ -5,11 +5,15 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { SVGLoader } from 'three/examples/jsm/loaders/SVGLoader.js';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { BODY } from './garmentArt';
 
 export type Look = { id: string; title: string; kind: 'garment' | 'cap' | 'art'; tex: string; shape?: keyof typeof BODY; color?: string };
 export type JourneyApi = { move: (v: number) => void; goStation: (k: number) => void; view360: (on: boolean) => void; restart: () => void };
-export type JState = { u: number; zone: number; station: number | null; end: boolean };
+export type JState = { u: number; zone: number; station: number | null; end: boolean; got: number; tokens: number; gate: number };
 
 const ZONES = [
   { sky: 0x2a2c30, fog: 0x2a2c30, near: 8, far: 30, hemi: 1.5, sun: 0.9, sunCol: 0xffffff },
@@ -176,7 +180,7 @@ export default function Journey3D({ looks, onState, onPick, apiRef }: { looks: L
     }
     snowGeo.computeVertexNormals();
     const snow = new THREE.Mesh(snowGeo, new THREE.MeshStandardMaterial({ color: 0xf2f4f7, roughness: 0.95 })); snow.position.z = zc; scene.add(snow);
-    for (let i = 0; i < 30; i++) { const u = R(ZONE_AT[3], 1), p = at(u); const rk = new THREE.Mesh(new THREE.IcosahedronGeometry(R(0.4, 1.6), 0), new THREE.MeshStandardMaterial({ color: 0x5b5f66, flatShading: true, roughness: 1 })); const ox = R(4, 14) * (Math.random() > 0.5 ? 1 : -1); rk.position.set(p.x + ox, p.y - 0.15 + (Math.abs(ox) - 3) * 0.35 + R(-0.3, 0.2), p.z + R(-1, 1)); scene.add(rk); }
+    for (let i = 0; i < 30; i++) { const u = R(ZONE_AT[3], 1), p = at(u); const rk = new THREE.Mesh(new THREE.IcosahedronGeometry(R(0.4, 1.6), 0), new THREE.MeshStandardMaterial({ color: 0x5b5f66, flatShading: true, roughness: 1 })); const ox = R(7, 16) * (Math.random() > 0.5 ? 1 : -1); rk.position.set(p.x + ox, p.y - 0.8 + (Math.abs(ox) - 3) * 0.3, p.z + R(-1, 1)); scene.add(rk); }
     const sunDisc = new THREE.Mesh(new THREE.CircleGeometry(9, 48), new THREE.MeshBasicMaterial({ color: 0xffd6a0, fog: false }));
     const endP = at(1); sunDisc.position.set(endP.x, endP.y + 6, endP.z - 120); scene.add(sunDisc);
 
@@ -209,6 +213,107 @@ export default function Journey3D({ looks, onState, onPick, apiRef }: { looks: L
       fig.traverse((o) => { if ((o as THREE.Mesh).isMesh && !o.userData.id) { o.userData.id = lk.id; picks.push(o); } });
     });
 
+    // ================= 遊びの要素 =================
+    const extras: { tick: (tt: number, dt: number, p: THREE.Vector3, u: number) => void }[] = [];
+    const glow = (c: number, o = 1) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+    // 店：中央で服が宙に浮いて回る輪
+    {
+      const ringG = new THREE.Group(); const c = at(ZONE_AT[1] * 0.45); ringG.position.set(c.x, 2.0, c.z); scene.add(ringG);
+      const gl = looks.filter((l) => l.shape).slice(0, 6);
+      gl.forEach((lk, k) => { const m = garmentMesh(lk.shape!, lk.tex, () => {}); const a = (k / gl.length) * Math.PI * 2; m.position.set(Math.cos(a) * 1.8, Math.sin(k) * 0.2, Math.sin(a) * 1.8); m.scale.multiplyScalar(0.7); m.userData.a = a; ringG.add(m); });
+      const halo = new THREE.Mesh(new THREE.TorusGeometry(1.8, 0.015, 8, 96), glow(0xffffff, 0.7)); halo.rotation.x = Math.PI / 2; halo.position.y = -0.6; ringG.add(halo);
+      extras.push({ tick: (tt) => { ringG.rotation.y = tt * 0.25; ringG.children.forEach((m, k) => { if (m !== halo) { m.rotation.y = -tt * 0.25 + Math.PI / 2 + Math.sin(tt + k) * 0.2; m.position.y = Math.sin(tt * 1.2 + k) * 0.18; } }); } });
+      // 床に映り込む光の帯
+      const strip = new THREE.Mesh(new THREE.PlaneGeometry(0.4, Math.abs(ZONE_AT[1] * total)), glow(0xbfd7ff, 0.12)); strip.rotation.x = -Math.PI / 2; strip.position.set(0, 0.02, -ZONE_AT[1] * total / 2); scene.add(strip);
+    }
+    // 街：ネオン看板（日本語）・巨大ホログラム・雨
+    {
+      const signs = ['ギャラリー クリプト', '記録 RECORD', 'DROP 01', '東京 2027', '一点もの', 'NO RESTOCK', '本物の証明', 'ARCHIVE'];
+      const cols = ['#ff3b6b', '#3bd1ff', '#ffd23f', '#9dff6b', '#ff8a3b', '#c77bff'];
+      for (let i = 0; i < (mobile ? 10 : 18); i++) {
+        const txt = signs[i % signs.length], col = cols[i % cols.length], vert = i % 3 === 0;
+        const tx = cTex(vert ? 128 : 512, vert ? 512 : 128, (g) => {
+          g.fillStyle = 'rgba(0,0,0,0)'; g.clearRect(0, 0, 512, 512);
+          g.shadowColor = col; g.shadowBlur = 18; g.fillStyle = col; g.strokeStyle = col; g.lineWidth = 3;
+          g.font = '700 64px "Noto Sans JP", "Hiragino Sans", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+          if (vert) { [...txt.replace(/ /g, '')].slice(0, 7).forEach((ch, k) => g.fillText(ch, 64, 44 + k * 68)); g.strokeRect(6, 6, 116, 500); }
+          else { g.fillText(txt, 256, 66, 480); g.strokeRect(6, 6, 500, 116); }
+        });
+        const u = ZONE_AT[1] + 0.02 + (i / 18) * (ZONE_AT[2] - ZONE_AT[1] - 0.03), p = at(u), t = tan(u), side = new THREE.Vector3(-t.z, 0, t.x).normalize(), sd = i % 2 ? 1 : -1;
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(vert ? 1.1 : 4, vert ? 4.4 : 1), new THREE.MeshBasicMaterial({ map: tx, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+        m.position.set(p.x + side.x * 6.6 * sd, R(4, 9), p.z + side.z * 6.6 * sd); m.lookAt(p.x, m.position.y, p.z);
+        m.userData.ph = R(0, 10); scene.add(m);
+        extras.push({ tick: (tt) => { (m.material as THREE.MeshBasicMaterial).opacity = Math.sin(tt * 13 + m.userData.ph) > 0.93 ? 0.25 : 0.95; } });
+      }
+      // 空に浮かぶ巨大な服（ホログラム）
+      const holo = looks.filter((l) => l.shape).slice(0, 3);
+      holo.forEach((lk, k) => {
+        const u = ZONE_AT[1] + (k + 0.6) * ((ZONE_AT[2] - ZONE_AT[1]) / (holo.length + 0.4)); const p = at(u);
+        const m = garmentMesh(lk.shape!, lk.tex, () => {}); m.scale.multiplyScalar(9); m.position.set(p.x + (k % 2 ? 9 : -9), 17, p.z - 6);
+        (m.material as THREE.MeshStandardMaterial).transparent = true; (m.material as THREE.MeshStandardMaterial).opacity = 0.82; (m.material as THREE.MeshStandardMaterial).emissive = new THREE.Color(0x335577); scene.add(m);
+        const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 4, 17, 24, 1, true), glow(0x6bd6ff, 0.07)); beam.position.set(m.position.x, 8.5, m.position.z); scene.add(beam);
+        extras.push({ tick: (tt) => { m.rotation.y = tt * 0.4 + k; m.position.y = 17 + Math.sin(tt * 0.8 + k) * 0.6; } });
+      });
+      // 雨
+      const nR = mobile ? 900 : 2200, rp = new Float32Array(nR * 6);
+      const rg = new THREE.BufferGeometry(); rg.setAttribute('position', new THREE.BufferAttribute(rp, 3));
+      const rain = new THREE.LineSegments(rg, new THREE.LineBasicMaterial({ color: 0x9fb4d6, transparent: true, opacity: 0.45 })); rain.frustumCulled = false; scene.add(rain);
+      const seed = () => { for (let i = 0; i < nR; i++) { const x = R(-14, 14), y = R(0, 16), z = R(-14, 14); rp.set([x, y, z, x + 0.02, y + 0.5, z], i * 6); } };
+      seed();
+      extras.push({ tick: (_tt, dt, p, u) => {
+        const on = u > ZONE_AT[1] - 0.02 && u < ZONE_AT[2] + 0.01; rain.visible = on; if (!on) return;
+        rain.position.set(p.x, 0, p.z);
+        for (let i = 0; i < nR; i++) { const o = i * 6; rp[o + 1] -= 22 * dt; rp[o + 4] -= 22 * dt; if (rp[o + 1] < 0) { rp[o + 1] = 16; rp[o + 4] = 16.5; } }
+        rg.attributes.position.needsUpdate = true;
+      } });
+    }
+    // 森：光る苔と光の柱
+    {
+      for (let i = 0; i < 26; i++) {
+        const u = R(ZONE_AT[2], ZONE_AT[3]), p = at(u), sd = Math.random() > 0.5 ? 1 : -1;
+        const sh = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 1.2, 14, 16, 1, true), glow(0xe8ffd0, 0.05)); sh.position.set(p.x + R(3, 9) * sd, 7, p.z + R(-3, 3)); sh.rotation.z = 0.25 * sd; scene.add(sh);
+        const mush = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x7dffcf })); mush.position.set(p.x + R(1.8, 4) * -sd, 0, p.z + R(-2, 2)); scene.add(mush);
+      }
+    }
+    // 山頂：雪とオーロラ
+    {
+      const nS = mobile ? 700 : 1600, spos = new Float32Array(nS * 3);
+      for (let i = 0; i < nS; i++) spos.set([R(-16, 16), R(0, 14), R(-16, 16)], i * 3);
+      const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(spos, 3));
+      const snowP = new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xffffff, size: 0.07, transparent: true, opacity: 0.9, depthWrite: false })); snowP.frustumCulled = false; scene.add(snowP);
+      const ap = at(1);
+      const aur = new THREE.Mesh(new THREE.PlaneGeometry(160, 26, 64, 4), new THREE.MeshBasicMaterial({ map: cTex(512, 64, (g) => { const gr = g.createLinearGradient(0, 0, 0, 64); gr.addColorStop(0, 'rgba(120,255,200,0)'); gr.addColorStop(0.5, 'rgba(120,255,200,.55)'); gr.addColorStop(1, 'rgba(150,120,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 512, 64); }), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+      aur.position.set(ap.x, ap.y + 30, ap.z - 90); scene.add(aur);
+      const ag = aur.geometry.attributes.position as THREE.BufferAttribute, a0 = Float32Array.from(ag.array as Float32Array);
+      extras.push({ tick: (tt, dt, p, u) => {
+        const on = u > ZONE_AT[3] - 0.03; snowP.visible = on; aur.visible = u > ZONE_AT[3] - 0.08;
+        if (on) { snowP.position.set(p.x, p.y, p.z); for (let i = 0; i < nS; i++) { spos[i * 3 + 1] -= 1.2 * dt; spos[i * 3] += Math.sin(tt + i) * 0.004; if (spos[i * 3 + 1] < 0) spos[i * 3 + 1] = 14; } sg.attributes.position.needsUpdate = true; }
+        for (let i = 0; i < ag.count; i++) ag.setY(i, a0[i * 3 + 1] + Math.sin(a0[i * 3] * 0.08 + tt * 0.6) * 3);
+        ag.needsUpdate = true;
+      } });
+    }
+    // 地帯の境目の光るゲート
+    const gates = [ZONE_AT[1], ZONE_AT[2], ZONE_AT[3]].map((u, k) => {
+      const p = at(u), t = tan(u), g = new THREE.Group(); g.position.copy(p); g.lookAt(p.clone().add(t));
+      const col = [0xffb27a, 0x9dffb0, 0xbfe0ff][k];
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(2.6, 0.05, 12, 120), glow(col, 0.9)); ring.position.y = 2.4; g.add(ring);
+      const ring2 = new THREE.Mesh(new THREE.TorusGeometry(2.9, 0.02, 8, 120), glow(col, 0.5)); ring2.position.y = 2.4; g.add(ring2);
+      const film = new THREE.Mesh(new THREE.CircleGeometry(2.6, 64), glow(col, 0.06)); film.position.y = 2.4; g.add(film);
+      scene.add(g);
+      extras.push({ tick: (tt) => { ring.rotation.z = tt * 0.6; ring2.rotation.z = -tt * 0.4; (film.material as THREE.MeshBasicMaterial).opacity = 0.05 + Math.sin(tt * 2 + k) * 0.03; } });
+      return u * L;
+    });
+    // 道に落ちている「記録」のかけら（集める）
+    const tokens: { m: THREE.Mesh; s: number; got: boolean }[] = [];
+    const nTok = Math.max(8, Math.min(16, N + 4));
+    for (let i = 0; i < nTok; i++) {
+      const u = 0.04 + (i + 0.5) * (0.94 / nTok), p = at(u), t = tan(u), side = new THREE.Vector3(-t.z, 0, t.x).normalize();
+      const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.16), new THREE.MeshStandardMaterial({ color: 0xfff1c4, emissive: 0xffc23a, emissiveIntensity: 1.6, metalness: 0.4, roughness: 0.2 }));
+      const off = Math.sin(i * 2.3) * 0.7; m.position.set(p.x + side.x * off, p.y + 1.1, p.z + side.z * off); scene.add(m);
+      tokens.push({ m, s: u * L, got: false });
+    }
+    let got = 0, gateFlash = 0;
+
     // ---- 自分（暗い色のアバター）----
     const avatar = new THREE.Group();
     const dark = new THREE.MeshStandardMaterial({ color: 0x1c1c1e, roughness: 0.7 });
@@ -223,7 +328,7 @@ export default function Journey3D({ looks, onState, onPick, apiRef }: { looks: L
       move: (dv) => { st.vel = Math.max(-0.35, Math.min(0.35, st.vel + dv)); },
       goStation: (k) => { const s = stationS[Math.max(0, Math.min(stations.length - 1, k))]; if (s !== undefined) { st.vel = 0; target = s; } },
       view360: (on) => { st.view360 = on; st.orbit = 0; },
-      restart: () => { st.s = 0; st.vel = 0; target = null; st.view360 = false; st.end = false; },
+      restart: () => { st.s = 0; st.vel = 0; target = null; st.view360 = false; st.end = false; got = 0; tokens.forEach((t) => { t.got = false; t.m.visible = true; t.m.scale.setScalar(1); }); },
     };
     let target: number | null = null;
     const keys = new Set<string>();
@@ -253,9 +358,15 @@ export default function Journey3D({ looks, onState, onPick, apiRef }: { looks: L
     cv.addEventListener('wheel', wheel, { passive: false });
 
     const resize = () => { const w = el.clientWidth, h = el.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); };
-    resize(); const ro = new ResizeObserver(resize); ro.observe(el);
+    // 光のにじみ（パソコンだけ。スマホは軽さを優先）
+    const composer = mobile ? null : new EffectComposer(renderer);
+    let bloom: UnrealBloomPass | null = null;
+    if (composer) { composer.addPass(new RenderPass(scene, cam)); bloom = new UnrealBloomPass(new THREE.Vector2(el.clientWidth, el.clientHeight), 0.55, 0.6, 0.82); composer.addPass(bloom); composer.addPass(new OutputPass()); }
+    const resize0 = resize;
+    const resize2 = () => { resize0(); composer?.setSize(el.clientWidth, el.clientHeight); };
+    resize2(); const ro = new ResizeObserver(resize2); ro.observe(el);
     const col = new THREE.Color(), col2 = new THREE.Color();
-    let raf = 0, last = performance.now(), alive = true, walk = 0;
+    let raf = 0, last = performance.now(), alive = true, walk = 0, lastS = 0, gotNew = false, gatePass = false;
     const loop = (now: number) => {
       if (!alive) return;
       const dt = Math.min(0.05, (now - last) / 1000); last = now; const f = dt * 60;
@@ -312,10 +423,27 @@ export default function Journey3D({ looks, onState, onPick, apiRef }: { looks: L
       drones.forEach((d) => { const ud = d.userData; d.position.set(ud.c.x + Math.cos(tt * ud.s + ud.ph) * ud.r, ud.c.y + Math.sin(tt * 1.3 + ud.ph) * 0.4, ud.c.z + Math.sin(tt * ud.s + ud.ph) * ud.r); (ud.led.material as THREE.MeshBasicMaterial).color.setHex(Math.sin(tt * 6 + ud.ph) > 0.6 ? 0xff3b2f : 0x330a08); });
       bus.position.set(((tt * 6) % 120) - 60, 14 + Math.sin(tt * 0.7), busZ);
       (flies.material as THREE.PointsMaterial).opacity = 0.6 + Math.sin(tt * 3) * 0.3;
-      stations.forEach((s2, k2) => { const fig = s2.g.userData.fig as THREE.Group; fig.rotation.y = k2 === si && !st.view360 ? Math.sin(tt * 0.6) * 0.25 : fig.rotation.y * 0.95; });
+      stations.forEach((s2, k2) => {
+        const fig = s2.g.userData.fig as THREE.Group;
+        if (st.view360) { fig.rotation.y *= 0.95; return; }
+        // 近づくと、マネキンがこちらを向く
+        const d = s2.g.position.distanceTo(p);
+        if (d < 7) { const loc = s2.g.worldToLocal(p.clone()); const want = Math.atan2(loc.x, loc.z) * Math.max(0, 1 - d / 7) + (k2 === si ? Math.sin(tt * 0.6) * 0.15 : 0); fig.rotation.y += (want - fig.rotation.y) * 0.06; }
+        else fig.rotation.y *= 0.97;
+      });
+      extras.forEach((x) => x.tick(tt, dt, p, u));
+      tokens.forEach((tk) => {
+        if (tk.got) { if (tk.m.visible) { tk.m.scale.multiplyScalar(0.85); tk.m.position.y += dt * 3; if (tk.m.scale.x < 0.05) tk.m.visible = false; } return; }
+        tk.m.rotation.y = tt * 2; tk.m.position.y += Math.sin(tt * 3 + tk.s) * 0.002;
+        if (Math.abs(tk.s - st.s) < 1.1) { tk.got = true; got++; gotNew = true; }
+      });
+      gates.forEach((gs) => { if ((lastS - gs) * (st.s - gs) < 0) { gateFlash = 1; gatePass = true; } });
+      lastS = st.s;
+      if (gateFlash > 0) { gateFlash = Math.max(0, gateFlash - dt * 1.6); if (bloom) bloom.strength = 0.55 + gateFlash * 2.2; }
       const endNow = u > 0.985;
-      if (z !== st.lastZone || endNow !== st.end || si !== (st as { _si?: number | null })._si) { st.lastZone = z; st.end = endNow; (st as { _si?: number | null })._si = si; onState({ u, zone: z, station: si, end: endNow }); }
-      renderer.render(scene, cam);
+      if (gotNew || gatePass || z !== st.lastZone || endNow !== st.end || si !== (st as { _si?: number | null })._si) { st.lastZone = z; st.end = endNow; (st as { _si?: number | null })._si = si; onState({ u, zone: z, station: si, end: endNow, got, tokens: tokens.length, gate: gatePass ? Date.now() : 0 }); gotNew = false; gatePass = false; }
+      if (avatar.visible && cam.position.distanceTo(avatar.position.clone().setY(avatar.position.y + 1.2)) < 1.4) avatar.visible = false; // カメラの前をふさがない
+      if (composer) composer.render(); else renderer.render(scene, cam);
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
