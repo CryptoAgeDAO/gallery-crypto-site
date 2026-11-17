@@ -31,20 +31,8 @@ export function cutout(pid: string) {
 export const kindOf = (i: ShopItem): Kind => (i.zone === 'art' ? 'art' : i.zone === 'rwa' || /cap/i.test(i.sub) ? 'cap' : 'garment');
 
 // レール：全部が横向きで詰めて掛かり（陳列）、指した一着だけがレールから引き出されて正面を向く（フェイスアウト）
-// e = その服 − 指している位置。正面に回るときは少し行き過ぎてから戻る
-const backOut = (x: number) => { const c = 1.6; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
-function faceOut(i: number, h: number, on: number) { const e = i - h; return on * Math.max(0, 1 - Math.abs(e) * 1.6); }
 // 古着屋のラックのように、肩を寄せて詰めて掛ける
 export const railGap = (w: number) => Math.max(14, w * 0.085);
-const jit = (i: number) => ((i * 7919) % 13) / 13 - 0.5; // 一着ずつ少しだけ向きがばらつく
-function hoverStyle(i: number, c: number, h: number, on: number, w: number): React.CSSProperties {
-  const gap = railGap(w), spread = w * 0.46 * on;
-  const e = i - h, pop = faceOut(i, h, on), k = backOut(pop);
-  const x = (i - c) * gap + Math.sign(e) * spread * Math.min(1, Math.abs(e) * 1.4);
-  const side = i - c >= 0 ? -1 : 1; // 横向きのときは、真ん中のほうへ面を向ける
-  const r = (80 + jit(i) * 9) * side * (1 - k);
-  return { transform: `translateX(${x}px) translateY(${pop * 8 + jit(i + 3) * 3 * (1 - pop)}px) perspective(1600px) translateZ(${pop * 70}px) rotateY(${r}deg) scale(${0.8 + pop * 0.16})`, zIndex: 500 + Math.round(pop * 100) - Math.round(Math.abs(i - c)) };
-}
 // 文字がいったん崩れてから、正しい文字に落ち着く
 function useScramble(text: string) {
   const [s, set] = useState(text);
@@ -110,6 +98,14 @@ export default function RailShop({ initial, saleOpen }: { initial: ShopItem[]; s
     r(); addEventListener('resize', r); return () => removeEventListener('resize', r);
   }, []);
   const nRef = useRef(n); nRef.current = n;
+  const viewR = useRef(view); viewR.current = view;
+  const frameR = useRef(0);
+  const wR = useRef(w); wR.current = w;
+  // レールの一着ずつ：DOM を直接動かす（毎フレーム React を通さないので滑らか）
+  const els = useRef<{ p: HTMLElement | null; s: HTMLElement | null; sh: HTMLElement | null; tg: HTMLElement | null }[]>([]);
+  const el = (i: number) => (els.current[i] ||= { p: null, s: null, sh: null, tg: null });
+  const sp = useRef<{ o: number; ov: number; k: number; kv: number; a: number; av: number }[]>([]);
+  const glow = useRef<HTMLDivElement>(null);
   const hovR = useRef<number | null>(null); hovR.current = hov;
   // レールは最初、全体の真ん中を見せる
   const centered = useRef(false);
@@ -139,7 +135,36 @@ export default function RailShop({ initial, saleOpen }: { initial: ShopItem[]; s
       if (k !== lastIdx) { lastIdx = k; sfx('tick'); }
       const H = hs.current, tg = hovR.current;
       if (tg !== null) { H.h += (tg - H.h) * Math.min(1, 0.22 * f); H.on += (1 - H.on) * Math.min(1, 0.2 * f); } else H.on += (0 - H.on) * Math.min(1, 0.15 * f);
-      setFrame({ pos: s.pos, sway: s.sway, t: now / 1000 });
+      if (viewR.current === 'rail') {
+        // ---- 陳列 → フェイスアウト（一着ずつバネで動く） ----
+        const W = wR.current, gap = railGap(W), spread = W * 0.46 * H.on, half = (stage.current?.clientWidth || 1200) / 2;
+        const hv = tg ?? H.h;
+        let gx = 0, gk = 0;
+        for (let i = 0; i < N; i++) {
+          const q = (sp.current[i] ||= { o: 0, ov: 0, k: 0, kv: 0, a: 0, av: 0 });
+          const e = i - hv, pop = tg === null ? 0 : H.on * Math.max(0, 1 - Math.abs(e) * 1.6);
+          const off = Math.sign(e) * spread * Math.min(1, Math.abs(e) * 1.4);
+          q.kv = (q.kv + (pop - q.k) * 0.15 * f) * Math.pow(0.74, f); q.k += q.kv * f; // 正面へ：少し行き過ぎて戻る
+          q.ov = (q.ov + (off - q.o) * 0.13 * f) * Math.pow(0.76, f); q.o += q.ov * f; // 両隣は押されてよける
+          q.av += (-q.ov * 0.35 - q.a * 0.045 - q.av * 0.07) * f; q.a = Math.max(-14, Math.min(14, q.a + q.av * f)); // 押された服は揺れる
+          const x = (i - s.pos) * gap + q.o, k = q.k;
+          const side = x >= 0 ? -1 : 1;
+          const ang = 84 - Math.min(24, (Math.abs(x) / half) * 30); // 端ほど面が見える（遠近）
+          const r = side * ang * (1 - k);
+          const d = els.current[i];
+          if (d?.p) {
+            d.p.style.transform = `translateX(${x.toFixed(1)}px) translateY(${(k * 8).toFixed(1)}px) perspective(1600px) translateZ(${(k * 70).toFixed(1)}px) rotateY(${r.toFixed(2)}deg) scale(${(0.8 + k * 0.16).toFixed(3)})`;
+            d.p.style.zIndex = String(500 + Math.round(k * 100) - Math.round(Math.abs(i - s.pos)));
+          }
+          if (d?.s) d.s.style.transform = `rotate(${(s.sway * (0.75 + ((i * 0.37) % 1) * 0.5) + q.a + Math.sin(now / 1100 + i * 1.7) * 0.3 * (1 - k)).toFixed(2)}deg)`;
+          if (d?.sh) { d.sh.style.opacity = ((1 - Math.min(1, k)) * 0.9).toFixed(3); d.sh.style.background = `linear-gradient(90deg, rgba(0,0,0,${side < 0 ? 0.06 : 0.5}), rgba(0,0,0,${side < 0 ? 0.5 : 0.06}))`; }
+          if (d?.tg) { const v = Math.max(0, Math.min(1, (k - 0.55) / 0.45)); d.tg.style.opacity = v.toFixed(3); d.tg.style.transform = `rotate(${(-8 + (1 - v) * 24 + q.a * 0.6).toFixed(1)}deg)`; }
+          if (k > gk) { gk = k; gx = x; }
+        }
+        if (glow.current) { glow.current.style.transform = `translateX(${gx.toFixed(1)}px)`; glow.current.style.opacity = Math.min(1, gk).toFixed(3); }
+        // 文字やキャプションのために、位置が一着ぶん変わったときだけ React に知らせる
+        if (Math.round(s.pos) !== Math.round(frameR.current)) { frameR.current = s.pos; setFrame({ pos: s.pos, sway: s.sway, t: now / 1000 }); }
+      } else { frameR.current = s.pos; setFrame({ pos: s.pos, sway: s.sway, t: now / 1000 }); }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick); return () => cancelAnimationFrame(raf);
@@ -225,6 +250,7 @@ export default function RailShop({ initial, saleOpen }: { initial: ShopItem[]; s
           // 床置きのハンガーラック：上の棒・左右の支柱・床の脚とキャスター・床の影
           <div className="rs-rail" aria-hidden style={{ width: `min(94%, ${Math.round((n - 1) * railGap(w) + w * 1.5)}px)` }}><i /><b /><b /><u /><u /><em /></div>
         )}
+        {view === 'rail' && <div className="rs-glow" ref={glow} aria-hidden><b>{hov !== null ? pad2(hov + 1) : ''}</b></div>}
         <div className="rs-track" onPointerLeave={(e) => { if (e.pointerType === 'mouse') setHov(null); }}>
           {all.map((it, i) => {
             const d = i - pos;
@@ -234,7 +260,8 @@ export default function RailShop({ initial, saleOpen }: { initial: ShopItem[]; s
               <button
                 key={it.id}
                 className={`rs-piece ${it.kind} ${it.img ? 'photo' : 'cut'} ${(view === 'rail' ? hov === i : front) ? 'front' : ''}`}
-                style={view === 'rail' ? hoverStyle(i, pos, hs.current.h, hs.current.on, w) : lineStyle(d, w)}
+                ref={(e) => { el(i).p = e; }}
+                style={view === 'rail' ? undefined : lineStyle(d, w)}
                 onPointerEnter={(e) => { if (view === 'rail' && e.pointerType === 'mouse') { if (hov !== i) sfx('tick'); setHov(i); } }}
                 onClick={(ev) => {
                   if (dragged.current) return;
@@ -253,7 +280,7 @@ export default function RailShop({ initial, saleOpen }: { initial: ShopItem[]; s
                 }}
                 aria-label={front ? t(`${it.title}, open`, `${it.title} を開く`) : it.title}
               >
-                <span className="rs-swing" style={view === 'rail' ? { transform: `rotate(${(frame.sway * (0.75 + ((i * 0.37) % 1) * 0.5) + Math.sin(frame.t * 0.9 + i * 1.7) * 0.35 * (1 - Math.min(1, Math.abs(i - hs.current.h) / 3) * hs.current.on)).toFixed(2)}deg)` } : undefined}>
+                <span className="rs-swing" ref={(e) => { el(i).s = e; }}>
                   {view === 'rail' && (it.kind === 'garment' && !it.img ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img className="rs-hanger" src={HANGER_URL} alt="" draggable={false} />
@@ -265,9 +292,13 @@ export default function RailShop({ initial, saleOpen }: { initial: ShopItem[]; s
                     <img src={it.src} alt="" draggable={false} className={view === 'rail' && (it.kind === 'art' || it.img) ? (it.img ? 'card' : 'framed') : ''} />
                     {view === 'rail' && !it.img && it.kind !== 'art' && (
                       // 横を向いているあいだは陰になり、正面に回ると光が当たる
-                      <i className="rs-shade" style={{ WebkitMaskImage: `url("${it.src}")`, maskImage: `url("${it.src}")`, opacity: (1 - faceOut(i, hs.current.h, hs.current.on)) * 0.9, background: `linear-gradient(90deg, rgba(0,0,0,${i - pos >= 0 ? 0.08 : 0.5}), rgba(0,0,0,${i - pos >= 0 ? 0.5 : 0.08}))` }} />
+                      <i className="rs-shade" ref={(e) => { el(i).sh = e; }} style={{ WebkitMaskImage: `url("${it.src}")`, maskImage: `url("${it.src}")` }} />
                     )}
                   </span>
+                  {view === 'rail' && (
+                    // 正面を向いたときだけ揺れて出てくる値札
+                    <span className="rs-tag" ref={(e) => { el(i).tg = e; }} aria-hidden><em>{pad2(i + 1)}</em><b>{it.price}</b><small>{it.code}</small></span>
+                  )}
                 </span>
               </button>
             );

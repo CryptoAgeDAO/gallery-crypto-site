@@ -2729,3 +2729,16 @@ body:has(.kh) .gt-go{transform:none;background:#14120f;color:#fff;font-style:nor
 .ss-3d{overflow:hidden;width:100%;min-width:0}
 .ss-3d canvas{width:100%!important;height:100%!important}
 .ss-work>.ss-card{max-width:100%}
+/* レール：正面を向いた服の後ろに光、大きな番号、値札 */
+.rs-glow{position:absolute;left:50%;top:6%;width:0;height:0;pointer-events:none;opacity:0;z-index:0}
+.rs-glow::before{content:"";position:absolute;left:-46vh;top:-6vh;width:92vh;height:92vh;border-radius:50%;background:radial-gradient(closest-side,rgba(255,252,240,.95),rgba(255,250,236,.45) 45%,rgba(255,250,236,0))}
+.rs-glow b{position:absolute;left:0;top:2vh;transform:translateX(-50%);font-family:var(--ext);font-weight:900;font-stretch:125%;font-size:min(46vh,40vw);line-height:.8;letter-spacing:-.04em;color:transparent;-webkit-text-stroke:1px rgba(20,20,20,.14);white-space:nowrap}
+.rs.rail .rs-track,.rs.rail .rs-rail{z-index:1}
+.rs-tag{position:absolute;left:62%;top:12%;display:grid;gap:1px;padding:7px 9px 6px;background:#fbfaf5;border:1px solid rgba(0,0,0,.12);box-shadow:0 6px 14px -6px rgba(0,0,0,.35);font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:#141414;transform-origin:50% -18px;opacity:0;pointer-events:none;white-space:nowrap}
+.rs-tag::before{content:"";position:absolute;left:50%;top:-18px;width:1px;height:18px;background:rgba(0,0,0,.45)}
+.rs-tag::after{content:"";position:absolute;left:calc(50% - 3px);top:4px;width:6px;height:6px;border-radius:50%;border:1px solid rgba(0,0,0,.35);background:#ecebe6}
+.rs-tag em{font-style:normal;padding-top:8px;color:#777}
+.rs-tag b{font-size:12px;font-weight:700}
+.rs-tag small{font-size:8.5px;color:#777}
+.rs-swing{position:relative}
+.rs-piece{transition:none!important}
