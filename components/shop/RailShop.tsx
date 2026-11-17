@@ -34,13 +34,16 @@ export const kindOf = (i: ShopItem): Kind => (i.zone === 'art' ? 'art' : i.zone 
 // e = その服 − 指している位置。正面に回るときは少し行き過ぎてから戻る
 const backOut = (x: number) => { const c = 1.6; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
 function faceOut(i: number, h: number, on: number) { const e = i - h; return on * Math.max(0, 1 - Math.abs(e) * 1.6); }
+// 古着屋のラックのように、肩を寄せて詰めて掛ける
+export const railGap = (w: number) => Math.max(14, w * 0.085);
+const jit = (i: number) => ((i * 7919) % 13) / 13 - 0.5; // 一着ずつ少しだけ向きがばらつく
 function hoverStyle(i: number, c: number, h: number, on: number, w: number): React.CSSProperties {
-  const gap = Math.max(18, w * 0.12), spread = w * 0.42 * on;
+  const gap = railGap(w), spread = w * 0.46 * on;
   const e = i - h, pop = faceOut(i, h, on), k = backOut(pop);
   const x = (i - c) * gap + Math.sign(e) * spread * Math.min(1, Math.abs(e) * 1.4);
   const side = i - c >= 0 ? -1 : 1; // 横向きのときは、真ん中のほうへ面を向ける
-  const r = 78 * side * (1 - k);
-  return { transform: `translateX(${x}px) translateY(${pop * 8}px) perspective(1600px) translateZ(${pop * 70}px) rotateY(${r}deg) scale(${0.8 + pop * 0.16})`, zIndex: 500 + Math.round(pop * 100) - Math.round(Math.abs(i - c)) };
+  const r = (80 + jit(i) * 9) * side * (1 - k);
+  return { transform: `translateX(${x}px) translateY(${pop * 8 + jit(i + 3) * 3 * (1 - pop)}px) perspective(1600px) translateZ(${pop * 70}px) rotateY(${r}deg) scale(${0.8 + pop * 0.16})`, zIndex: 500 + Math.round(pop * 100) - Math.round(Math.abs(i - c)) };
 }
 // 文字がいったん崩れてから、正しい文字に落ち着く
 function useScramble(text: string) {
@@ -103,7 +106,7 @@ export default function RailShop({ initial, saleOpen }: { initial: ShopItem[]; s
 
   // 大きさ（1着の幅）
   useEffect(() => {
-    const r = () => setW(Math.max(220, Math.min(520, (stage.current?.clientWidth || 800) * (innerWidth < 720 ? 0.62 : 0.3))));
+    const r = () => setW(Math.max(220, Math.min(520, (stage.current?.clientWidth || 800) * (innerWidth < 720 ? 0.66 : 0.36))));
     r(); addEventListener('resize', r); return () => removeEventListener('resize', r);
   }, []);
   const nRef = useRef(n); nRef.current = n;
@@ -162,7 +165,7 @@ export default function RailShop({ initial, saleOpen }: { initial: ShopItem[]; s
     const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
     const s = ph.current; s.to = null; s.vel = Math.max(-0.6, Math.min(0.6, s.vel + d * 0.0011));
   };
-  const scale = () => (view === 'rail' ? Math.max(20, w * 0.15) : w * 0.7);
+  const scale = () => (view === 'rail' ? railGap(w) : w * 0.7);
 
   const add = (id: string) => { setCart((c) => (c.includes(id) ? c : [...c, id])); sfx('coin'); };
   const inCart = all.filter((i) => cart.includes(i.id));
@@ -218,7 +221,10 @@ export default function RailShop({ initial, saleOpen }: { initial: ShopItem[]; s
         onPointerCancel={() => { drag.current = null; ph.current.drag = false; }}
         style={{ ['--w' as string]: `${w}px` }}
       >
-        {view === 'rail' && <div className="rs-rail" aria-hidden><i /><b /><b /></div>}
+        {view === 'rail' && (
+          // 床置きのハンガーラック：上の棒・左右の支柱・床の脚とキャスター・床の影
+          <div className="rs-rail" aria-hidden style={{ width: `min(94%, ${Math.round((n - 1) * railGap(w) + w * 1.5)}px)` }}><i /><b /><b /><u /><u /><em /></div>
+        )}
         <div className="rs-track" onPointerLeave={(e) => { if (e.pointerType === 'mouse') setHov(null); }}>
           {all.map((it, i) => {
             const d = i - pos;
@@ -236,7 +242,7 @@ export default function RailShop({ initial, saleOpen }: { initial: ShopItem[]; s
                     if (matchMedia('(hover: hover)').matches) { sfx('open'); setFocus(i); return; }
                     // タッチ：服が重なっているので、触った横位置から一着を決める（1回目で飛び出し、2回目で大きく）
                     const r = stage.current!.getBoundingClientRect(), dx = ev.clientX - (r.left + r.width / 2);
-                    const gap = Math.max(20, w * 0.15), H = hs.current, sp = w * 0.36 * H.on;
+                    const gap = railGap(w), H = hs.current, sp = w * 0.46 * H.on;
                     const xh = (H.h - pos) * gap;
                     let k = Math.abs(dx - xh) < w * 0.3 * H.on ? Math.round(H.h) : Math.round(pos + (dx - Math.sign(dx - xh) * sp) / gap);
                     k = Math.max(0, Math.min(n - 1, k));
@@ -262,7 +268,6 @@ export default function RailShop({ initial, saleOpen }: { initial: ShopItem[]; s
                       <i className="rs-shade" style={{ WebkitMaskImage: `url("${it.src}")`, maskImage: `url("${it.src}")`, opacity: (1 - faceOut(i, hs.current.h, hs.current.on)) * 0.9, background: `linear-gradient(90deg, rgba(0,0,0,${i - pos >= 0 ? 0.08 : 0.5}), rgba(0,0,0,${i - pos >= 0 ? 0.5 : 0.08}))` }} />
                     )}
                   </span>
-                  {view === 'rail' && <i className="rs-floor" style={{ opacity: 0.25 + faceOut(i, hs.current.h, hs.current.on) * 0.6, transform: `scaleX(${0.35 + faceOut(i, hs.current.h, hs.current.on) * 0.65})` }} />}
                 </span>
               </button>
             );

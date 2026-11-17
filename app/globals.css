@@ -2648,3 +2648,21 @@ body:has(.kh) .gt-go{transform:none;background:#14120f;color:#fff;font-style:nor
 .rs-piece.cut .rs-body img{image-rendering:auto}
 .rs-floor{display:block;width:70%;height:18px;margin-top:6px;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.28),rgba(0,0,0,0));pointer-events:none}
 .rs.lineup .rs-floor{display:none}
+/* レール：床置きのハンガーラック（古着屋のように詰めて掛ける）・ショールームのように静かに */
+.rs.rail .rs-big,.rs.rail .rs-ticker{display:none}
+.rs.rail .rs-stage::before{content:"";position:absolute;left:0;right:0;top:88%;bottom:0;pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,.06),rgba(0,0,0,0) 40%),#e2e0da;border-top:1px solid rgba(0,0,0,.06)}
+.rs.rail .rs-stage::after{display:none}
+.rs-rail{top:15%;bottom:12%;height:auto}
+.rs-rail i{top:0;bottom:auto}
+.rs-rail b{top:0;bottom:0;height:auto;width:4px}
+.rs-rail b:nth-of-type(1){left:3%}.rs-rail b:nth-of-type(2){right:3%}
+.rs-rail b::after{top:-7px;left:-6px;width:16px;height:8px}
+.rs-rail u{position:absolute;bottom:-6px;width:96px;height:5px;border-radius:3px;background:linear-gradient(180deg,#f3f4f5,#8d9095 60%,#5e6166);box-shadow:0 8px 10px -4px rgba(0,0,0,.35);transform:translateX(-46px)}
+.rs-rail u:nth-of-type(1){left:calc(3% + 2px)}.rs-rail u:nth-of-type(2){left:calc(97% - 2px)}
+.rs-rail u::before,.rs-rail u::after{content:"";position:absolute;top:5px;width:10px;height:10px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#666,#111)}
+.rs-rail u::before{left:4px}.rs-rail u::after{right:4px}
+.rs-rail em{position:absolute;left:-2%;right:-2%;bottom:-24px;height:26px;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.2),rgba(0,0,0,0))}
+@media (max-width:720px){.rs-rail{top:12%;bottom:9%}.rs-rail u{width:56px;transform:translateX(-27px)}}
+.rs.rail::before{display:none}
+.rs.rail .rs-piece img{max-height:58vh}
+@media (max-width:720px){.rs.rail .rs-piece img{max-height:48vh}}
