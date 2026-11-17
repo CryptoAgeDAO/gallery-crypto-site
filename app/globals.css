@@ -2641,3 +2641,10 @@ body:has(.kh) .gt-go{transform:none;background:#14120f;color:#fff;font-style:nor
 .gr-room.dim{animation:none}
 .gr-panel{overflow:visible;display:flex;flex-direction:column}
 .gr-panel>div{overflow-y:auto;min-height:0;flex:1}
+/* レール：陳列（横向き）→ フェイスアウト。拡大してもぼやけないよう、毎フレーム描き直す */
+.rs-piece,.rs-swing{will-change:auto}
+.rs-body{position:relative;display:grid;justify-items:center;width:100%}
+.rs-shade{position:absolute;inset:0;pointer-events:none;-webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center}
+.rs-piece.cut .rs-body img{image-rendering:auto}
+.rs-floor{display:block;width:70%;height:18px;margin-top:6px;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.28),rgba(0,0,0,0));pointer-events:none}
+.rs.lineup .rs-floor{display:none}

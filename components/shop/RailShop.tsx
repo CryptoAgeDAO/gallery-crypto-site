@@ -25,18 +25,22 @@ export function cutout(pid: string) {
   const p = PROJECTS.find((x) => x.id === pid);
   if (!p) return '';
   // 服は布の陰影つきの絵に、それ以外は元の図
-  const m = p.draw ? realGarment(p.draw, PROJECTS.indexOf(p) + 3) : renderToStaticMarkup(<ProjectPic p={p} />).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" width="720" height="660" ');
+  const m = p.draw ? realGarment(p.draw, PROJECTS.indexOf(p) + 3) : renderToStaticMarkup(<ProjectPic p={p} />).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1320" ');
   return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(m);
 }
 export const kindOf = (i: ShopItem): Kind => (i.zone === 'art' ? 'art' : i.zone === 'rwa' || /cap/i.test(i.sub) ? 'cap' : 'garment');
 
-// レール：全部が横向きで詰めて掛かり、指した一着だけが正面を向いて飛び出す（e = その服 − 指している位置）
+// レール：全部が横向きで詰めて掛かり（陳列）、指した一着だけがレールから引き出されて正面を向く（フェイスアウト）
+// e = その服 − 指している位置。正面に回るときは少し行き過ぎてから戻る
+const backOut = (x: number) => { const c = 1.6; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
+function faceOut(i: number, h: number, on: number) { const e = i - h; return on * Math.max(0, 1 - Math.abs(e) * 1.6); }
 function hoverStyle(i: number, c: number, h: number, on: number, w: number): React.CSSProperties {
-  const gap = Math.max(20, w * 0.15), spread = w * 0.36 * on;
-  const e = i - h, pop = on * Math.max(0, 1 - Math.abs(e));
-  const x = (i - c) * gap + Math.sign(e) * spread * Math.min(1, Math.abs(e));
-  const ry = 66 * (1 - pop);
-  return { transform: `translateX(${x}px) translateY(${-pop * 10}px) perspective(1400px) rotateY(${ry}deg) scale(${0.84 + pop * 0.26})`, zIndex: 500 + Math.round(pop * 100) - Math.round(Math.abs(e)) };
+  const gap = Math.max(18, w * 0.12), spread = w * 0.42 * on;
+  const e = i - h, pop = faceOut(i, h, on), k = backOut(pop);
+  const x = (i - c) * gap + Math.sign(e) * spread * Math.min(1, Math.abs(e) * 1.4);
+  const side = i - c >= 0 ? -1 : 1; // 横向きのときは、真ん中のほうへ面を向ける
+  const r = 78 * side * (1 - k);
+  return { transform: `translateX(${x}px) translateY(${pop * 8}px) perspective(1600px) translateZ(${pop * 70}px) rotateY(${r}deg) scale(${0.8 + pop * 0.16})`, zIndex: 500 + Math.round(pop * 100) - Math.round(Math.abs(i - c)) };
 }
 // 文字がいったん崩れてから、正しい文字に落ち着く
 function useScramble(text: string) {
@@ -250,8 +254,15 @@ export default function RailShop({ initial, saleOpen }: { initial: ShopItem[]; s
                   ) : (
                     <svg className="rs-hook" viewBox="0 0 40 70" aria-hidden><defs><linearGradient id="rsm" x1="0" x2="1"><stop offset="0" stopColor="#6d6f73" /><stop offset=".45" stopColor="#f2f3f5" /><stop offset="1" stopColor="#7c7f84" /></linearGradient></defs><path d="M20 2 c-8 0 -9 11 -1 13 v22" fill="none" stroke="url(#rsm)" strokeWidth="3.4" strokeLinecap="round" /><path d={it.kind === 'art' ? 'M20 37 L2 66 M20 37 L38 66' : 'M20 37 v20'} stroke="#555" strokeWidth="1.2" /></svg>
                   ))}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={it.src} alt="" draggable={false} className={view === 'rail' && (it.kind === 'art' || it.img) ? (it.img ? 'card' : 'framed') : ''} />
+                  <span className="rs-body">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={it.src} alt="" draggable={false} className={view === 'rail' && (it.kind === 'art' || it.img) ? (it.img ? 'card' : 'framed') : ''} />
+                    {view === 'rail' && !it.img && it.kind !== 'art' && (
+                      // 横を向いているあいだは陰になり、正面に回ると光が当たる
+                      <i className="rs-shade" style={{ WebkitMaskImage: `url("${it.src}")`, maskImage: `url("${it.src}")`, opacity: (1 - faceOut(i, hs.current.h, hs.current.on)) * 0.9, background: `linear-gradient(90deg, rgba(0,0,0,${i - pos >= 0 ? 0.08 : 0.5}), rgba(0,0,0,${i - pos >= 0 ? 0.5 : 0.08}))` }} />
+                    )}
+                  </span>
+                  {view === 'rail' && <i className="rs-floor" style={{ opacity: 0.25 + faceOut(i, hs.current.h, hs.current.on) * 0.6, transform: `scaleX(${0.35 + faceOut(i, hs.current.h, hs.current.on) * 0.65})` }} />}
                 </span>
               </button>
             );

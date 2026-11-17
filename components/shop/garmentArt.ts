@@ -37,7 +37,7 @@ export function realGarment(d: D, seed = 1): string {
   const neck = d.kind === 'tee' || d.kind === 'sweat';
   const front = d.kind === 'jacket' || d.kind === 'denim' || d.kind === 'shirt';
   const sl = b.sl;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="720" height="660" viewBox="0 0 240 220">
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1320" viewBox="0 0 240 220">
 <defs>
 <clipPath id="${id}c"><path d="${p}"/></clipPath>
 <filter id="${id}n" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="${d.kind === 'denim' ? '1.6 0.35' : d.kind === 'sweat' ? '0.9' : '1.3'}" numOctaves="2" seed="${seed}"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="linear" slope="0" intercept="${dark ? 0.22 : 0.18}"/></feComponentTransfer></filter>
