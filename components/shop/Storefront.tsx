@@ -211,7 +211,7 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
             <div className="sf-h"><h2>{t('Other ways to browse', 'ほかの見せ方')}</h2></div>
             <div className="sf-ways">
               <a href="/shop/rail" className="sf-way rail"><b>{t('The rail', 'レール')}</b><span>{t('Slide through the drop on hangers', 'ハンガーに掛かった服をスライドして選ぶ')}</span></a>
-              <a href="/shop/room" className="sf-way room"><b>{t('3D room', '3D展示室')}</b><span>{t('Walk through the pieces in 3D', '3Dの部屋を歩いて見る')}</span></a>
+              <a href="/shop/room" className="sf-way room"><b>{t('3D room', '3D展示室')}</b><span>{t('A quiet gallery of stone and marble', '石と大理石の静かな展示室')}</span></a>
             </div>
           </section>
 

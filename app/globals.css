@@ -2572,3 +2572,72 @@ body:has(.kh) .gt-go{transform:none;background:#14120f;color:#fff;font-style:nor
   .kh-tile span:last-child{font-size:10.5px}
   .kh .hb-sec{padding-top:56px}
 }
+
+/* ---- 3D展示室（石と大理石の美術館） ---- */
+.gr{position:fixed;inset:0;background:#1a1714;color:#f4efe6;font-family:"Archivo","Helvetica Neue",Arial,"Noto Sans JP",sans-serif;overflow:hidden}
+.gr a{color:inherit;text-decoration:none}
+.gr button{font:inherit;color:inherit;cursor:pointer;background:none;border:0}
+.gr-3d{position:absolute;inset:0}
+.gr-3d canvas{display:block}
+.gr-veil{position:absolute;inset:0;z-index:30;display:grid;place-content:center;gap:10px;text-align:center;background:#1a1714;transition:opacity 1.2s ease .2s,visibility 0s 1.4s}
+.gr-veil em{font-style:normal;font-family:"Cormorant Garamond",Georgia,serif;font-size:28px;letter-spacing:.3em;text-transform:uppercase}
+.gr-veil span{font-size:10.5px;letter-spacing:.24em;text-transform:uppercase;color:#a99e8e}
+.gr-veil.off{opacity:0;visibility:hidden}
+.gr-top{position:absolute;top:0;left:0;right:0;z-index:10;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:12px;padding:18px clamp(16px,3vw,36px);background:linear-gradient(rgba(20,17,14,.55),transparent);pointer-events:none}
+.gr-top>*{pointer-events:auto}
+.gr-top>a:first-child,.gr-r a{font-size:10.5px;letter-spacing:.2em;text-transform:uppercase}
+.gr-logo{font-family:"Cormorant Garamond",Georgia,serif;font-size:21px;letter-spacing:.32em;text-transform:uppercase}
+.gr-r{justify-self:end;display:flex;gap:16px;align-items:center}
+.gr-room{position:absolute;left:clamp(16px,3vw,40px);bottom:clamp(24px,5vh,48px);z-index:5;max-width:min(440px,80vw);display:grid;gap:8px;pointer-events:none;text-shadow:0 1px 18px rgba(0,0,0,.45);animation:grIn 1s cubic-bezier(.2,.8,.2,1) both}
+.gr-room em{font-style:normal;font-size:10.5px;letter-spacing:.26em;text-transform:uppercase;color:#e3cfa6}
+.gr-room b{font-family:"Cormorant Garamond",Georgia,"Noto Serif JP",serif;font-weight:500;font-size:clamp(26px,3.4vw,42px);line-height:1.1}
+.gr-room p{margin:0;font-size:13px;line-height:1.7;color:#ece5d8}
+.gr-room small{font-size:10.5px;letter-spacing:.08em;color:#cfc4b2;margin-top:4px}
+.gr-room.out{opacity:0;transform:translateY(8px);transition:.4s}
+.gr-room.dim,.gr-nav.dim{opacity:0;pointer-events:none;transition:.4s}
+@keyframes grIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.gr-nav{position:absolute;right:clamp(16px,3vw,40px);bottom:clamp(24px,5vh,48px);z-index:5;display:flex;align-items:center;gap:14px;transition:.4s}
+.gr-nav button{width:46px;height:46px;border:1px solid rgba(244,239,230,.55)!important;border-radius:50%;font-size:16px;backdrop-filter:blur(6px);background:rgba(26,23,20,.25)!important;transition:.3s}
+.gr-nav button:hover:not(:disabled){background:#f4efe6!important;color:#14120f}
+.gr-nav button:disabled{opacity:.3;cursor:default}
+.gr-nav span{display:flex;gap:8px}
+.gr-nav i{width:6px;height:6px;border-radius:50%;background:rgba(244,239,230,.45);cursor:pointer;transition:.3s}
+.gr-nav i.on{background:#e3cfa6;transform:scale(1.4)}
+/* 詳細パネル：右から（スマホは下から） */
+.gr-panel{position:absolute;top:0;right:0;bottom:0;z-index:20;width:min(420px,100%);background:#faf8f4;color:#14120f;transform:translateX(102%);transition:transform .7s cubic-bezier(.2,.8,.2,1);overflow-y:auto;box-shadow:-30px 0 60px rgba(0,0,0,.25)}
+.gr-panel.on{transform:none}
+.gr-panel>div{position:relative;display:grid;gap:12px;padding:76px 34px 34px;animation:grIn .6s .15s both}
+.gr-x{position:absolute;top:22px;right:22px;width:36px;height:36px;border:1px solid #d9d1c4!important;font-size:18px;line-height:1}
+.gr-code{font-style:normal;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#a8834a}
+.gr-panel h2{margin:0;font-family:"Cormorant Garamond",Georgia,"Noto Serif JP",serif;font-weight:500;font-size:32px;line-height:1.1}
+.gr-panel h2::after{content:"";display:block;width:28px;height:1px;background:#a8834a;margin-top:14px}
+.gr-sub{margin:0;font-size:12px;color:#77716a;letter-spacing:.04em}
+.gr-price{font-weight:500;font-size:15px;letter-spacing:.04em}
+.gr-desc{margin:0;font-size:13px;line-height:1.85;color:#3a352f}
+.gr-panel dl{margin:4px 0 0;display:grid;border-top:1px solid #e7e1d6}
+.gr-panel dl div{display:grid;grid-template-columns:110px minmax(0,1fr);gap:10px;padding:9px 0;border-bottom:1px solid #e7e1d6;font-size:12px}
+.gr-panel dt{color:#77716a}.gr-panel dd{margin:0}
+.gr-buy{display:grid;gap:10px;margin-top:6px}
+.gr-btn{display:block;text-align:center;background:#14120f;color:#fff!important;padding:15px;font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;transition:.3s}
+.gr-btn:hover{background:#a8834a}
+.gr-fine{margin:0;font-size:11px;color:#77716a;line-height:1.6}
+.gr-step{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:14px;border-top:1px solid #e7e1d6;font-size:10.5px;letter-spacing:.18em;text-transform:uppercase}
+.gr-step span{color:#77716a}
+@media (max-width:760px){
+  .gr-top{grid-template-columns:auto 1fr auto;padding:14px 16px}
+  .gr-logo{font-size:15px;letter-spacing:.22em;justify-self:center}
+  .gr-r a{display:none}
+  .gr-room{bottom:96px;right:16px}
+  .gr-room p{font-size:12px}
+  .gr-nav{left:16px;right:16px;bottom:28px;justify-content:space-between}
+  .gr-panel{top:auto;width:100%;max-height:58vh;transform:translateY(102%);box-shadow:0 -20px 50px rgba(0,0,0,.3)}
+  .gr-panel>div{padding:26px 22px 30px}
+  .gr-panel h2{font-size:26px;padding-right:40px}
+  .gr-x{top:16px;right:16px}
+}
+.gr::after{content:"";position:absolute;left:0;right:0;bottom:0;height:42%;z-index:2;pointer-events:none;background:linear-gradient(transparent,rgba(20,17,14,.62))}
+.gr-panel,.gr-room,.gr-nav{z-index:6}
+.gr-panel{z-index:20}
+.gr-room.dim{animation:none}
+.gr-panel{overflow:visible;display:flex;flex-direction:column}
+.gr-panel>div{overflow-y:auto;min-height:0;flex:1}

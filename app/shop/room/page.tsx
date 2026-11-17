@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import JourneyClient from '@/components/shop/JourneyClient';
+import GalleryClient from '@/components/shop/GalleryClient';
 import { supabase } from '@/lib/supabase';
 import { PUBLIC_ITEM_COLUMNS, type Item } from '@/lib/types';
 import type { ShopItem } from '@/components/shop/types';
@@ -7,11 +7,11 @@ import { toShop } from '@/components/shop/toShop';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = {
-  title: 'The Walk — Gallery Crypto',
-  description: 'A game-like 3D showroom: walk from the store through a city and a forest to a summit, and see every look in 360°.',
+  title: 'The Gallery — Gallery Crypto',
+  description: 'A quiet 3D gallery of travertine and marble: tap the glowing circles to see each piece, and slide from room to room.',
 };
 
-// 公開中の商品を読み、旅の道に一着ずつ立たせる
+// 公開中の商品を読み、展示室の壁に並べる
 export default async function ShopRoom() {
   const db = supabase();
   let items: ShopItem[] = [];
@@ -22,5 +22,5 @@ export default async function ShopRoom() {
     ]);
     items = (((i.data as unknown) as Item[]) || []).map((it) => toShop(it, Boolean(s.data?.sale_open)));
   }
-  return <JourneyClient initial={items} />;
+  return <GalleryClient initial={items} />;
 }
