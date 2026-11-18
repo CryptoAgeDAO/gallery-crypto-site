@@ -1,9 +1,11 @@
 'use client';
-// 美術館のような展示室（3D）：トラバーチンの壁、ブロンズの壁面に天井からの光の筋、壁に光る丸いポイント。
+// 白い倉庫ギャラリーのような展示室（3D）：白い壁、むき出しの白い鉄骨と線状の照明、磨いたコンクリートの床、
+// 大きな壁画・吊るされた木の彫刻・白い台。壁に光る丸いポイント。
 // ポイント（または作品）を押すと作品に近づき、横から詳細が開く。部屋を移るときは大理石の板が横切る。
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { Reflector } from 'three/examples/jsm/objects/Reflector.js';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
@@ -51,19 +53,44 @@ const marble = () => canvas(768, 1152, (g, w, h) => {
     g.strokeStyle = `rgba(${rnd() < 0.5 ? '110,60,35' : '80,75,70'},${R(0.18, 0.6)})`; g.lineWidth = R(0.6, i < 6 ? 7 : 2.5); g.stroke();
   }
 });
+const plaster = () => canvas(512, 512, (g, w, h) => {
+  g.fillStyle = '#f1f0ec'; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 1600; i++) { g.fillStyle = `rgba(${rnd() < 0.5 ? '0,0,0' : '255,255,255'},${R(0.01, 0.035)})`; g.fillRect(R(0, w), R(0, h), R(1, 3), R(1, 3)); }
+});
+const concrete = () => canvas(1024, 1024, (g, w, h) => {
+  g.fillStyle = '#c9c8c4'; g.fillRect(0, 0, w, h);
+  for (let k = 0; k < 160; k++) { const x = R(0, w), y = R(0, h), r = R(30, 200), cg = g.createRadialGradient(x, y, 0, x, y, r); cg.addColorStop(0, `rgba(${rnd() < 0.5 ? '255,255,255' : '120,118,112'},${R(0.04, 0.12)})`); cg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = cg; g.fillRect(0, 0, w, h); }
+  for (let i = 0; i < 4000; i++) { g.fillStyle = `rgba(${rnd() < 0.5 ? '60,60,60' : '255,255,255'},${R(0.03, 0.09)})`; g.fillRect(R(0, w), R(0, h), 1.4, 1.4); }
+  g.fillStyle = 'rgba(90,90,88,.55)'; g.fillRect(0, 0, w, 2); g.fillRect(0, 0, 2, h);
+});
 let BW = 2048; // スマホでは半分
-const bronzeWall = (xs: number[]) => canvas(BW, Math.round(BW * 0.4), (g, w, h) => {
-  const bg = g.createLinearGradient(0, 0, 0, h); bg.addColorStop(0, '#5b5044'); bg.addColorStop(1, '#4a4037'); g.fillStyle = bg; g.fillRect(0, 0, w, h);
-  for (let i = 0; i < 900; i++) { g.fillStyle = `rgba(${rnd() < 0.5 ? '0,0,0' : '255,240,220'},${R(0.01, 0.04)})`; g.fillRect(R(0, w), 0, R(1, 3), h); }
-  // 天井の灯りが壁をなめる光の筋
-  g.globalCompositeOperation = 'screen';
-  for (const u of xs) {
-    const x = u * w;
-    g.save(); g.translate(x, 0); g.scale(1, 3.2);
-    const cg = g.createRadialGradient(0, 0, 0, 0, 0, w * 0.075);
-    cg.addColorStop(0, 'rgba(255,226,180,.85)'); cg.addColorStop(0.35, 'rgba(240,200,150,.35)'); cg.addColorStop(1, 'rgba(240,200,150,0)');
-    g.fillStyle = cg; g.beginPath(); g.arc(0, 0, w * 0.075, 0, 7); g.fill(); g.restore();
+const mural = () => canvas(BW, Math.round(BW * 0.56), (g, w, h) => {
+  // 自前の抽象画：うねる色の帯・円・黒い線（どこかの作品の写しではない）
+  g.fillStyle = '#f3efe6'; g.fillRect(0, 0, w, h);
+  const cols = ['#c23b2a', '#2f4a8a', '#e1a43a', '#1f1f1f', '#6c8f5a', '#d77fa1', '#3c9fb0'];
+  for (let i = 0; i < 46; i++) {
+    g.strokeStyle = cols[i % cols.length]; g.globalAlpha = R(0.75, 1); g.lineWidth = R(w * 0.006, w * 0.02); g.lineCap = 'round';
+    let x = w * (0.18 + (i / 46) * 0.62) + R(-20, 20), y = h * R(0.12, 0.3); g.beginPath(); g.moveTo(x, y);
+    for (let k = 0; k < 7; k++) { x += R(-w * 0.03, w * 0.03); y += h * R(0.08, 0.13); g.lineTo(x, y); }
+    g.stroke();
   }
+  g.globalAlpha = 1;
+  g.fillStyle = '#c23b2a'; g.beginPath(); g.arc(w * 0.66, h * 0.24, h * 0.12, 0, 7); g.fill();
+  g.strokeStyle = '#1f1f1f'; g.lineWidth = w * 0.004; g.beginPath(); g.arc(w * 0.66, h * 0.24, h * 0.12, 0, 7); g.stroke();
+  g.fillStyle = '#1f1f1f'; for (let i = 0; i < 9; i++) { g.beginPath(); g.ellipse(R(w * 0.1, w * 0.9), R(h * 0.1, h * 0.9), R(6, 22), R(6, 22), R(0, 3), 0, 7); g.fill(); }
+  // 外形をちぎった紙のようにぼかす
+  g.globalCompositeOperation = 'destination-in';
+  const m = g.createRadialGradient(w / 2, h / 2, h * 0.2, w / 2, h / 2, w * 0.52); m.addColorStop(0, '#000'); m.addColorStop(0.85, 'rgba(0,0,0,1)'); m.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = m; g.fillRect(0, 0, w, h);
+});
+const woodSlats = () => canvas(1024, 256, (g, w, h) => {
+  for (let i = 0; i < 32; i++) { const x = (i / 32) * w; g.fillStyle = `hsl(${R(28, 36)},${R(38, 50)}%,${R(58, 70)}%)`; g.fillRect(x, 0, w / 32, h); g.fillStyle = 'rgba(80,50,20,.35)'; g.fillRect(x, 0, 2, h); }
+  for (let i = 0; i < 300; i++) { g.strokeStyle = `rgba(120,80,40,${R(0.05, 0.15)})`; g.beginPath(); const y = R(0, h); g.moveTo(R(0, w), y); g.lineTo(R(0, w), y + R(-4, 4)); g.stroke(); }
+});
+// 作品を掛ける壁：白に近い淡いグレー。上の線状照明でうっすら明るく、下ほど落ち着く
+const bronzeWall = (xs: number[]) => canvas(BW, Math.round(BW * 0.4), (g, w, h) => {
+  const bg = g.createLinearGradient(0, 0, 0, h); bg.addColorStop(0, '#fbfbf9'); bg.addColorStop(1, '#e6e5e1'); g.fillStyle = bg; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 900; i++) { g.fillStyle = `rgba(0,0,0,${R(0.008, 0.02)})`; g.fillRect(R(0, w), R(0, h), R(1, 3), R(1, 3)); }
+  void xs;
 });
 const floorTex = () => canvas(1024, 1024, (g, w, h) => {
   g.fillStyle = '#c4bcae'; g.fillRect(0, 0, w, h);
@@ -75,9 +102,9 @@ const floorTex = () => canvas(1024, 1024, (g, w, h) => {
 const ringTex = () => canvas(256, 256, (g) => {
   const cg = g.createRadialGradient(128, 128, 60, 128, 128, 128); cg.addColorStop(0, 'rgba(255,240,210,.0)'); cg.addColorStop(0.8, 'rgba(255,230,190,.35)'); cg.addColorStop(1, 'rgba(255,230,190,0)');
   g.fillStyle = cg; g.fillRect(0, 0, 256, 256);
-  g.fillStyle = 'rgba(255,255,255,.22)'; g.beginPath(); g.arc(128, 128, 86, 0, 7); g.fill();
-  g.strokeStyle = 'rgba(244,226,186,1)'; g.lineWidth = 7; g.beginPath(); g.arc(128, 128, 88, 0, 7); g.stroke();
-  g.fillStyle = '#fff'; g.beginPath(); g.arc(128, 128, 9, 0, 7); g.fill();
+  g.fillStyle = 'rgba(20,20,22,.10)'; g.beginPath(); g.arc(128, 128, 86, 0, 7); g.fill();
+  g.strokeStyle = 'rgba(20,20,22,.9)'; g.lineWidth = 6; g.beginPath(); g.arc(128, 128, 88, 0, 7); g.stroke();
+  g.fillStyle = '#c9a46a'; g.beginPath(); g.arc(128, 128, 14, 0, 7); g.fill();
 });
 const shadowTex = () => canvas(128, 128, (g) => { const cg = g.createRadialGradient(64, 64, 0, 64, 64, 64); cg.addColorStop(0, 'rgba(0,0,0,.55)'); cg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = cg; g.fillRect(0, 0, 128, 128); });
 const leafTex = () => canvas(128, 256, (g) => {
@@ -100,22 +127,29 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: true });
     renderer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.4 : 2));
-    renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.82;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.88;
     el.appendChild(renderer.domElement);
     renderer.domElement.addEventListener('webglcontextlost', (e) => { e.preventDefault(); cb.current.onState({ room: 0, focus: null, moving: false, ready: true, lost: true } as GState); });
-    const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1a1714);
-    const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.38;
+    const scene = new THREE.Scene(); scene.background = new THREE.Color(0xe9e8e4); scene.add(new THREE.HemisphereLight(0xffffff, 0xa9a7a1, 0.85));
+    const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.75;
     const camera = new THREE.PerspectiveCamera(tall ? 72 : mobile ? 62 : 50, 1, 0.05, 80); scene.add(camera);
 
     // 共通の素材
-    const travC = travertine(), floorC = floorTex();
-    const travMat = (rx: number, ry: number) => new THREE.MeshStandardMaterial({ map: tex(travC, [rx, ry]), roughness: 0.85 });
-    const floorMat = new THREE.MeshStandardMaterial({ map: tex(floorC, [RW / 4, 3]), roughness: 0.28, metalness: 0.05, envMapIntensity: 0.9 });
-    const ceilMat = new THREE.MeshStandardMaterial({ color: 0xd9d3ca, roughness: 0.95 });
+    const travC = plaster(), floorC = concrete();
+    const travMat = (rx: number, ry: number) => new THREE.MeshStandardMaterial({ map: tex(travC, [rx * 2, ry * 2]), roughness: 0.92 });
+    const floorMat = new THREE.MeshStandardMaterial({ map: tex(floorC, [RW / 6, 2]), roughness: 0.16, metalness: 0.0, envMapIntensity: 1.3, transparent: !mobile, opacity: mobile ? 1 : 0.86 });
+    const ceilMat = new THREE.MeshStandardMaterial({ color: 0xf4f4f2, roughness: 0.95 });
+    const steel = new THREE.MeshStandardMaterial({ color: 0xf6f6f4, roughness: 0.55, metalness: 0.1 });
+    const chrome = new THREE.MeshStandardMaterial({ color: 0xd9dbde, metalness: 1, roughness: 0.18 });
+    const black = new THREE.MeshStandardMaterial({ color: 0x1b1b1c, roughness: 0.6 });
+    const stripMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const skyMat = new THREE.MeshBasicMaterial({ color: 0xeaf2ff });
+    const woodMat = new THREE.MeshStandardMaterial({ map: tex(woodSlats(), [1, 1]), roughness: 0.6, side: THREE.DoubleSide });
+    const muralMat = new THREE.MeshStandardMaterial({ map: tex(mural()), roughness: 0.95, transparent: true });
     const brass = new THREE.MeshStandardMaterial({ color: 0xb08a50, metalness: 0.9, roughness: 0.32 });
     const darkBronze = new THREE.MeshStandardMaterial({ color: 0x2c2620, metalness: 0.6, roughness: 0.45 });
     const lampMat = new THREE.MeshBasicMaterial({ color: 0xfff1d6 });
-    const coveMat = new THREE.MeshBasicMaterial({ color: 0xffd9a0 });
+    const coveMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
     const marbleTex = tex(marble());
     const marbleMat = new THREE.MeshStandardMaterial({ map: marbleTex, roughness: 0.42, metalness: 0.0 });
     const ringT = tex(ringTex()), shadowT = tex(shadowTex()), leafT = tex(leafTex());
@@ -149,15 +183,29 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
       const rowH = 3.0 / rows; // 縦長のときの1段の高さ
       const rowY = (k: number) => 3.3 - rowH * (Math.floor(k / cols) + 0.5);
       // 床・天井・壁
+      const CH = 5.2; // 天井の高さ
+      if (!mobile) { const rf = new Reflector(new THREE.PlaneGeometry(RW, 12), { textureWidth: 1024, textureHeight: 1024, color: 0x9a9995 }); rf.rotation.x = -Math.PI / 2; rf.position.set(0, -0.002, -0.5); g.add(rf); }
       const fl = new THREE.Mesh(new THREE.PlaneGeometry(RW, 12), floorMat); fl.rotation.x = -Math.PI / 2; fl.position.z = -0.5; g.add(fl);
-      const ce = new THREE.Mesh(new THREE.PlaneGeometry(RW, 12), ceilMat); ce.rotation.x = Math.PI / 2; ce.position.set(0, 3.8, -0.5); g.add(ce);
-      box(RW, 3.8, 0.2, travMat(3, 1), 0, 1.9, WALL_Z - 0.1, g);
+      const ce = new THREE.Mesh(new THREE.PlaneGeometry(RW, 12), ceilMat); ce.rotation.x = Math.PI / 2; ce.position.set(0, CH, -0.5); g.add(ce);
+      box(RW, CH, 0.2, travMat(3, 1), 0, CH / 2, WALL_Z - 0.1, g);
+      box(RW, 0.14, 0.04, black, 0, 0.07, WALL_Z + 0.02, g); // 幅木
+      // むき出しの白い鉄骨（奥から手前へ）と、その間の線状の照明・天窓
+      for (let i = -3; i <= 3; i++) {
+        const x = i * 2.3;
+        box(0.12, 0.42, 12, steel, x, CH - 0.21, -0.5, g);
+        for (let k = 0; k < 12; k++) { const d = box(0.05, 0.05, 0.62, steel, x, CH - 0.48, -6 + k + 0.5, g); d.rotation.x = k % 2 ? 0.7 : -0.7; }
+        box(0.12, 0.05, 12, steel, x, CH - 0.7, -0.5, g);
+        if (i < 3) box(0.05, 0.03, 10.5, stripMat, x + 1.15, CH - 0.26, -0.5, g);
+      }
+      for (const z of [-3.2, 0.6]) { const sk = new THREE.Mesh(new THREE.PlaneGeometry(RW - 2, 1.1), skyMat); sk.rotation.x = Math.PI / 2; sk.position.set(0, CH - 0.01, z); g.add(sk); }
+      // 天井の隅のスピーカー
+      for (const sx of [-RW / 2 + 0.7, RW / 2 - 0.7]) { const sp2 = box(0.42, 0.62, 0.38, black, sx, CH - 1.2, WALL_Z + 0.5, g); sp2.rotation.y = sx < 0 ? 0.5 : -0.5; }
       // 隣の部屋との壁（出入口つき）
       const side = (sx: number, door: boolean) => {
-        if (!door) { box(0.2, 3.8, 12, travMat(2, 1), sx, 1.9, -0.5, g); return; }
-        box(0.2, 3.8, 2.8, travMat(0.6, 1), sx, 1.9, -3.6, g);
-        box(0.2, 3.8, 4.8, travMat(1, 1), sx, 1.9, 2.6, g);
-        box(0.2, 0.8, 2.4, travMat(0.5, 0.2), sx, 3.4, -1, g);
+        if (!door) { box(0.2, CH, 12, travMat(2, 1), sx, CH / 2, -0.5, g); return; }
+        box(0.2, CH, 2.8, travMat(0.6, 1), sx, CH / 2, -3.6, g);
+        box(0.2, CH, 4.8, travMat(1, 1), sx, CH / 2, 2.6, g);
+        box(0.2, CH - 3, 2.4, travMat(0.5, 0.2), sx, 3 + (CH - 3) / 2, -1, g);
       };
       if (ri === 0) side(-RW / 2, false);
       side(RW / 2, ri < rooms.length - 1);
@@ -165,12 +213,13 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
       const fwm = new THREE.MeshStandardMaterial({ map: tex(bronzeWall(xs.map((x) => (x + fw / 2) / fw))), roughness: 0.6, metalness: 0.25 });
       box(fw, 3.4, 0.08, fwm, 0, 1.7, WALL_Z + 0.04, g);
       box(fw, 0.02, 0.04, coveMat, 0, 3.42, WALL_Z + 0.1, g);
+      // 服を掛ける銀のバー
+      if (!tall && room.pieces.some((q) => q.kind === 'garment')) { box(fw - 0.6, 0.035, 0.035, chrome, 0, 2.6, WALL_Z + 0.3, g); for (const bx of [-(fw - 0.6) / 2, (fw - 0.6) / 2]) box(0.03, 0.03, 0.3, chrome, bx, 2.6, WALL_Z + 0.16, g); }
       // 天井のダウンライト
-      xs.forEach((x) => { const d = new THREE.Mesh(new THREE.CircleGeometry(0.07, 24), lampMat); d.rotation.x = Math.PI / 2; d.position.set(x, 3.79, WALL_Z + 0.6); g.add(d); });
-      for (let i = -2; i <= 2; i++) for (const z of [-1.6, 1.4]) { const d = new THREE.Mesh(new THREE.CircleGeometry(0.06, 20), lampMat); d.rotation.x = Math.PI / 2; d.position.set(i * 3, 3.79, z); g.add(d); }
+      void lampMat;
       // 部屋の灯り
-      const sp = new THREE.SpotLight(0xffe6c4, 46, 12, 0.95, 1, 1.6); sp.position.set(0, 3.7, -1.2); sp.target.position.set(0, 1.4, WALL_Z); g.add(sp, sp.target);
-      const pl = new THREE.PointLight(0xfff0dc, 9, 14, 1.6); pl.position.set(0, 3.2, 1.5); g.add(pl);
+      const sp = new THREE.SpotLight(0xffffff, 40, 14, 0.95, 1, 1.6); sp.position.set(0, 4.6, -1.2); sp.target.position.set(0, 1.4, WALL_Z); g.add(sp, sp.target);
+      const pl = new THREE.PointLight(0xffffff, 14, 16, 1.4); pl.position.set(0, 4.4, 1.5); g.add(pl);
 
       // 作品
       room.pieces.forEach((p, k) => {
@@ -187,9 +236,10 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
         const sh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: shadowT, transparent: true, depthWrite: false, opacity: 0.55 }));
         sh.position.set(x + 0.06, cy - 0.08, WALL_Z + 0.085); g.add(sh);
         let frame: THREE.Mesh | null = null;
-        if (p.kind === 'art') frame = box(1, 1, 0.05, darkBronze, x, cy, WALL_Z + 0.1, g);
-        if (p.kind === 'cap') box(0.9, 0.04, 0.34, travMat(0.3, 0.1), x, cy - maxH * 0.53, WALL_Z + 0.25, g);
-        if (p.kind === 'garment') { box(0.05, 0.05, 0.26, brass, x, cy + maxH * 0.57, WALL_Z + 0.17, g); }
+        if (p.kind === 'art') frame = box(1, 1, 0.05, black, x, cy, WALL_Z + 0.1, g);
+        void darkBronze; void brass;
+        if (p.kind === 'cap') box(0.9, 0.04, 0.34, steel, x, cy - maxH * 0.53, WALL_Z + 0.25, g);
+        if (p.kind === 'garment' && tall) { box(0.05, 0.05, 0.26, chrome, x, cy + maxH * 0.57, WALL_Z + 0.17, g); }
         const fit = (a: number) => {
           let w = maxH * a, h = maxH; if (w > maxW) { w = maxW; h = w / a; }
           plane.scale.set(w, h, 1); sh.scale.set(w * 1.25, h * 1.15, 1);
@@ -219,12 +269,28 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
         const m = new THREE.Mesh(new THREE.SphereGeometry(0.34, 32, 20), new THREE.MeshStandardMaterial({ color: c, roughness: 1 })); m.scale.set(1, 0.55, 1); m.position.set(px, 0.18, pz); g.add(m);
         const sh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: shadowT, transparent: true, depthWrite: false, opacity: 0.6 })); sh.rotation.x = -Math.PI / 2; sh.position.set(px, 0.004, pz); g.add(sh);
       };
-      const v = ri % 4;
-      plant(v % 2 ? -fw / 2 - (tall ? 0.55 : 1.1) : fw / 2 + (tall ? 0.55 : 1.1), WALL_Z + 0.9, tall ? 0.8 : 1.1);
-      if (v === 0) { box(2.6, 1.0, 0.7, marbleMat, -5.2, 0.5, 0.2, g); box(2.7, 0.04, 0.8, brass, -5.2, 1.02, 0.2, g); }
-      if (v === 1) { pouf(-1.2, -0.6, 0xd9d2c6); pouf(-0.3, -0.2, 0xcfc6b8); pouf(0.9, -0.7, 0xe2dccf); }
-      if (v === 2) { box(3.0, 0.42, 0.8, travMat(0.6, 0.2), 0, 0.21, -0.6, g); plant(-6, 1.5, 0.9); }
-      if (v === 3) { box(0.7, 0.9, 0.7, marbleMat, -2.4, 0.45, -1.4, g); box(0.7, 0.6, 0.7, marbleMat, 2.6, 0.3, -0.8, g); pouf(0.2, 0.4, 0xd6cdbf); }
+      const v = ri % 3;
+      const bench = (bx: number, bz: number, w: number) => { box(w, 0.42, 0.62, travMat(0.4, 0.2), bx, 0.21, bz, g); const sh = new THREE.Mesh(new THREE.PlaneGeometry(w * 1.3, 1.1), new THREE.MeshBasicMaterial({ map: shadowT, transparent: true, depthWrite: false, opacity: 0.45 })); sh.rotation.x = -Math.PI / 2; sh.position.set(bx, 0.004, bz); g.add(sh); };
+      plant(v === 1 ? -fw / 2 - (tall ? 0.55 : 1.1) : fw / 2 + (tall ? 0.55 : 1.1), WALL_Z + 0.9, tall ? 0.8 : 1.1);
+      void pouf; void marbleMat;
+      if (v === 0) {
+        // 大きな壁画（左の壁際）と白い台
+        const mw = tall ? 2.2 : 3.8, m = new THREE.Mesh(new THREE.PlaneGeometry(mw, mw * 0.56), muralMat); m.position.set(-fw / 2 - mw / 2 - 0.15, 2.4, WALL_Z + 0.02); if (!tall) g.add(m);
+        bench(tall ? -0.6 : -1.4, -2.3, 1.8); bench(tall ? 1.0 : 2.4, -1.4, 1.2);
+      }
+      if (v === 1) {
+        // 天井から吊るした、木の板で組んだ舟形の彫刻
+        const prof: THREE.Vector2[] = []; for (let k = 0; k <= 16; k++) { const a2 = (k / 16) * Math.PI / 2; prof.push(new THREE.Vector2(Math.sin(a2) * 1, -Math.cos(a2) * 1)); }
+        const hull = new THREE.Mesh(new THREE.LatheGeometry(prof, 48), woodMat); hull.scale.set(tall ? 1.3 : 2.6, 0.55, tall ? 0.8 : 1.3); hull.position.set(tall ? 0.4 : 1.2, CH - 1.5, -1.6); g.add(hull);
+        for (const cx2 of [-1, 1]) box(0.01, 1.5, 0.01, black, hull.position.x + cx2 * hull.scale.x * 0.6, CH - 0.75, -1.6, g);
+        bench(-0.8, -2.0, 2.2);
+      }
+      if (v === 2) {
+        // 記録のブロックを積んだ彫刻（白と銀）
+        const sx2 = tall ? 1.1 : 2.8, sz2 = -2.2;
+        [[0, 0.45, 0, 0.9, steel], [0.12, 1.25, 0.08, 0.7, chrome], [-0.05, 1.86, -0.04, 0.52, steel], [0.06, 2.3, 0.03, 0.36, black]].forEach(([dx, y, dz, s2, mm]) => { const c2 = box(s2 as number, s2 as number, s2 as number, mm as THREE.Material, sx2 + (dx as number), y as number, sz2 + (dz as number), g); c2.rotation.y = (y as number) * 0.6; });
+        bench(-1.6, -1.8, 1.6);
+      }
     });
 
     // 部屋を移るときに横切る大理石の板（カメラに付けて動かす）
@@ -237,7 +303,7 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
     if (!mobile) {
       composer = new EffectComposer(renderer);
       composer.addPass(new RenderPass(scene, camera));
-      composer.addPass(new UnrealBloomPass(new THREE.Vector2(1, 1), 0.28, 0.55, 0.93));
+      composer.addPass(new UnrealBloomPass(new THREE.Vector2(1, 1), 0.12, 0.4, 0.995));
       composer.addPass(new OutputPass());
     }
 
