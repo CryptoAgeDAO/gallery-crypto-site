@@ -1,7 +1,7 @@
 'use client';
 // 美術館のような展示室（3D）：トラバーチンの壁、ブロンズの壁面に天井からの光の筋、壁に光る丸いポイント。
 // ポイント（または作品）を押すと作品に近づき、横から詳細が開く。部屋を移るときは大理石の板が横切る。
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
@@ -88,6 +88,9 @@ const leafTex = () => canvas(128, 256, (g) => {
 export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: GRoom[]; apiRef: React.MutableRefObject<GalleryApi | null>; onState: (s: GState) => void; onPick: (id: string) => void }) {
   const host = useRef<HTMLDivElement>(null);
   const cb = useRef({ onState, onPick }); cb.current = { onState, onPick };
+  // 縦長の画面（iPhone を縦に持ったとき）は、作品を2列に組んで部屋全体が入るようにする
+  const [tall, setTall] = useState(false);
+  useEffect(() => { const f = () => setTall(innerHeight > innerWidth * 1.15); f(); addEventListener('resize', f); return () => removeEventListener('resize', f); }, []);
 
   useEffect(() => {
     const el = host.current!; seed = 7;
@@ -99,7 +102,7 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
     el.appendChild(renderer.domElement);
     const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1a1714);
     const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.38;
-    const camera = new THREE.PerspectiveCamera(mobile ? 62 : 50, 1, 0.05, 80); scene.add(camera);
+    const camera = new THREE.PerspectiveCamera(tall ? 72 : mobile ? 62 : 50, 1, 0.05, 80); scene.add(camera);
 
     // 共通の素材
     const travC = travertine(), floorC = floorTex();
@@ -125,8 +128,11 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
     rooms.forEach((room, ri) => {
       const g = new THREE.Group(); g.position.x = ri * RW; scene.add(g);
       const n = room.pieces.length;
-      const fw = Math.min(11, Math.max(5, n * 1.75 + 1.4)); // ブロンズの壁面の幅
-      const xs = room.pieces.map((_, k) => (n === 1 ? 0 : -fw / 2 + 0.95 + (k * (fw - 1.9)) / (n - 1)));
+      const cols = tall ? Math.min(2, n) : n, rows = Math.ceil(n / Math.max(1, cols));
+      const fw = tall ? cols * 1.75 + 0.9 : Math.min(11, Math.max(5, n * 1.75 + 1.4)); // ブロンズの壁面の幅
+      const xs = room.pieces.map((_, k) => (tall ? ((k % cols) - (cols - 1) / 2) * 1.75 : n === 1 ? 0 : -fw / 2 + 0.95 + (k * (fw - 1.9)) / (n - 1)));
+      const rowH = 3.0 / rows; // 縦長のときの1段の高さ
+      const rowY = (k: number) => 3.3 - rowH * (Math.floor(k / cols) + 0.5);
       // 床・天井・壁
       const fl = new THREE.Mesh(new THREE.PlaneGeometry(RW, 12), floorMat); fl.rotation.x = -Math.PI / 2; fl.position.z = -0.5; g.add(fl);
       const ce = new THREE.Mesh(new THREE.PlaneGeometry(RW, 12), ceilMat); ce.rotation.x = Math.PI / 2; ce.position.set(0, 3.8, -0.5); g.add(ce);
@@ -154,9 +160,10 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
       // 作品
       room.pieces.forEach((p, k) => {
         const x = xs[k];
-        const cy = p.kind === 'cap' ? 1.55 : 1.85;
-        const maxH = p.kind === 'garment' ? 1.45 : p.kind === 'cap' ? 0.62 : 1.05;
-        const maxW = Math.min(1.5, (fw - 1.2) / Math.max(1, n) + 0.15);
+        const baseH = p.kind === 'garment' ? 1.45 : p.kind === 'cap' ? 0.62 : 1.05;
+        const maxH = tall ? Math.min(baseH, rowH * (p.kind === 'cap' ? 0.5 : p.kind === 'garment' ? 0.88 : 0.72)) : baseH;
+        const cy = tall ? rowY(k) + 0.05 : p.kind === 'cap' ? 1.55 : 1.85;
+        const maxW = tall ? 1.45 : Math.min(1.5, (fw - 1.2) / Math.max(1, n) + 0.15);
         const mat = new THREE.MeshStandardMaterial({ color: p.kind === 'art' ? 0xdcd6cc : 0xf2eee8, roughness: 0.9, transparent: true, alphaTest: 0.04 });
         const plane = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat);
         plane.userData.id = p.id; hits.push(plane);
@@ -166,21 +173,23 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
         sh.position.set(x + 0.06, cy - 0.08, WALL_Z + 0.085); g.add(sh);
         let frame: THREE.Mesh | null = null;
         if (p.kind === 'art') frame = box(1, 1, 0.05, darkBronze, x, cy, WALL_Z + 0.1, g);
-        if (p.kind === 'cap') box(0.9, 0.04, 0.34, travMat(0.3, 0.1), x, cy - 0.33, WALL_Z + 0.25, g);
-        if (p.kind === 'garment') { box(0.05, 0.05, 0.26, brass, x, cy + 0.82, WALL_Z + 0.17, g); }
+        if (p.kind === 'cap') box(0.9, 0.04, 0.34, travMat(0.3, 0.1), x, cy - maxH * 0.53, WALL_Z + 0.25, g);
+        if (p.kind === 'garment') { box(0.05, 0.05, 0.26, brass, x, cy + maxH * 0.57, WALL_Z + 0.17, g); }
         const fit = (a: number) => {
           let w = maxH * a, h = maxH; if (w > maxW) { w = maxW; h = w / a; }
           plane.scale.set(w, h, 1); sh.scale.set(w * 1.25, h * 1.15, 1);
           if (frame) frame.scale.set(w + 0.12, h + 0.12, 1);
-          if (p.kind === 'cap') plane.position.y = cy - 0.31 + h / 2;
-          if (p.kind === 'garment') plane.position.y = cy + 0.8 - h / 2;
+          if (p.kind === 'cap') plane.position.y = cy - maxH * 0.5 + h / 2;
+          if (p.kind === 'garment') plane.position.y = cy + maxH * 0.55 - h / 2;
           sh.position.y = plane.position.y - 0.08;
         };
         fit(1);
         if (p.tex) loader.load(p.tex, (t) => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; mat.map = t; mat.needsUpdate = true; const im = t.image as { width: number; height: number }; if (im?.width) fit(im.width / im.height); });
         // 壁の丸いポイント
         const ring = new THREE.Sprite(new THREE.SpriteMaterial({ map: ringT, transparent: true, depthWrite: false, opacity: 0.95 }));
-        ring.position.set(x, 0.62, WALL_Z + 0.2); ring.scale.setScalar(0.34); ring.userData.id = p.id; ring.userData.base = 0.34; g.add(ring); hits.push(ring); rings.push(ring);
+        const rs = tall ? 0.26 : 0.34;
+        if (tall) ring.position.set(x + 0.62, cy - maxH * 0.42, WALL_Z + 0.3); else ring.position.set(x, 0.62, WALL_Z + 0.2);
+        ring.scale.setScalar(rs); ring.userData.id = p.id; ring.userData.base = rs; g.add(ring); hits.push(ring); rings.push(ring);
         spots.push({ id: p.id, room: ri, pos: new THREE.Vector3(ri * RW + x, cy, z), h: maxH });
       });
 
@@ -196,7 +205,7 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
         const sh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: shadowT, transparent: true, depthWrite: false, opacity: 0.6 })); sh.rotation.x = -Math.PI / 2; sh.position.set(px, 0.004, pz); g.add(sh);
       };
       const v = ri % 4;
-      plant(v % 2 ? -fw / 2 - 1.1 : fw / 2 + 1.1, WALL_Z + 0.9, 1.1);
+      plant(v % 2 ? -fw / 2 - (tall ? 0.55 : 1.1) : fw / 2 + (tall ? 0.55 : 1.1), WALL_Z + 0.9, tall ? 0.8 : 1.1);
       if (v === 0) { box(2.6, 1.0, 0.7, marbleMat, -5.2, 0.5, 0.2, g); box(2.7, 0.04, 0.8, brass, -5.2, 1.02, 0.2, g); }
       if (v === 1) { pouf(-1.2, -0.6, 0xd9d2c6); pouf(-0.3, -0.2, 0xcfc6b8); pouf(0.9, -0.7, 0xe2dccf); }
       if (v === 2) { box(3.0, 0.42, 0.8, travMat(0.6, 0.2), 0, 0.21, -0.6, g); plant(-6, 1.5, 0.9); }
@@ -224,7 +233,8 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
     let yaw = 0, pitch = 0, vYaw = 0, vPitch = 0;
     let trans: { t0: number; from: THREE.Vector3; fromL: THREE.Vector3; dir: number } | null = null;
     const emit = () => cb.current.onState({ room: st.room, focus: st.focus, moving: !!trans, ready: true });
-    const baseView = (i: number) => { tPos.set(i * RW, 1.6, CAM_Z); tLook.set(i * RW, 1.5, WALL_Z); };
+    let fitZ = CAM_Z;
+    const baseView = (i: number) => { if (tall) { tPos.set(i * RW, 1.85, fitZ); tLook.set(i * RW, 0.62, WALL_Z); } else { tPos.set(i * RW, 1.6, CAM_Z); tLook.set(i * RW, 1.5, WALL_Z); } };
     const focusView = (id: string) => {
       const s = spots.find((x) => x.id === id); if (!s) return;
       const d = mobile ? 2.9 : 2.5, off = mobile ? 0 : 0.62;
@@ -280,6 +290,12 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
       // 板が画面いっぱいを覆う大きさ
       const vh = 2 * 0.9 * Math.tan((camera.fov * Math.PI) / 360), vw = vh * camera.aspect;
       slab.scale.set(vw * 1.05, vh * 1.3, 1); slab2.scale.set(vw * 0.5, vh * 1.3, 1); slab.userData.vw = vw;
+      // 縦長：一番広い壁面（＋植物）が横幅に収まる距離までカメラを下げる
+      if (tall) {
+        const half = Math.max(...rooms.map((r) => Math.min(2, r.pieces.length) * 1.75 + 0.9)) / 2 + 0.75;
+        fitZ = Math.min(5.3, WALL_Z + half / (Math.tan((camera.fov * Math.PI) / 360) * camera.aspect));
+        if (!st.focus && !trans) baseView(st.room);
+      }
     };
     size(); addEventListener('resize', size);
 
@@ -323,7 +339,7 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
       scene.traverse((o) => { const m = o as THREE.Mesh; m.geometry?.dispose?.(); const mt = m.material as THREE.Material | THREE.Material[] | undefined; (Array.isArray(mt) ? mt : mt ? [mt] : []).forEach((x) => x.dispose()); });
       pm.dispose(); composer?.dispose(); renderer.dispose(); el.removeChild(renderer.domElement); apiRef.current = null;
     };
-  }, [rooms, apiRef]);
+  }, [rooms, apiRef, tall]);
 
   return <div ref={host} className="gr-3d" />;
 }
