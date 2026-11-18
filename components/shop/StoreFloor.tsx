@@ -8,16 +8,14 @@ import type { ShopItem } from './types';
 import { demoItems } from './ShopClient';
 import { cutout, kindOf } from './RailShop';
 import { HANGER_URL } from './garmentArt';
-import TryTheLook from './TryTheLook';
 
 const CKEY = 'gc-shop-cart';
-type Sec = 'entry' | 'clothing' | 'caps' | 'art' | 'look';
+type Sec = 'entry' | 'clothing' | 'caps' | 'art';
 const SECS: { k: Sec; en: string; ja: string }[] = [
   { k: 'entry', en: 'Store', ja: '店内' },
   { k: 'clothing', en: 'Clothing', ja: '服' },
   { k: 'caps', en: 'Caps', ja: 'キャップ' },
   { k: 'art', en: 'Art', ja: 'アート' },
-  { k: 'look', en: 'Try the Look', ja: '着用イメージ' },
 ];
 
 export default function StoreFloor({ initial }: { initial: ShopItem[] }) {
@@ -110,10 +108,6 @@ export default function StoreFloor({ initial }: { initial: ShopItem[] }) {
                 </button>
               ))}
             </div>
-          </section>
-          {/* Try the Look */}
-          <section className="sx-sec look">
-            <TryTheLook pieces={clothes.map((i) => ({ id: i.id, title: i.title, sub: i.sub, price: i.price, code: i.code, src: i.src }))} onPick={pick} />
           </section>
         </div>
       </main>
