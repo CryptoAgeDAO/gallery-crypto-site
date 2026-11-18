@@ -2843,3 +2843,63 @@ body:has(.kh) .gt-go{transform:none;background:#14120f;color:#fff;font-style:nor
   .sx-g{flex-basis:36vw;margin:0 -10.5vw}
   .sx-shelf[style]{width:84vw!important}
 }
+
+/* ---- コンセプト「On Record」：光の粒の服と、記録の鎖 ---- */
+body:has(.cx){background:#09090a}
+.cx{--bone:#ece8df;--dim:#8d8a84;--brass:#c9a46a;position:relative;color:var(--bone);font-family:"Archivo","Helvetica Neue",Arial,"Noto Sans JP",sans-serif;background:radial-gradient(120% 80% at 70% 40%,#16151a,#09090a 70%)}
+.cx a{color:inherit;text-decoration:none}
+.cx button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+.cx-3d{position:fixed;inset:0;z-index:0}
+.cx-3d canvas{display:block}
+.cx-grain{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.07;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+.cx-labels{position:fixed;inset:0;z-index:2;pointer-events:none}
+.cx-lb{position:absolute;left:0;top:0;display:grid;gap:1px;margin:-74px 0 0 -2px;padding:0 0 0 8px;border-left:1px solid rgba(201,164,106,.7);font-family:var(--mono);font-size:9.5px;letter-spacing:.04em;white-space:nowrap;opacity:0;will-change:transform}
+.cx-lb em{font-style:normal;color:var(--brass)}
+.cx-lb b{font-family:"Archivo",sans-serif;font-size:11px;font-weight:600;letter-spacing:.02em}
+.cx-lb span,.cx-lb code{color:var(--dim)}
+.cx-top{position:fixed;left:0;right:0;top:0;z-index:5;display:flex;justify-content:space-between;align-items:center;padding:20px clamp(16px,3vw,40px);mix-blend-mode:difference}
+.cx-logo{font-weight:900;font-stretch:125%;letter-spacing:.08em;font-size:14px}
+.cx-top nav{display:flex;gap:18px;align-items:center;font-size:11px;letter-spacing:.16em;text-transform:uppercase}
+.cx-prog{position:fixed;left:clamp(16px,3vw,40px);top:50%;transform:translateY(-50%);z-index:5;display:grid;gap:12px}
+.cx-prog button{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.06em;transition:color .3s}
+.cx-prog i{width:14px;height:1px;background:currentColor;transition:width .4s cubic-bezier(.2,.8,.2,1)}
+.cx-prog span{opacity:0;transform:translateX(-4px);transition:.4s;font-family:"Archivo",sans-serif;text-transform:uppercase;letter-spacing:.14em;font-size:9.5px}
+.cx-prog button.on{color:var(--bone)}.cx-prog button.on i{width:34px;background:var(--brass)}.cx-prog button.on span,.cx-prog button:hover span{opacity:1;transform:none}
+.cx-main{position:relative;z-index:3}
+.cx-sec{min-height:100vh;display:grid;align-content:center;padding:90px clamp(18px,7vw,120px) 60px clamp(70px,14vw,220px)}
+.cx-sec.hero{align-content:end;padding-bottom:12vh}
+.cx-kick{margin:0 0 18px;font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.cx h1{margin:0;font-size:clamp(46px,8.4vw,132px);font-weight:900;font-stretch:125%;line-height:.88;letter-spacing:-.035em;max-width:11ch}
+.cx-lead{margin:26px 0 0;max-width:44ch;font-size:15px;line-height:1.75;color:#c9c5bc}
+.cx-cue{margin-top:44px;display:inline-flex;align-items:center;gap:12px;font-family:var(--mono);font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim)}
+.cx-cue i{width:1px;height:46px;background:linear-gradient(var(--brass),transparent);animation:cxCue 2.2s ease-in-out infinite;transform-origin:top}
+@keyframes cxCue{0%{transform:scaleY(0)}50%{transform:scaleY(1)}100%{transform:scaleY(1);opacity:0}}
+.cx-card{display:grid;gap:14px;max-width:440px;padding:26px 26px 22px;background:rgba(12,12,14,.55);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(236,232,223,.12)}
+.cx-n{margin:0;font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--brass)}
+.cx h2{margin:0;font-size:clamp(26px,3.2vw,42px);font-weight:800;font-stretch:115%;line-height:1.02;letter-spacing:-.02em}
+.cx-card>p{margin:0;font-size:14px;line-height:1.8;color:#c9c5bc}
+.cx-card dl{margin:4px 0 0;display:grid;border-top:1px solid rgba(236,232,223,.12)}
+.cx-card dl div{display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px;padding:8px 0;border-bottom:1px solid rgba(236,232,223,.12);font-size:12px}
+.cx-card dt{color:var(--dim);font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.08em}
+.cx-card dd{margin:0}
+.cx-card small,.cx-fine{font-size:10.5px;color:var(--dim);line-height:1.6}
+.cx-hash{display:block;font-family:var(--mono);font-size:11px;line-height:1.6;word-break:break-all;color:var(--brass);padding:10px 12px;border:1px dashed rgba(201,164,106,.4)}
+.cx-tl{list-style:none;margin:0;padding:0;display:grid;border-left:1px solid rgba(201,164,106,.5)}
+.cx-tl li{display:grid;grid-template-columns:86px minmax(0,1fr) auto;gap:10px;align-items:baseline;padding:7px 0 7px 14px;position:relative;font-size:12px}
+.cx-tl li::before{content:"";position:absolute;left:-4px;top:12px;width:7px;height:7px;border-radius:50%;background:var(--brass)}
+.cx-tl span,.cx-tl code{font-family:var(--mono);font-size:10px;color:var(--dim)}
+.cx-sec.end{justify-items:start;gap:18px}
+.cx-sec.end h2{font-size:clamp(34px,5.6vw,82px);font-stretch:125%;font-weight:900;max-width:14ch;line-height:.92}
+.cx-ctas{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
+.cx-ctas a{padding:15px 24px;background:var(--bone);color:#09090a!important;font-size:11px;letter-spacing:.18em;text-transform:uppercase;font-weight:600}
+.cx-ctas a.ghost{background:transparent;color:var(--bone)!important;border:1px solid rgba(236,232,223,.4)}
+.cx-ctas a:hover{background:var(--brass);color:#09090a!important;border-color:var(--brass)}
+@media (max-width:760px){
+  .cx-prog{left:auto;right:10px;top:auto;bottom:14px;transform:none;display:flex;gap:8px}
+  .cx-prog span{display:none}.cx-prog i{width:8px}.cx-prog button.on i{width:18px}.cx-prog button{font-size:0;gap:0}
+  .cx-sec{padding:80px 18px 70px;align-content:end}
+  .cx-sec.hero{padding-bottom:16vh}
+  .cx-card{max-width:none;padding:18px}
+  .cx-tl li{grid-template-columns:76px minmax(0,1fr)}.cx-tl code{display:none}
+  .cx-lb{font-size:8px}.cx-lb b{font-size:9.5px}.cx-lb span{display:none}
+}
