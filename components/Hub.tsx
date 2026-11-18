@@ -379,6 +379,7 @@ export default function Hub() {
         <nav>{PILLARS.map((p) => <a key={p.k} href={`#${p.k}`}>{L(p)[0]}</a>)}</nav>
         <a className="hb-logo notranslate" translate="no" href="/">Gallery Crypto</a>
         <span className="kh-r">
+          <a href="/concept">{t('Concept', 'コンセプト')}</a>
           <a href="/shop">{t('Shop', 'ショップ')}</a>
           <SoundBtn />
           <LangToggle />
