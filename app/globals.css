@@ -2980,3 +2980,9 @@ body:has(.rx){background:#09090a}
 }
 .rx{--bone:#ece8df;--dim:#8d8a84;--brass:#c9a46a}
 .rx .cx-ctas{margin:6px 0 0}
+.gr-fail{position:absolute;inset:0;z-index:25;display:grid;place-content:center;gap:12px;padding:24px;text-align:center;background:#1a1714;color:#f4efe6}
+.gr-fail b{font-family:"Cormorant Garamond",Georgia,"Noto Serif JP",serif;font-weight:500;font-size:22px}
+.gr-fail span{font-size:13px;color:#cfc4b2}
+.gr-fail div{display:flex;gap:14px;justify-content:center;align-items:center;margin-top:6px}
+.gr-fail button{border:1px solid rgba(244,239,230,.5)!important;padding:10px 18px!important;font-size:11px;letter-spacing:.18em;text-transform:uppercase}
+.gr-fail a{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#e3cfa6}

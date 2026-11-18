@@ -1,6 +1,6 @@
 'use client';
 // 展示室の画面（3D の上に重ねる UI）：部屋の名前・部屋の移動・押した作品の詳細パネル。
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Component, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useLang, LangToggle } from '../Lang';
 import { sfx } from '@/lib/sfx';
@@ -12,6 +12,13 @@ import type { GalleryApi, GRoom, GState } from './Gallery3D';
 
 const Gallery3D = dynamic(() => import('./Gallery3D'), { ssr: false });
 
+// 3D が描けなかったとき（古い端末・メモリ不足など）に、画面全体をエラーにしないための受け皿
+class Safe extends Component<{ children: React.ReactNode; fallback: React.ReactNode }, { bad: boolean }> {
+  state = { bad: false };
+  static getDerivedStateFromError() { return { bad: true }; }
+  render() { return this.state.bad ? this.props.fallback : this.props.children; }
+}
+
 const ROOMS: { z: ShopItem['zone']; en: string; ja: string; den: string; dja: string }[] = [
   { z: 'rwa', en: 'RWA — vintage & collab', ja: 'RWA — 証明つきヴィンテージとコラボ', den: 'One-of-one pieces whose history is signed and recorded.', dja: '来歴に署名し、記録を残した一点もの。' },
   { z: 'vintage', en: 'Vintage & used', ja: 'ヴィンテージ・古着', den: 'Everyday pieces, each linked to its own page and record.', dja: '一着ずつ、ページと記録につながる古着。' },
@@ -19,6 +26,17 @@ const ROOMS: { z: ShopItem['zone']; en: string; ja: string; den: string; dja: st
   { z: 'archive', en: 'Archive', ja: 'アーカイブ', den: 'Pieces kept for the record.', dja: '記録として残す作品。' },
 ];
 const PER_ROOM = 6;
+
+function Fallback() {
+  const { t } = useLang();
+  return (
+    <div className="gr-fail">
+      <b>{t('The 3D room could not be shown on this device.', 'この端末では3D展示室を表示できませんでした。')}</b>
+      <span>{t('Close other tabs and try again, or see the pieces on the rail.', 'ほかのタブを閉じてもう一度試すか、レールで作品をご覧ください。')}</span>
+      <div><button onClick={() => location.reload()}>{t('Try again', 'もう一度')}</button><a href="/shop/rail">{t('Open the rail', 'レールを見る')} →</a></div>
+    </div>
+  );
+}
 
 export default function GalleryClient({ initial }: { initial: ShopItem[] }) {
   const { t, lang } = useLang();
@@ -41,7 +59,10 @@ export default function GalleryClient({ initial }: { initial: ShopItem[] }) {
 
   return (
     <div className={`gr ${cur ? 'has-panel' : ''}`} translate="no">
-      <Gallery3D rooms={rooms} apiRef={api} onState={setSt} onPick={(id) => { api.current?.focus(id); sfx('open'); }} />
+      <Safe fallback={<Fallback />}>
+        <Gallery3D rooms={rooms} apiRef={api} onState={setSt} onPick={(id) => { api.current?.focus(id); sfx('open'); }} />
+      </Safe>
+      {st.lost && <Fallback />}
       <div className={`gr-veil ${st.ready ? 'off' : ''}`}><em>Gallery Crypto</em><span>{t('Opening the gallery…', '展示室をひらいています…')}</span></div>
 
       <header className="gr-top">

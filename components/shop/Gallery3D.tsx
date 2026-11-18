@@ -12,7 +12,7 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 export type GPiece = { id: string; title: string; kind: 'garment' | 'cap' | 'art'; tex: string };
 export type GRoom = { key: string; pieces: GPiece[] };
 export type GalleryApi = { goRoom: (i: number) => void; focus: (id: string | null) => void };
-export type GState = { room: number; focus: string | null; moving: boolean; ready: boolean };
+export type GState = { room: number; focus: string | null; moving: boolean; ready: boolean; lost?: boolean };
 
 const RW = 16; // 部屋の幅
 const WALL_Z = -5;
@@ -51,7 +51,8 @@ const marble = () => canvas(768, 1152, (g, w, h) => {
     g.strokeStyle = `rgba(${rnd() < 0.5 ? '110,60,35' : '80,75,70'},${R(0.18, 0.6)})`; g.lineWidth = R(0.6, i < 6 ? 7 : 2.5); g.stroke();
   }
 });
-const bronzeWall = (xs: number[]) => canvas(2048, 820, (g, w, h) => {
+let BW = 2048; // スマホでは半分
+const bronzeWall = (xs: number[]) => canvas(BW, Math.round(BW * 0.4), (g, w, h) => {
   const bg = g.createLinearGradient(0, 0, 0, h); bg.addColorStop(0, '#5b5044'); bg.addColorStop(1, '#4a4037'); g.fillStyle = bg; g.fillRect(0, 0, w, h);
   for (let i = 0; i < 900; i++) { g.fillStyle = `rgba(${rnd() < 0.5 ? '0,0,0' : '255,240,220'},${R(0.01, 0.04)})`; g.fillRect(R(0, w), 0, R(1, 3), h); }
   // 天井の灯りが壁をなめる光の筋
@@ -89,17 +90,19 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
   const host = useRef<HTMLDivElement>(null);
   const cb = useRef({ onState, onPick }); cb.current = { onState, onPick };
   // 縦長の画面（iPhone を縦に持ったとき）は、作品を2列に組んで部屋全体が入るようにする
-  const [tall, setTall] = useState(false);
+  const [tall, setTall] = useState(() => typeof window !== 'undefined' && innerHeight > innerWidth * 1.15);
   useEffect(() => { const f = () => setTall(innerHeight > innerWidth * 1.15); f(); addEventListener('resize', f); return () => removeEventListener('resize', f); }, []);
 
   useEffect(() => {
-    const el = host.current!; seed = 7;
+    const el = host.current!; seed = 7; let alive = true;
+    BW = matchMedia('(max-width: 760px)').matches ? 1024 : 2048;
     const mobile = matchMedia('(max-width: 760px)').matches;
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: true });
-    renderer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.6 : 2));
+    renderer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.4 : 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.82;
     el.appendChild(renderer.domElement);
+    renderer.domElement.addEventListener('webglcontextlost', (e) => { e.preventDefault(); cb.current.onState({ room: 0, focus: null, moving: false, ready: true, lost: true } as GState); });
     const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1a1714);
     const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.38;
     const camera = new THREE.PerspectiveCamera(tall ? 72 : mobile ? 62 : 50, 1, 0.05, 80); scene.add(camera);
@@ -117,7 +120,19 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
     const marbleMat = new THREE.MeshStandardMaterial({ map: marbleTex, roughness: 0.42, metalness: 0.0 });
     const ringT = tex(ringTex()), shadowT = tex(shadowTex()), leafT = tex(leafTex());
     const leafMat = new THREE.MeshStandardMaterial({ map: leafT, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide, roughness: 0.7 });
-    const loader = new THREE.TextureLoader();
+    // 作品の絵・写真は、いったん小さめのキャンバスに描いてから使う（iPhone のメモリを使い切らないように）
+    const TEXMAX = mobile ? 512 : 1024;
+    const loadTex = (url: string, done: (t: THREE.Texture, aspect: number) => void) => {
+      const im = new Image(); im.crossOrigin = 'anonymous'; im.decoding = 'async';
+      im.onload = () => {
+        if (!alive) return;
+        const w = im.naturalWidth || 720, h = im.naturalHeight || 660, k = Math.min(1, TEXMAX / Math.max(w, h));
+        const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(w * k)); c.height = Math.max(1, Math.round(h * k));
+        try { c.getContext('2d')!.drawImage(im, 0, 0, c.width, c.height); } catch { return; }
+        const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = mobile ? 2 : 8; done(t, w / h);
+      };
+      im.src = url;
+    };
 
     const hits: THREE.Object3D[] = []; // 押せるもの
     const rings: THREE.Sprite[] = [];
@@ -184,7 +199,7 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
           sh.position.y = plane.position.y - 0.08;
         };
         fit(1);
-        if (p.tex) loader.load(p.tex, (t) => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; mat.map = t; mat.needsUpdate = true; const im = t.image as { width: number; height: number }; if (im?.width) fit(im.width / im.height); });
+        if (p.tex) loadTex(p.tex, (t, a) => { mat.map = t; mat.needsUpdate = true; fit(a); });
         // 壁の丸いポイント
         const ring = new THREE.Sprite(new THREE.SpriteMaterial({ map: ringT, transparent: true, depthWrite: false, opacity: 0.95 }));
         const rs = tall ? 0.26 : 0.34;
@@ -334,6 +349,7 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
     raf = requestAnimationFrame(loop);
 
     return () => {
+      alive = false;
       cancelAnimationFrame(raf); removeEventListener('resize', size); removeEventListener('pointermove', pmv); removeEventListener('pointerup', pu); removeEventListener('keydown', key);
       renderer.domElement.removeEventListener('pointerdown', pd);
       scene.traverse((o) => { const m = o as THREE.Mesh; m.geometry?.dispose?.(); const mt = m.material as THREE.Material | THREE.Material[] | undefined; (Array.isArray(mt) ? mt : mt ? [mt] : []).forEach((x) => x.dispose()); });
