@@ -3,6 +3,7 @@
 // 商品をタップすると商品ページ（全画面）、カートは右から出る引き出し。サイトで公開した商品は自動で並ぶ。
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { LangToggle, useLang } from '../Lang';
+import dynamic from 'next/dynamic';
 import BuyButton from '../BuyButton';
 import { PROJECTS, EVENTS0 } from '@/lib/hub';
 import { supabase } from '@/lib/supabase';
@@ -12,6 +13,7 @@ import type { ShopItem } from './types';
 import { toShop } from './toShop';
 import { demoItems } from './ShopClient';
 import { cutout } from './RailShop';
+const ParticlePiece = dynamic(() => import('../concept/ParticlePiece'), { ssr: false });
 
 const LKEY = 'gc-shop-local', CKEY = 'gc-shop-cart';
 type Cat = 'all' | 'new' | 'vintage' | 'used' | 'tops' | 'outer' | 'caps' | 'art' | 'archive';
@@ -280,17 +282,12 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
 
       {/* 商品ページ */}
       {product && (
-        <div className="sf-pdp" role="dialog" aria-modal="true" aria-label={product.title}>
+        <div className="sf-pdp cxp" role="dialog" aria-modal="true" aria-label={product.title}>
           <button className="sf-x" onClick={() => nav(cat)} aria-label={t('Close', '閉じる')}>×</button>
           <div className="sf-pimgs">
-            <div className={`sf-pmain ${product.img ? 'photo' : ''}`}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={product.src} alt="" />
-            </div>
-            <div className={`sf-pzoom ${product.img ? 'photo' : ''}`} aria-hidden>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={product.src} alt="" />
-            </div>
+            {/* コンセプトページと同じ「光の粒」から、本物の絵（写真）が浮かび上がる */}
+            <ParticlePiece key={product.id} src={product.src} photo={!!product.img} reveal className="sf-pmain" />
+            <p className="sf-phint">{t('Move over the piece — the light parts around it.', '服の上を指やカーソルでなぞると、光の粒がよけます。')}</p>
           </div>
           <div className="sf-pinfo">
             <span className="sf-pcode">{product.code}{product.buy === 'demo' ? ` · ${t('Sample', '見本')}` : ''}</span>
@@ -315,7 +312,7 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
 
       {/* カート（右から） */}
       {cartOpen && <div className="sf-dim" onClick={() => setCartOpen(false)} />}
-      <aside className={`sf-cart ${cartOpen ? 'on' : ''}`} aria-hidden={!cartOpen}>
+      <aside className={`sf-cart cxp ${cartOpen ? 'on' : ''}`} aria-hidden={!cartOpen}>
         <div className="sf-ch"><b>{t('Cart', 'カート')} ({cart.length})</b><button onClick={() => setCartOpen(false)} aria-label={t('Close', '閉じる')}>×</button></div>
         {!inCart.length && <p className="sf-fine">{t('Your cart is empty.', 'カートは空です。')}</p>}
         {inCart.map((p) => (

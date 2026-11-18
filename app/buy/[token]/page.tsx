@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import BuyButton from '@/components/BuyButton';
-import MoShell from '@/components/MoShell';
+import RecordShell from '@/components/concept/RecordShell';
 import { db, paymentsConfigured } from '@/lib/server';
 import { photoUrl } from '@/lib/supabase';
 import { certNo, metaLine, usd, type Item } from '@/lib/types';
@@ -11,11 +11,11 @@ export const metadata: Metadata = { title: 'Your purchase — Gallery Crypto', r
 
 const COLS = 'id,serial,photos,band,title,year,era,size,tag,stitch,made_in,cond,prov,dealer,published,created_at,price_usd,sold';
 
-function Shell({ title, kicker, children }: { title: string; kicker?: string; children?: React.ReactNode }) {
+function Shell({ title, kicker, children, art }: { title: string; kicker?: string; children?: React.ReactNode; art?: string }) {
   return (
-    <MoShell title={title} kicker={kicker}>
+    <RecordShell title={title} kicker={kicker} art={art} photo={!!art}>
       {children}
-    </MoShell>
+    </RecordShell>
   );
 }
 
@@ -74,7 +74,7 @@ export default async function Buy({ params }: { params: { token: string } }) {
   const items = (data as unknown as Item[]) || [];
 
   return (
-    <Shell title={t('You won the draw!', '抽選に当選しました！')} kicker={t("Winner's order form", '当選者の注文フォーム')}>
+    <Shell title={t('You won the draw!', '抽選に当選しました！')} kicker={t("Winner's order form", '当選者の注文フォーム')} art={items.length === 1 && items[0].photos[0] ? photoUrl(items[0].photos[0]) : undefined}>
       <p className="mo-lead">
         {entry.item_id ? t('This piece is reserved for you to buy.', 'この作品はあなたのために確保されています。') : t('Choose one piece from the archive.', 'アーカイブから1点お選びください。')} {t('The link works once and is for you only.', 'このリンクは1回限り、ご本人専用です。')}
       </p>

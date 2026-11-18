@@ -2903,3 +2903,80 @@ body:has(.cx){background:#09090a}
   .cx-tl li{grid-template-columns:76px minmax(0,1fr)}.cx-tl code{display:none}
   .cx-lb{font-size:8px}.cx-lb b{font-size:9.5px}.cx-lb span{display:none}
 }
+
+/* ---- 購入まわりもコンセプトと同じ「光の粒」と黒い記録保管庫の UI に ---- */
+.pp{position:relative;overflow:hidden;touch-action:pan-y}
+.pp canvas{position:absolute;inset:0;display:block;pointer-events:auto}
+.pp-img{position:absolute;display:grid;place-items:center;opacity:0;transform:scale(.97);transition:opacity 1.4s ease,transform 1.6s cubic-bezier(.2,.8,.2,1);pointer-events:none}
+.pp-img img{max-width:100%;max-height:100%;object-fit:contain;filter:drop-shadow(0 30px 40px rgba(0,0,0,.5))}
+.pp.shown .pp-img,.pp.failed .pp-img{opacity:1;transform:none}
+/* 商品ページ */
+.sf-pdp.cxp,.kx .sf-pdp.cxp{--line:rgba(236,232,223,.14);--mut:#8d8a84;background:radial-gradient(110% 80% at 30% 40%,#17161b,#09090a 70%);color:#ece8df}
+.cxp .sf-pimgs{position:sticky;top:0;height:100vh;align-content:stretch;grid-template-rows:minmax(0,1fr) auto}
+.cxp .sf-pmain,.kx .cxp .sf-pmain{background:none;aspect-ratio:auto;height:100%;display:block}
+.cxp .sf-phint{margin:0 0 18px;text-align:center;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8d8a84}
+.cxp .sf-x{color:#ece8df;border-color:rgba(236,232,223,.3);background:rgba(9,9,10,.5);z-index:3}
+.cxp .sf-pinfo{background:rgba(12,12,14,.55);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-left:1px solid rgba(236,232,223,.1);min-height:100vh}
+.cxp .sf-pcode{font-family:var(--mono);color:#c9a46a;letter-spacing:.14em}
+.cxp .sf-pinfo h1,.kx .cxp .sf-pinfo h1{font-size:clamp(28px,3.2vw,44px);font-weight:900;font-stretch:125%;letter-spacing:-.02em;text-transform:none;line-height:.98;color:#ece8df}
+.cxp .sf-psub{color:#8d8a84}
+.cxp .sf-pprice{font-family:var(--mono);font-size:18px;color:#ece8df}
+.cxp .sf-btn,.cxp .mo-btn{background:#ece8df!important;color:#09090a!important;border:0!important;border-radius:0!important;font-size:11px;letter-spacing:.18em;text-transform:uppercase;font-weight:600}
+.cxp .sf-btn:hover,.cxp .mo-btn:hover{background:#c9a46a!important}
+.cxp .sf-btn.ghost{background:transparent!important;color:#ece8df!important;border:1px solid rgba(236,232,223,.4)!important}
+.cxp .sf-fine,.cxp .mo-fine{color:#8d8a84}
+.cxp details p{color:#c9c5bc!important}
+.cxp summary{color:#ece8df}
+.cxp dt{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.08em}
+.cxp .sf-link{color:#c9a46a}
+.cxp .sf-more b{color:#ece8df}
+.cxp .sf-more .sf-card,.cxp .sf-more a{color:#ece8df}
+.cxp .sf-more .sf-cpic,.kx .cxp .sf-more .sf-cpic{background:#16151a}
+.cxp .sf-more img{mix-blend-mode:normal}
+/* カート */
+.sf-cart.cxp{background:#0c0c0e;color:#ece8df;border-left:1px solid rgba(236,232,223,.12)}
+.sf-cart.cxp .sf-limg{background:#16151a}
+.sf-cart.cxp .sf-limg img{mix-blend-mode:normal}
+.sf-cart.cxp small,.sf-cart.cxp .sf-fine{color:#8d8a84}
+.sf-cart.cxp em{font-family:var(--mono);color:#c9a46a;font-style:normal}
+.sf-cart.cxp .sf-sum{border-color:rgba(236,232,223,.14)}
+.sf-cart.cxp .sf-sum b{font-family:var(--mono)}
+.sf-cart.cxp button{color:#ece8df}
+.sf-cart.cxp .mo-btn{background:#ece8df;color:#09090a;border-radius:0}
+/* 当選者の注文・購入完了 */
+body:has(.rx){background:#09090a}
+.rx{min-height:100vh;display:grid;grid-template-rows:auto 1fr auto;color:#ece8df;background:radial-gradient(110% 80% at 30% 40%,#17161b,#09090a 70%);font-family:"Archivo","Helvetica Neue",Arial,"Noto Sans JP",sans-serif}
+.rx a{color:inherit;text-decoration:none}
+.rx-top{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:20px clamp(16px,3vw,40px);position:relative;z-index:3}
+.rx-top nav{display:flex;gap:18px;align-items:center;font-size:11px;letter-spacing:.16em;text-transform:uppercase}
+.rx-body{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);min-height:0}
+.rx-art{position:sticky;top:0;height:calc(100vh - 70px)}
+.rx-pp{position:absolute;inset:0}
+.rx-main{display:grid;align-content:center;gap:16px;padding:40px clamp(18px,5vw,80px) 60px;max-width:620px}
+.rx-h{margin:0;font-size:clamp(34px,5vw,72px);font-weight:900;font-stretch:125%;line-height:.92;letter-spacing:-.03em}
+.rx .mo-lead,.rx-note{margin:0;font-size:14.5px;line-height:1.8;color:#c9c5bc}
+.rx-note{font-size:12.5px;color:#8d8a84}
+.rx .mo-order{display:grid;gap:14px;padding:22px;background:rgba(12,12,14,.6);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(236,232,223,.12)}
+.rx .mo-dpic{display:none}
+.rx .mo-order:not(:only-of-type) .mo-dpic{display:block;max-width:180px}
+.rx .mo-dpic img{width:100%;border-radius:2px}
+.rx .mo-no{margin:0;font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#c9a46a}
+.rx .mo-dh{margin:0;font-size:26px;font-weight:800;letter-spacing:-.01em}
+.rx .mo-dsub,.rx .mo-fine{margin:0;color:#8d8a84;font-size:12.5px}
+.rx .mo-coupon{display:grid;gap:10px;margin-top:6px;padding-top:14px;border-top:1px dashed rgba(201,164,106,.4)}
+.rx .mo-cut{display:none}
+.rx .mo-price{margin:0;font-family:var(--mono);font-size:20px}
+.rx .mo-btn{display:block;width:100%;padding:16px;background:#ece8df;color:#09090a;border:0;font:inherit;font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;cursor:pointer}
+.rx .mo-btn:hover{background:#c9a46a}
+.rx .mo-err{color:#ff8f80;font-size:12px;margin:0}
+.rx-foot{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:18px clamp(16px,3vw,40px);font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:#8d8a84;border-top:1px solid rgba(236,232,223,.08)}
+@media (max-width:860px){
+  .cxp .sf-pimgs{position:relative;height:62vh}
+  .cxp .sf-pinfo{min-height:0;border-left:0;border-top:1px solid rgba(236,232,223,.1)}
+  .rx-body{grid-template-columns:minmax(0,1fr)}
+  .rx-art{position:relative;height:52vh}
+  .rx-main{padding:10px 18px 50px}
+  .rx-top nav a:nth-child(2){display:none}
+}
+.rx{--bone:#ece8df;--dim:#8d8a84;--brass:#c9a46a}
+.rx .cx-ctas{margin:6px 0 0}
