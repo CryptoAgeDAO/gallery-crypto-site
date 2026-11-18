@@ -2986,3 +2986,101 @@ body:has(.rx){background:#09090a}
 .gr-fail div{display:flex;gap:14px;justify-content:center;align-items:center;margin-top:6px}
 .gr-fail button{border:1px solid rgba(244,239,230,.5)!important;padding:10px 18px!important;font-size:11px;letter-spacing:.18em;text-transform:uppercase}
 .gr-fail a{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#e3cfa6}
+
+/* ---- ホームもコンセプト・購入画面と同じ黒い記録保管庫と光の粒に（統一） ---- */
+body:has(.cxh){background:#09090a}
+.pm{position:fixed;inset:0;z-index:0;pointer-events:none}
+.pm canvas{display:block}
+.hb.kh.cxh{--bone:#ece8df;--dim:#8d8a84;--brass:#c9a46a;--line:rgba(236,232,223,.12);--stone:rgba(255,255,255,.035);background:radial-gradient(120% 80% at 70% 30%,#17161b,#09090a 65%) fixed;color:var(--bone);position:relative}
+.cxh>*:not(.pm){position:relative;z-index:1}
+.cxh .st-ann{background:transparent;border-bottom:1px solid var(--line);color:var(--dim);font-family:var(--mono)}
+.cxh .hb-top{background:rgba(9,9,10,.55);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
+.cxh .hb-top nav a,.cxh .kh-r a{color:var(--bone)}
+.cxh .hb-logo{font-family:"Archivo",sans-serif;font-weight:900;font-stretch:125%;letter-spacing:.08em;font-size:17px;color:var(--bone);-webkit-text-fill-color:var(--bone)}
+.cxh .gt-snd{color:var(--bone);border-color:var(--line)}
+.cxh .kh-hero{background:none;border:0;min-height:calc(100vh - 100px);place-items:center start;padding:0 clamp(18px,6vw,100px)}
+.cxh .kh-txt{background:none;justify-items:start;text-align:left;max-width:620px;padding:40px 0}
+.cxh .kh-kick{font-family:var(--mono);color:var(--dim)}
+.cxh .kh-txt h1{font-family:"Archivo","Noto Sans JP",sans-serif;font-weight:900;font-stretch:125%;font-size:clamp(40px,6.6vw,96px);line-height:.92;letter-spacing:-.035em;color:var(--bone)}
+.cxh .kh-txt h1::after{margin:22px 0 0;background:var(--brass);width:48px}
+.cxh .kh-lead{color:#c9c5bc;font-size:15px}
+.cxh .kh-ctas a{background:var(--bone);color:#09090a;border-color:var(--bone);font-weight:600}
+.cxh .kh-ctas a:hover{background:var(--brass);border-color:var(--brass);color:#09090a}
+.cxh .kh-ctas a.ghost{background:transparent;color:var(--bone);border-color:rgba(236,232,223,.4)}
+.cxh .kh-stats span{color:var(--dim);font-family:var(--mono)}
+.cxh .kh-stats b{font-family:"Archivo",sans-serif;font-weight:900;font-stretch:125%;color:var(--bone)}
+/* 4つの柱：ガラスのタイル。指すと背景の粒がその柱の形になる */
+.cxh .kh-tiles{gap:1px;padding:0;background:var(--line);border-block:1px solid var(--line)}
+.cxh .kh-tile{background:rgba(9,9,10,.72);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);aspect-ratio:auto;min-height:200px;align-content:end;justify-items:start;text-align:left;padding:22px;transition:background .4s}
+.cxh .kh-tile:hover{background:rgba(201,164,106,.12)}
+.cxh .kh-tpic{display:none}
+.cxh .kh-tile b{font-family:"Archivo",sans-serif;font-weight:900;font-stretch:125%;font-size:clamp(18px,1.8vw,24px);letter-spacing:-.01em;text-transform:none;color:var(--bone)}
+.cxh .kh-tile b::before{content:attr(data-n);display:block}
+.cxh .kh-tile span:last-child{color:var(--dim);max-width:none}
+.cxh .kh-tile::after{content:"→";position:absolute;right:22px;top:22px;color:var(--brass);transition:transform .4s}
+.cxh .kh-tile:hover::after{transform:translateX(6px)}
+/* 章 */
+.cxh .hb-sec{padding-top:110px}
+.cxh .hb-sh{justify-items:start;text-align:left}
+.cxh .hb-sh i{font-family:var(--mono);font-size:11px;color:var(--brass)}
+.cxh .hb-sh h2{font-family:"Archivo","Noto Sans JP",sans-serif;font-size:clamp(34px,5vw,72px);font-weight:900;font-stretch:125%;letter-spacing:-.03em;text-transform:none;color:var(--bone);line-height:.95}
+.cxh .hb-sh h2::after{margin:16px 0 0}
+.cxh .hb-sh p{color:var(--dim)}
+.cxh .hb-note{text-align:left;margin:0;font-family:inherit;font-size:14.5px;color:#c9c5bc;max-width:56ch;line-height:1.8}
+.cxh .hb-tabs{justify-content:flex-start}
+.cxh .hb-tabs button{color:var(--dim)}
+.cxh .hb-tabs button[aria-pressed=true]{color:var(--bone);border-color:var(--brass)}
+.cxh .hb-grid{gap:1px;background:var(--line);border:1px solid var(--line)}
+.cxh .hb-card{background:rgba(9,9,10,.78);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);padding:0 0 16px;text-align:left;justify-items:start;transition:background .4s,transform .5s cubic-bezier(.2,.8,.2,1)}
+.cxh .hb-card:hover{background:rgba(22,21,26,.9)}
+.cxh .hb-card>*:not(.hb-cpic){padding-inline:14px}
+.cxh .hb-cpic{background:radial-gradient(circle at 50% 45%,#1d1c22,#0d0d10 70%)}
+.cxh .hb-cpic img,.cxh .hb-cpic svg{mix-blend-mode:normal;transition:transform .8s cubic-bezier(.2,.8,.2,1)}
+.cxh .hb-card:hover .hb-cpic img,.cxh .hb-card:hover .hb-cpic svg{transform:scale(1.06) rotate(-1deg)}
+.cxh .hb-cpic em{background:var(--brass);color:#09090a}
+.cxh .hb-ccode{font-family:var(--mono);color:var(--brass)}
+.cxh .hb-card b{color:var(--bone);text-transform:none;letter-spacing:0;font-weight:700;font-size:13px}
+.cxh .hb-csub,.cxh .hb-cprice{color:var(--dim)}
+.cxh .hb-cprice{font-family:var(--mono)}
+/* イベント・フォーム */
+.cxh .hb-flow li{color:#c9c5bc}
+.cxh .hb-ev,.cxh .hb-locc,.cxh .hb-form,.cxh .hb-check,.cxh .hb-fair,.cxh .hb-sub2,.cxh .hb-map>div{background:rgba(9,9,10,.72);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-color:var(--line);color:var(--bone)}
+.cxh .hb-ev.open,.cxh .hb-ev:hover{border-color:var(--brass)}
+.cxh .hb-evd{border-right-color:var(--line)}
+.cxh .hb-evd b,.cxh .gt-cd b{color:var(--bone);font-family:"Archivo",sans-serif;font-weight:800}
+.cxh .hb-state{background:rgba(255,255,255,.06);color:var(--bone)}
+.cxh .hb-state.drawn{background:var(--brass);color:#09090a}
+.cxh .gt-gauge i{background:rgba(255,255,255,.08)}
+.cxh input,.cxh select,.cxh textarea{background:rgba(255,255,255,.04)!important;color:var(--bone)!important;border-color:rgba(236,232,223,.18)!important}
+.cxh input::placeholder,.cxh textarea::placeholder{color:#6f6c67}
+.cxh label{color:#c9c5bc}
+.cxh .hb-btn{background:var(--bone);border-color:var(--bone);color:#09090a}
+.cxh .hb-btn:hover:not(:disabled){background:var(--brass);border-color:var(--brass)}
+.cxh .hb-btn.ghost{background:transparent;color:var(--bone);border-color:rgba(236,232,223,.4)}
+.cxh .hb-mini{color:var(--bone);border-color:var(--line);background:transparent}
+.cxh .hb-ticket{background:rgba(201,164,106,.08);border-color:var(--brass);color:var(--bone)}
+.cxh .hb-tr .no{font-family:var(--mono)}
+.cxh .hb-foot{background:transparent;border-top:1px solid var(--line);color:var(--dim)}
+.cxh .hb-foot a{color:var(--bone)}
+.cxh .hb-fine,.cxh small{color:var(--dim)}
+/* 詳細シート */
+.cxh .hb-sheet{background:#0f0f12;color:var(--bone);border:1px solid var(--line)}
+.cxh .hb-pic{background:radial-gradient(circle at 50% 45%,#1d1c22,#0d0d10 70%)}
+.cxh .hb-info h3{color:var(--bone);text-transform:none;letter-spacing:-.01em;font-weight:900;font-stretch:125%}
+.cxh .hb-info p,.cxh .hb-info li,.cxh .hb-info dd{color:#c9c5bc}
+/* 抽選の演出も黒地に */
+body:has(.cxh) .gt-draw{background:radial-gradient(circle at 50% 50%,rgba(201,164,106,.16),transparent 60%),rgba(9,9,10,.96);color:#ece8df}
+body:has(.cxh) .gt-count{color:#ece8df;font-family:"Archivo",sans-serif;font-weight:900;font-stretch:125%}
+body:has(.cxh) .gt-res{background:#0f0f12;color:#ece8df;border-color:#c9a46a}
+body:has(.cxh) .gt-res li{background:rgba(255,255,255,.05)}
+body:has(.cxh) .gt-go{background:#ece8df;color:#09090a}
+@media (max-width:820px){
+  .cxh .kh-hero{min-height:auto;padding:46vh 18px 30px;place-items:end start}
+  .cxh .kh-tile{min-height:130px;padding:16px}
+  .cxh .kh-tile::after{right:16px;top:16px}
+  .cxh .hb-sec{padding-top:80px}
+}
+.pm{transition:opacity .8s}
+@media (max-width:820px){.pm.dim{opacity:.32}}
+.cxh .hb-cpic{background:#ece8df}
+.cxh .hb-cpic img,.cxh .hb-cpic svg{mix-blend-mode:multiply}

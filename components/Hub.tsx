@@ -6,6 +6,11 @@ import QRCode from 'qrcode';
 import { LangToggle, useLang } from './Lang';
 import { ProjectPic } from './HubArt';
 import { Countdown, DrawShow, Meters, useReveal } from './HubFX';
+import dynamic from 'next/dynamic';
+import { cutout } from './shop/RailShop';
+import { textTarget, type MorphTarget } from './concept/morphText';
+const ParticleMorph = dynamic(() => import('./concept/ParticleMorph'), { ssr: false });
+const STAGE: Record<string, number> = { rwa: 1, vintage: 2, art: 3, events: 4 };
 import { onSfxChange, setSfx, sfx, sfxEnabled } from '@/lib/sfx';
 import { PROJECTS, csv, decline, drawOrder, freshEvents, newSeed, renumber, rid, runDraw, sampleEntrants, sha256, slotOf, swap, type Entrant, type GcEv, type Loc, type Pillar, type Project } from '@/lib/hub';
 
@@ -370,10 +375,24 @@ export default function Hub() {
   const goEvent = (id: string) => { setSel(null); setOpenEv(id); setTimeout(() => document.getElementById(`ev-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60); };
   useEffect(() => { const h = decodeURIComponent(location.hash.slice(1)); const p = PROJECTS.find((x) => x.code === h); if (p) setSel(p); }, []);
   useReveal(`${vf}${evs ? 1 : 0}`);
+  // 背景の光の粒：章ごとに形を変える（0 ヒーロー / 1 RWA / 2 ヴィンテージ / 3 アート / 4 イベント）
+  const [targets, setTargets] = useState<MorphTarget[]>([]);
+  const [stage, setStage] = useState(0);
+  const [hoverStage, setHoverStage] = useState<number | null>(null);
+  useEffect(() => {
+    setTargets([{ src: cutout('v3') }, textTarget('RWA', lang === 'ja' ? 'NFC · 記録つき' : 'NFC · ON-CHAIN RECORD'), { src: cutout('v1') }, { src: cutout('a1'), photo: true }, textTarget('No.0001', lang === 'ja' ? '抽選 · 受付番号' : 'LOTTERY · ENTRY NO.')]);
+  }, [lang]);
+  useEffect(() => {
+    const ids = ['top', 'rwa', 'vintage', 'art', 'events'];
+    const io = new IntersectionObserver((es) => { es.forEach((e) => { if (e.isIntersecting) setStage(Math.max(0, ids.indexOf((e.target as HTMLElement).id))); }); }, { rootMargin: '-45% 0px -45% 0px' });
+    ids.forEach((id) => { const el = document.getElementById(id); if (el) io.observe(el); });
+    return () => io.disconnect();
+  }, [evs]);
   const vint = by('vintage').filter((p) => vf === 'all' || (vf === 'v' ? p.code.startsWith('GC-V') : p.code.startsWith('GC-U')));
 
   return (
-    <div className="hb kh" translate="no">
+    <div className="hb kh cxh" translate="no">
+      {targets.length > 0 && <ParticleMorph targets={targets} active={hoverStage ?? stage} dim={stage > 0} />}
       <div className="st-ann">{t('Demo — all pieces and people are fictional samples · Launching 2027', 'デモ版 — 作品・人物はすべて架空の見本です · 2027年始動')}</div>
       <header className="hb-top">
         <nav>{PILLARS.map((p) => <a key={p.k} href={`#${p.k}`}>{L(p)[0]}</a>)}</nav>
@@ -386,10 +405,7 @@ export default function Hub() {
         </span>
       </header>
 
-      <section className="kh-hero">
-        <div className="kh-pics" aria-hidden>
-          {PROJECTS.filter((p) => p.img).slice(0, 3).map((p, i) => <span key={p.id} className={`kh-pic p${i}`}><ProjectPic p={p} /></span>)}
-        </div>
+      <section className="kh-hero" id="top">
         <div className="kh-txt">
           <p className="kh-kick">Gallery Crypto — Tokyo</p>
           <h1>{t('Real things, with a record you can check.', '本物に、確かめられる記録を。')}</h1>
@@ -409,7 +425,7 @@ export default function Hub() {
         {PILLARS.map((p) => {
           const rep = p.k === 'events' ? PROJECTS.find((x) => x.id === 'a2')! : PROJECTS.find((x) => x.pillar === p.k && (x.img || x.draw || x.art))!;
           return (
-            <a key={p.k} href={`#${p.k}`} className="kh-tile" onClick={() => sfx('select')}>
+            <a key={p.k} href={`#${p.k}`} className="kh-tile" onClick={() => sfx('select')} onPointerEnter={() => setHoverStage(STAGE[p.k])} onPointerLeave={() => setHoverStage(null)}>
               <span className="kh-tpic"><ProjectPic p={rep} /></span>
               <b>{L(p)[0]}</b><span>{L(p)[1]}</span>
             </a>

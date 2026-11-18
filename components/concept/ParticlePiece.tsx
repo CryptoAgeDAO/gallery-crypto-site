@@ -10,7 +10,7 @@ type Props = { src: string; photo?: boolean; reveal?: boolean; mode?: 'piece' | 
 const BLOCKS = 5;
 
 // 絵（透明背景）なら不透明な所、写真なら四隅の色と違う所を「服」とみなして粒を拾う
-function sample(src: string, photo: boolean, n: number, boxW: number, boxH: number): Promise<{ pos: Float32Array; col: Float32Array; w: number; h: number; cut?: string } | null> {
+export function sample(src: string, photo: boolean, n: number, boxW: number, boxH: number, thr = 52): Promise<{ pos: Float32Array; col: Float32Array; w: number; h: number; cut?: string } | null> {
   return new Promise((res) => {
     const im = new Image(); im.crossOrigin = 'anonymous';
     im.onload = () => {
@@ -24,7 +24,7 @@ function sample(src: string, photo: boolean, n: number, boxW: number, boxH: numb
         const px: number[] = [];
         for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
           const o = (y * W + x) * 4;
-          if (photo ? Math.hypot(d[o] - br, d[o + 1] - bg, d[o + 2] - bb) > 34 : d[o + 3] > 140) px.push(x, y);
+          if (photo ? d[o + 3] > 140 && Math.hypot(d[o] - br, d[o + 1] - bg, d[o + 2] - bb) > thr : d[o + 3] > 140) px.push(x, y);
         }
         if (px.length < 20) { res(null); return; }
         // 箱の中に収める（object-fit: contain と同じ計算）
