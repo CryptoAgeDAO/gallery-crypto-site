@@ -16,9 +16,8 @@ export type GRoom = { key: string; pieces: GPiece[] };
 export type GalleryApi = { goRoom: (i: number) => void; focus: (id: string | null) => void };
 export type GState = { room: number; focus: string | null; moving: boolean; ready: boolean; lost?: boolean };
 
-const RW = 16; // 部屋の幅
-const WALL_Z = -5;
-const CAM_Z = 4.2;
+// ひとつの大きな倉庫ギャラリー（横 24m × 奥行き 18m）。作品は壁ごとに「エリア」としてまとまる
+const HX = 12, HZ = 9, CH = 5.6, EYE = 1.62;
 
 // ---- 素材（キャンバスで描く） ----
 let seed = 7;
@@ -115,29 +114,29 @@ const leafTex = () => canvas(128, 256, (g) => {
 
 export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: GRoom[]; apiRef: React.MutableRefObject<GalleryApi | null>; onState: (s: GState) => void; onPick: (id: string) => void }) {
   const host = useRef<HTMLDivElement>(null);
+  const stick = useRef<HTMLDivElement>(null);
   const cb = useRef({ onState, onPick }); cb.current = { onState, onPick };
-  // 縦長の画面（iPhone を縦に持ったとき）は、作品を2列に組んで部屋全体が入るようにする
-  const [tall, setTall] = useState(() => typeof window !== 'undefined' && innerHeight > innerWidth * 1.15);
-  useEffect(() => { const f = () => setTall(innerHeight > innerWidth * 1.15); f(); addEventListener('resize', f); return () => removeEventListener('resize', f); }, []);
+  const [coarse] = useState(() => typeof window !== 'undefined' && matchMedia('(pointer: coarse)').matches);
 
   useEffect(() => {
     const el = host.current!; seed = 7; let alive = true;
-    BW = matchMedia('(max-width: 760px)').matches ? 1024 : 2048;
     const mobile = matchMedia('(max-width: 760px)').matches;
+    BW = mobile ? 1024 : 2048;
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: true });
     renderer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.4 : 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.88;
     el.appendChild(renderer.domElement);
-    renderer.domElement.addEventListener('webglcontextlost', (e) => { e.preventDefault(); cb.current.onState({ room: 0, focus: null, moving: false, ready: true, lost: true } as GState); });
-    const scene = new THREE.Scene(); scene.background = new THREE.Color(0xe9e8e4); scene.add(new THREE.HemisphereLight(0xffffff, 0xa9a7a1, 0.85));
+    renderer.domElement.addEventListener('webglcontextlost', (e) => { e.preventDefault(); cb.current.onState({ room: 0, focus: null, moving: false, ready: true, lost: true }); });
+    const scene = new THREE.Scene(); scene.background = new THREE.Color(0xe9e8e4);
+    scene.add(new THREE.HemisphereLight(0xffffff, 0xa9a7a1, 0.85));
     const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.75;
-    const camera = new THREE.PerspectiveCamera(tall ? 72 : mobile ? 62 : 50, 1, 0.05, 80); scene.add(camera);
+    const camera = new THREE.PerspectiveCamera(mobile ? 70 : 58, 1, 0.05, 120); camera.rotation.order = 'YXZ'; scene.add(camera);
 
-    // 共通の素材
-    const travC = plaster(), floorC = concrete();
-    const travMat = (rx: number, ry: number) => new THREE.MeshStandardMaterial({ map: tex(travC, [rx * 2, ry * 2]), roughness: 0.92 });
-    const floorMat = new THREE.MeshStandardMaterial({ map: tex(floorC, [RW / 6, 2]), roughness: 0.16, metalness: 0.0, envMapIntensity: 1.3, transparent: !mobile, opacity: mobile ? 1 : 0.86 });
+    // ---- 素材 ----
+    const plasterC = plaster(), floorC = concrete();
+    const wallMat = (rx: number, ry: number) => new THREE.MeshStandardMaterial({ map: tex(plasterC, [rx, ry]), roughness: 0.92 });
+    const floorMat = new THREE.MeshStandardMaterial({ map: tex(floorC, [HX / 3, HZ / 3]), roughness: 0.16, envMapIntensity: 1.3, transparent: !mobile, opacity: mobile ? 1 : 0.86 });
     const ceilMat = new THREE.MeshStandardMaterial({ color: 0xf4f4f2, roughness: 0.95 });
     const steel = new THREE.MeshStandardMaterial({ color: 0xf6f6f4, roughness: 0.55, metalness: 0.1 });
     const chrome = new THREE.MeshStandardMaterial({ color: 0xd9dbde, metalness: 1, roughness: 0.18 });
@@ -146,15 +145,9 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
     const skyMat = new THREE.MeshBasicMaterial({ color: 0xeaf2ff });
     const woodMat = new THREE.MeshStandardMaterial({ map: tex(woodSlats(), [1, 1]), roughness: 0.6, side: THREE.DoubleSide });
     const muralMat = new THREE.MeshStandardMaterial({ map: tex(mural()), roughness: 0.95, transparent: true });
-    const brass = new THREE.MeshStandardMaterial({ color: 0xb08a50, metalness: 0.9, roughness: 0.32 });
-    const darkBronze = new THREE.MeshStandardMaterial({ color: 0x2c2620, metalness: 0.6, roughness: 0.45 });
-    const lampMat = new THREE.MeshBasicMaterial({ color: 0xfff1d6 });
-    const coveMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-    const marbleTex = tex(marble());
-    const marbleMat = new THREE.MeshStandardMaterial({ map: marbleTex, roughness: 0.42, metalness: 0.0 });
+    const panelMat = new THREE.MeshStandardMaterial({ map: tex(bronzeWall([])), roughness: 0.8 });
     const ringT = tex(ringTex()), shadowT = tex(shadowTex()), leafT = tex(leafTex());
     const leafMat = new THREE.MeshStandardMaterial({ map: leafT, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide, roughness: 0.7 });
-    // 作品の絵・写真は、いったん小さめのキャンバスに描いてから使う（iPhone のメモリを使い切らないように）
     const TEXMAX = mobile ? 512 : 1024;
     const loadTex = (url: string, done: (t: THREE.Texture, aspect: number) => void) => {
       const im = new Image(); im.crossOrigin = 'anonymous'; im.decoding = 'async';
@@ -167,136 +160,104 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
       };
       im.src = url;
     };
-
-    const hits: THREE.Object3D[] = []; // 押せるもの
-    const rings: THREE.Sprite[] = [];
-    const spots: { id: string; room: number; pos: THREE.Vector3; h: number }[] = [];
-
     const box = (w: number, h: number, d: number, m: THREE.Material, x: number, y: number, z: number, parent: THREE.Object3D) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); parent.add(b); return b; };
+    const floorShadow = (x: number, z: number, w: number, d: number, o = 0.5) => { const sh = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshBasicMaterial({ map: shadowT, transparent: true, depthWrite: false, opacity: o })); sh.rotation.x = -Math.PI / 2; sh.position.set(x, 0.004, z); scene.add(sh); };
+    const obstacles: { x: number; z: number; r: number }[] = [];
 
+    // ---- 建物：床・天井・壁・鉄骨・天窓 ----
+    if (!mobile) { const rf = new Reflector(new THREE.PlaneGeometry(HX * 2, HZ * 2), { textureWidth: 1024, textureHeight: 1024, color: 0x9a9995 }); rf.rotation.x = -Math.PI / 2; rf.position.y = -0.002; scene.add(rf); }
+    const fl = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), floorMat); fl.rotation.x = -Math.PI / 2; fl.userData.floor = true; scene.add(fl);
+    const ce = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), ceilMat); ce.rotation.x = Math.PI / 2; ce.position.y = CH; scene.add(ce);
+    box(HX * 2, CH, 0.2, wallMat(8, 2), 0, CH / 2, -HZ - 0.1, scene);
+    box(HX * 2, CH, 0.2, wallMat(8, 2), 0, CH / 2, HZ + 0.1, scene);
+    box(0.2, CH, HZ * 2, wallMat(6, 2), -HX - 0.1, CH / 2, 0, scene);
+    box(0.2, CH, HZ * 2, wallMat(6, 2), HX + 0.1, CH / 2, 0, scene);
+    box(HX * 2, 0.14, 0.04, black, 0, 0.07, -HZ + 0.02, scene); box(HX * 2, 0.14, 0.04, black, 0, 0.07, HZ - 0.02, scene);
+    box(0.04, 0.14, HZ * 2, black, -HX + 0.02, 0.07, 0, scene); box(0.04, 0.14, HZ * 2, black, HX - 0.02, 0.07, 0, scene);
+    for (let i = -4; i <= 4; i++) {
+      const x = i * 2.6;
+      box(0.12, 0.42, HZ * 2, steel, x, CH - 0.21, 0, scene);
+      if (!mobile) for (let k = 0; k < 18; k++) { const d = box(0.05, 0.05, 0.62, steel, x, CH - 0.48, -HZ + k + 0.5, scene); d.rotation.x = k % 2 ? 0.7 : -0.7; }
+      box(0.12, 0.05, HZ * 2, steel, x, CH - 0.7, 0, scene);
+      if (i < 4) box(0.05, 0.03, HZ * 2 - 1.5, stripMat, x + 1.3, CH - 0.26, 0, scene);
+    }
+    for (const z of [-5.5, -1.5, 2.5, 6.5]) { const sk = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2 - 2, 1.1), skyMat); sk.rotation.x = Math.PI / 2; sk.position.set(0, CH - 0.01, z); scene.add(sk); }
+    for (const [sx, sz] of [[-HX + 0.7, -HZ + 0.7], [HX - 0.7, -HZ + 0.7], [-HX + 0.7, HZ - 0.7], [HX - 0.7, HZ - 0.7]]) { const sp2 = box(0.42, 0.62, 0.38, black, sx, CH - 1.3, sz, scene); sp2.lookAt(0, CH - 1.3, 0); }
+    for (const [x, z] of [[-6, -2], [6, 3], [0, -6]]) { const pl = new THREE.PointLight(0xffffff, 16, 18, 1.4); pl.position.set(x, CH - 1, z); scene.add(pl); }
+
+    // ---- 作品の壁（エリア）：奥・左・右・手前の壁に順に置く ----
+    const WALLS = [
+      { pos: new THREE.Vector3(0, 0, -HZ), ry: 0 },
+      { pos: new THREE.Vector3(-HX, 0, 0), ry: Math.PI / 2 },
+      { pos: new THREE.Vector3(HX, 0, 0), ry: -Math.PI / 2 },
+      { pos: new THREE.Vector3(0, 0, HZ), ry: Math.PI },
+    ];
+    const hits: THREE.Object3D[] = [];
+    const rings: THREE.Sprite[] = [];
+    const spots: { id: string; room: number; pos: THREE.Vector3; normal: THREE.Vector3; h: number }[] = [];
+    const zones: { center: THREE.Vector3; normal: THREE.Vector3 }[] = [];
     rooms.forEach((room, ri) => {
-      const g = new THREE.Group(); g.position.x = ri * RW; scene.add(g);
+      const W = WALLS[ri % WALLS.length];
+      const g = new THREE.Group(); g.position.copy(W.pos); g.rotation.y = W.ry; scene.add(g);
+      const normal = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), W.ry);
+      zones.push({ center: W.pos.clone().setY(1.6), normal });
       const n = room.pieces.length;
-      const cols = tall ? Math.min(2, n) : n, rows = Math.ceil(n / Math.max(1, cols));
-      const fw = tall ? cols * 1.75 + 0.9 : Math.min(11, Math.max(5, n * 1.75 + 1.4)); // ブロンズの壁面の幅
-      const xs = room.pieces.map((_, k) => (tall ? ((k % cols) - (cols - 1) / 2) * 1.75 : n === 1 ? 0 : -fw / 2 + 0.95 + (k * (fw - 1.9)) / (n - 1)));
-      const rowH = 3.0 / rows; // 縦長のときの1段の高さ
-      const rowY = (k: number) => 3.3 - rowH * (Math.floor(k / cols) + 0.5);
-      // 床・天井・壁
-      const CH = 5.2; // 天井の高さ
-      if (!mobile) { const rf = new Reflector(new THREE.PlaneGeometry(RW, 12), { textureWidth: 1024, textureHeight: 1024, color: 0x9a9995 }); rf.rotation.x = -Math.PI / 2; rf.position.set(0, -0.002, -0.5); g.add(rf); }
-      const fl = new THREE.Mesh(new THREE.PlaneGeometry(RW, 12), floorMat); fl.rotation.x = -Math.PI / 2; fl.position.z = -0.5; g.add(fl);
-      const ce = new THREE.Mesh(new THREE.PlaneGeometry(RW, 12), ceilMat); ce.rotation.x = Math.PI / 2; ce.position.set(0, CH, -0.5); g.add(ce);
-      box(RW, CH, 0.2, travMat(3, 1), 0, CH / 2, WALL_Z - 0.1, g);
-      box(RW, 0.14, 0.04, black, 0, 0.07, WALL_Z + 0.02, g); // 幅木
-      // むき出しの白い鉄骨（奥から手前へ）と、その間の線状の照明・天窓
-      for (let i = -3; i <= 3; i++) {
-        const x = i * 2.3;
-        box(0.12, 0.42, 12, steel, x, CH - 0.21, -0.5, g);
-        for (let k = 0; k < 12; k++) { const d = box(0.05, 0.05, 0.62, steel, x, CH - 0.48, -6 + k + 0.5, g); d.rotation.x = k % 2 ? 0.7 : -0.7; }
-        box(0.12, 0.05, 12, steel, x, CH - 0.7, -0.5, g);
-        if (i < 3) box(0.05, 0.03, 10.5, stripMat, x + 1.15, CH - 0.26, -0.5, g);
-      }
-      for (const z of [-3.2, 0.6]) { const sk = new THREE.Mesh(new THREE.PlaneGeometry(RW - 2, 1.1), skyMat); sk.rotation.x = Math.PI / 2; sk.position.set(0, CH - 0.01, z); g.add(sk); }
-      // 天井の隅のスピーカー
-      for (const sx of [-RW / 2 + 0.7, RW / 2 - 0.7]) { const sp2 = box(0.42, 0.62, 0.38, black, sx, CH - 1.2, WALL_Z + 0.5, g); sp2.rotation.y = sx < 0 ? 0.5 : -0.5; }
-      // 隣の部屋との壁（出入口つき）
-      const side = (sx: number, door: boolean) => {
-        if (!door) { box(0.2, CH, 12, travMat(2, 1), sx, CH / 2, -0.5, g); return; }
-        box(0.2, CH, 2.8, travMat(0.6, 1), sx, CH / 2, -3.6, g);
-        box(0.2, CH, 4.8, travMat(1, 1), sx, CH / 2, 2.6, g);
-        box(0.2, CH - 3, 2.4, travMat(0.5, 0.2), sx, 3 + (CH - 3) / 2, -1, g);
-      };
-      if (ri === 0) side(-RW / 2, false);
-      side(RW / 2, ri < rooms.length - 1);
-      // ブロンズの壁面と、上の間接照明
-      const fwm = new THREE.MeshStandardMaterial({ map: tex(bronzeWall(xs.map((x) => (x + fw / 2) / fw))), roughness: 0.6, metalness: 0.25 });
-      box(fw, 3.4, 0.08, fwm, 0, 1.7, WALL_Z + 0.04, g);
-      box(fw, 0.02, 0.04, coveMat, 0, 3.42, WALL_Z + 0.1, g);
-      // 服を掛ける銀のバー
-      if (!tall && room.pieces.some((q) => q.kind === 'garment')) { box(fw - 0.6, 0.035, 0.035, chrome, 0, 2.6, WALL_Z + 0.3, g); for (const bx of [-(fw - 0.6) / 2, (fw - 0.6) / 2]) box(0.03, 0.03, 0.3, chrome, bx, 2.6, WALL_Z + 0.16, g); }
-      // 天井のダウンライト
-      void lampMat;
-      // 部屋の灯り
-      const sp = new THREE.SpotLight(0xffffff, 40, 14, 0.95, 1, 1.6); sp.position.set(0, 4.6, -1.2); sp.target.position.set(0, 1.4, WALL_Z); g.add(sp, sp.target);
-      const pl = new THREE.PointLight(0xffffff, 14, 16, 1.4); pl.position.set(0, 4.4, 1.5); g.add(pl);
-
-      // 作品
+      const fw = Math.min(ri === 0 ? 14 : 12, Math.max(5, n * 1.9 + 1.4));
+      const xs = room.pieces.map((_, k) => (n === 1 ? 0 : -fw / 2 + 0.95 + (k * (fw - 1.9)) / (n - 1)));
+      box(fw, 3.5, 0.08, panelMat, 0, 1.85, 0.06, g);
+      box(fw, 0.02, 0.04, stripMat, 0, 3.62, 0.12, g);
+      if (room.pieces.some((q) => q.kind === 'garment')) { box(fw - 0.6, 0.035, 0.035, chrome, 0, 2.75, 0.34, g); for (const bx of [-(fw - 0.6) / 2, (fw - 0.6) / 2]) box(0.03, 0.03, 0.3, chrome, bx, 2.75, 0.2, g); }
       room.pieces.forEach((p, k) => {
         const x = xs[k];
-        const baseH = p.kind === 'garment' ? 1.45 : p.kind === 'cap' ? 0.62 : 1.05;
-        const maxH = tall ? Math.min(baseH, rowH * (p.kind === 'cap' ? 0.5 : p.kind === 'garment' ? 0.88 : 0.72)) : baseH;
-        const cy = tall ? rowY(k) + 0.05 : p.kind === 'cap' ? 1.55 : 1.85;
-        const maxW = tall ? 1.45 : Math.min(1.5, (fw - 1.2) / Math.max(1, n) + 0.15);
+        const maxH = p.kind === 'garment' ? 1.5 : p.kind === 'cap' ? 0.62 : 1.1;
+        const cy = p.kind === 'cap' ? 1.6 : 1.95;
+        const maxW = Math.min(1.6, (fw - 1.2) / Math.max(1, n) + 0.2);
         const mat = new THREE.MeshStandardMaterial({ color: p.kind === 'art' ? 0xdcd6cc : 0xf2eee8, roughness: 0.9, transparent: true, alphaTest: 0.04 });
-        const plane = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat);
-        plane.userData.id = p.id; hits.push(plane);
-        const z = WALL_Z + (p.kind === 'art' ? 0.13 : 0.24);
+        const plane = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat); plane.userData.id = p.id; hits.push(plane);
+        const z = p.kind === 'art' ? 0.17 : 0.28;
         plane.position.set(x, cy, z); g.add(plane);
-        const sh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: shadowT, transparent: true, depthWrite: false, opacity: 0.55 }));
-        sh.position.set(x + 0.06, cy - 0.08, WALL_Z + 0.085); g.add(sh);
+        const sh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: shadowT, transparent: true, depthWrite: false, opacity: 0.45 }));
+        sh.position.set(x + 0.06, cy - 0.08, 0.11); g.add(sh);
         let frame: THREE.Mesh | null = null;
-        if (p.kind === 'art') frame = box(1, 1, 0.05, black, x, cy, WALL_Z + 0.1, g);
-        void darkBronze; void brass;
-        if (p.kind === 'cap') box(0.9, 0.04, 0.34, steel, x, cy - maxH * 0.53, WALL_Z + 0.25, g);
-        if (p.kind === 'garment' && tall) { box(0.05, 0.05, 0.26, chrome, x, cy + maxH * 0.57, WALL_Z + 0.17, g); }
+        if (p.kind === 'art') frame = box(1, 1, 0.05, black, x, cy, 0.14, g);
+        if (p.kind === 'cap') box(0.9, 0.04, 0.34, steel, x, cy - maxH * 0.53, 0.29, g);
         const fit = (a: number) => {
           let w = maxH * a, h = maxH; if (w > maxW) { w = maxW; h = w / a; }
           plane.scale.set(w, h, 1); sh.scale.set(w * 1.25, h * 1.15, 1);
           if (frame) frame.scale.set(w + 0.12, h + 0.12, 1);
           if (p.kind === 'cap') plane.position.y = cy - maxH * 0.5 + h / 2;
-          if (p.kind === 'garment') plane.position.y = cy + maxH * 0.55 - h / 2;
+          if (p.kind === 'garment') plane.position.y = 2.75 - 0.02 - h / 2;
           sh.position.y = plane.position.y - 0.08;
         };
         fit(1);
         if (p.tex) loadTex(p.tex, (t, a) => { mat.map = t; mat.needsUpdate = true; fit(a); });
-        // 壁の丸いポイント
         const ring = new THREE.Sprite(new THREE.SpriteMaterial({ map: ringT, transparent: true, depthWrite: false, opacity: 0.95 }));
-        const rs = tall ? 0.26 : 0.34;
-        if (tall) ring.position.set(x + 0.62, cy - maxH * 0.42, WALL_Z + 0.3); else ring.position.set(x, 0.62, WALL_Z + 0.2);
-        ring.scale.setScalar(rs); ring.userData.id = p.id; ring.userData.base = rs; g.add(ring); hits.push(ring); rings.push(ring);
-        spots.push({ id: p.id, room: ri, pos: new THREE.Vector3(ri * RW + x, cy, z), h: maxH });
+        ring.position.set(x, 0.7, 0.3); ring.scale.setScalar(0.34); ring.userData.id = p.id; ring.userData.base = 0.34; g.add(ring); hits.push(ring); rings.push(ring);
+        const wp = new THREE.Vector3(x, cy, z); g.updateMatrixWorld(true); g.localToWorld(wp);
+        spots.push({ id: p.id, room: ri, pos: wp, normal, h: maxH });
       });
-
-      // 家具・植物（部屋ごとに少しずつ違う）
-      const plant = (px: number, pz: number, s: number) => {
-        const pg = new THREE.Group(); pg.position.set(px, 0, pz); pg.scale.setScalar(s); g.add(pg);
-        box(0.5, 0.62, 0.5, travMat(0.2, 0.2), 0, 0.31, 0, pg);
-        for (let i = 0; i < 16; i++) { const l = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.8), leafMat); const a = (i / 16) * Math.PI * 2 + R(-0.2, 0.2); l.position.set(Math.cos(a) * 0.12, 0.62 + R(0.35, 1.05), Math.sin(a) * 0.12); l.rotation.set(R(-0.5, 0.5), a, Math.cos(a) * R(0.4, 0.9)); pg.add(l); }
-        const sh = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.1), new THREE.MeshBasicMaterial({ map: shadowT, transparent: true, depthWrite: false, opacity: 0.7 })); sh.rotation.x = -Math.PI / 2; sh.position.y = 0.005; pg.add(sh);
-      };
-      const pouf = (px: number, pz: number, c: number) => {
-        const m = new THREE.Mesh(new THREE.SphereGeometry(0.34, 32, 20), new THREE.MeshStandardMaterial({ color: c, roughness: 1 })); m.scale.set(1, 0.55, 1); m.position.set(px, 0.18, pz); g.add(m);
-        const sh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: shadowT, transparent: true, depthWrite: false, opacity: 0.6 })); sh.rotation.x = -Math.PI / 2; sh.position.set(px, 0.004, pz); g.add(sh);
-      };
-      const v = ri % 3;
-      const bench = (bx: number, bz: number, w: number) => { box(w, 0.42, 0.62, travMat(0.4, 0.2), bx, 0.21, bz, g); const sh = new THREE.Mesh(new THREE.PlaneGeometry(w * 1.3, 1.1), new THREE.MeshBasicMaterial({ map: shadowT, transparent: true, depthWrite: false, opacity: 0.45 })); sh.rotation.x = -Math.PI / 2; sh.position.set(bx, 0.004, bz); g.add(sh); };
-      plant(v === 1 ? -fw / 2 - (tall ? 0.55 : 1.1) : fw / 2 + (tall ? 0.55 : 1.1), WALL_Z + 0.9, tall ? 0.8 : 1.1);
-      void pouf; void marbleMat;
-      if (v === 0) {
-        // 大きな壁画（左の壁際）と白い台
-        const mw = tall ? 2.2 : 3.8, m = new THREE.Mesh(new THREE.PlaneGeometry(mw, mw * 0.56), muralMat); m.position.set(-fw / 2 - mw / 2 - 0.15, 2.4, WALL_Z + 0.02); if (!tall) g.add(m);
-        bench(tall ? -0.6 : -1.4, -2.3, 1.8); bench(tall ? 1.0 : 2.4, -1.4, 1.2);
-      }
-      if (v === 1) {
-        // 天井から吊るした、木の板で組んだ舟形の彫刻
-        const prof: THREE.Vector2[] = []; for (let k = 0; k <= 16; k++) { const a2 = (k / 16) * Math.PI / 2; prof.push(new THREE.Vector2(Math.sin(a2) * 1, -Math.cos(a2) * 1)); }
-        const hull = new THREE.Mesh(new THREE.LatheGeometry(prof, 48), woodMat); hull.scale.set(tall ? 1.3 : 2.6, 0.55, tall ? 0.8 : 1.3); hull.position.set(tall ? 0.4 : 1.2, CH - 1.5, -1.6); g.add(hull);
-        for (const cx2 of [-1, 1]) box(0.01, 1.5, 0.01, black, hull.position.x + cx2 * hull.scale.x * 0.6, CH - 0.75, -1.6, g);
-        bench(-0.8, -2.0, 2.2);
-      }
-      if (v === 2) {
-        // 記録のブロックを積んだ彫刻（白と銀）
-        const sx2 = tall ? 1.1 : 2.8, sz2 = -2.2;
-        [[0, 0.45, 0, 0.9, steel], [0.12, 1.25, 0.08, 0.7, chrome], [-0.05, 1.86, -0.04, 0.52, steel], [0.06, 2.3, 0.03, 0.36, black]].forEach(([dx, y, dz, s2, mm]) => { const c2 = box(s2 as number, s2 as number, s2 as number, mm as THREE.Material, sx2 + (dx as number), y as number, sz2 + (dz as number), g); c2.rotation.y = (y as number) * 0.6; });
-        bench(-1.6, -1.8, 1.6);
-      }
     });
 
-    // 部屋を移るときに横切る大理石の板（カメラに付けて動かす）
-    const slab = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 0.06), marbleMat); camera.add(slab); slab.visible = false;
-    const slab2 = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 0.06), new THREE.MeshStandardMaterial({ color: 0x4f453b, roughness: 0.5, metalness: 0.3 })); camera.add(slab2); slab2.visible = false;
-    const sun = new THREE.DirectionalLight(0xffffff, 1.2); sun.position.set(0, 0, 1); camera.add(sun); sun.target.position.set(0, 0, -1); camera.add(sun.target); sun.intensity = 0;
+    // ---- 家具・彫刻・壁画 ----
+    const bench = (bx: number, bz: number, w: number, ry = 0) => { const b = box(w, 0.42, 0.62, wallMat(0.4, 0.2), bx, 0.21, bz, scene); b.rotation.y = ry; floorShadow(bx, bz, w * 1.3, 1.2, 0.45); obstacles.push({ x: bx, z: bz, r: w / 2 + 0.35 }); };
+    const plant = (px: number, pz: number, sc: number) => {
+      const pg = new THREE.Group(); pg.position.set(px, 0, pz); pg.scale.setScalar(sc); scene.add(pg);
+      box(0.5, 0.62, 0.5, wallMat(0.2, 0.2), 0, 0.31, 0, pg);
+      for (let i = 0; i < 16; i++) { const l = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.8), leafMat); const a = (i / 16) * Math.PI * 2 + R(-0.2, 0.2); l.position.set(Math.cos(a) * 0.12, 0.62 + R(0.35, 1.05), Math.sin(a) * 0.12); l.rotation.set(R(-0.5, 0.5), a, Math.cos(a) * R(0.4, 0.9)); pg.add(l); }
+      floorShadow(px, pz, 1.1 * sc, 1.1 * sc, 0.7); obstacles.push({ x: px, z: pz, r: 0.6 * sc });
+    };
+    // 手前の壁いっぱいの壁画（振り返ると見える）
+    const mw = 9, mur = new THREE.Mesh(new THREE.PlaneGeometry(mw, mw * 0.56), muralMat); mur.position.set(-3.5, 2.7, HZ - 0.03); mur.rotation.y = Math.PI; scene.add(mur);
+    // 中央に吊るした木の舟形
+    const prof: THREE.Vector2[] = []; for (let k = 0; k <= 16; k++) { const a2 = (k / 16) * Math.PI / 2; prof.push(new THREE.Vector2(Math.sin(a2), -Math.cos(a2))); }
+    const hull = new THREE.Mesh(new THREE.LatheGeometry(prof, 48), woodMat); hull.scale.set(2.8, 0.6, 1.4); hull.position.set(-5.5, CH - 1.6, 3.2); scene.add(hull);
+    for (const cx2 of [-1, 1]) box(0.01, 1.3, 0.01, black, hull.position.x + cx2 * 1.7, CH - 0.65, 3.2, scene);
+    // 記録のブロックを積んだ彫刻
+    const sx2 = 5.2, sz2 = 1.8;
+    ([[0, 0.45, 0, 0.9, steel], [0.12, 1.25, 0.08, 0.7, chrome], [-0.05, 1.86, -0.04, 0.52, steel], [0.06, 2.3, 0.03, 0.36, black]] as [number, number, number, number, THREE.Material][]).forEach(([dx, y, dz, s2, mm]) => { const c2 = box(s2, s2, s2, mm, sx2 + dx, y, sz2 + dz, scene); c2.rotation.y = y * 0.6; });
+    floorShadow(sx2, sz2, 2, 2, 0.6); obstacles.push({ x: sx2, z: sz2, r: 0.9 });
+    bench(-2.5, -2.5, 2.4); bench(2.5, -2.5, 2.4); bench(-5.5, 3.2, 2.2); bench(1.0, 5.2, 2.0);
+    plant(-HX + 1, -HZ + 1, 1.1); plant(HX - 1, -HZ + 1, 1.1); plant(HX - 1, HZ - 1, 1.0); plant(-HX + 1, HZ - 1.2, 0.9);
 
     // 光る作品はブルームで少しにじませる（PC）
     let composer: EffectComposer | null = null;
@@ -307,107 +268,118 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
       composer.addPass(new OutputPass());
     }
 
-    // ---- カメラ ----
+    // ---- 歩く：位置と向き。目標があればそこへ歩いて向く ----
+    const pos = new THREE.Vector3(0, EYE, 5.5);
+    let yaw = 0, pitch = -0.04; // yaw=0 で奥（-z）を向く
+    let goal: { p: THREE.Vector3; yaw: number; pitch: number } | null = null;
     const st = { room: 0, focus: null as string | null, moving: false };
-    const pos = new THREE.Vector3(0, 1.6, CAM_Z), look = new THREE.Vector3(0, 1.55, WALL_Z);
-    const tPos = pos.clone(), tLook = look.clone();
-    let yaw = 0, pitch = 0, vYaw = 0, vPitch = 0;
-    let trans: { t0: number; from: THREE.Vector3; fromL: THREE.Vector3; dir: number } | null = null;
-    const emit = () => cb.current.onState({ room: st.room, focus: st.focus, moving: !!trans, ready: true });
-    let fitZ = CAM_Z;
-    const baseView = (i: number) => { if (tall) { tPos.set(i * RW, 1.85, fitZ); tLook.set(i * RW, 0.62, WALL_Z); } else { tPos.set(i * RW, 1.6, CAM_Z); tLook.set(i * RW, 1.5, WALL_Z); } };
-    const focusView = (id: string) => {
-      const s = spots.find((x) => x.id === id); if (!s) return;
-      const d = mobile ? 2.9 : 2.5, off = mobile ? 0 : 0.62;
-      tPos.set(s.pos.x + off, s.pos.y + (mobile ? -0.55 : -0.05), s.pos.z + d);
-      tLook.set(s.pos.x + off, s.pos.y + (mobile ? -0.55 : 0), s.pos.z);
-    };
-    const goRoom = (i: number) => {
-      i = Math.max(0, Math.min(rooms.length - 1, i));
-      if (i === st.room || trans) { if (i === st.room && st.focus) { st.focus = null; baseView(i); emit(); } return; }
-      trans = { t0: performance.now(), from: pos.clone(), fromL: look.clone(), dir: i > st.room ? 1 : -1 };
-      st.room = i; st.focus = null; baseView(i); yaw = pitch = 0; emit();
-    };
+    const emit = () => cb.current.onState({ room: st.room, focus: st.focus, moving: !!goal, ready: true });
+    const yawTo = (from: THREE.Vector3, to: THREE.Vector3) => Math.atan2(-(to.x - from.x), -(to.z - from.z));
+    const viewZone = (i: number) => { const z = zones[i]; if (!z) return; const p = z.center.clone().addScaledVector(z.normal, mobile ? 12.5 : 7.5); p.y = EYE; goal = { p, yaw: yawTo(p, z.center), pitch: -0.02 }; };
+    const goRoom = (i: number) => { i = Math.max(0, Math.min(zones.length - 1, i)); st.focus = null; st.room = i; viewZone(i); emit(); };
     const focus = (id: string | null) => {
-      if (trans) return;
-      if (!id) { st.focus = null; baseView(st.room); emit(); return; }
+      if (!id) { st.focus = null; emit(); const z = zones[st.room]; if (z) { const p = pos.clone(); const back = z.center.clone().addScaledVector(z.normal, 4.5); goal = { p: new THREE.Vector3(p.x, EYE, p.z).lerp(back.setY(EYE), 0.6), yaw, pitch: -0.03 }; } return; }
       const s = spots.find((x) => x.id === id); if (!s) return;
-      if (s.room !== st.room) { goRoom(s.room); setTimeout(() => { st.focus = id; focusView(id); emit(); }, 1500); return; }
-      st.focus = id; focusView(id); yaw = pitch = 0; emit();
+      const d = mobile ? 3.0 : 2.6;
+      const p = s.pos.clone().addScaledVector(s.normal, d); p.y = EYE;
+      // PC は右に詳細が出るので、作品が左寄りに見えるよう少し右に立つ
+      if (!mobile) p.add(new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), s.normal).multiplyScalar(-0.7));
+      const look = s.pos.clone(); if (mobile) look.y -= 0.6;
+      goal = { p, yaw: yawTo(p, look), pitch: Math.atan2(look.y - EYE, Math.hypot(look.x - p.x, look.z - p.z)) };
+      st.focus = id; st.room = s.room; emit();
     };
     apiRef.current = { goRoom, focus };
-    baseView(0); pos.copy(tPos); look.copy(tLook);
+    camera.position.copy(pos);
 
     // ---- 操作 ----
+    const keys = new Set<string>();
     const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
     let down: { x: number; y: number; t: number } | null = null, last = { x: 0, y: 0 }, moved = 0, hover: string | null = null;
-    const pick = (cx: number, cy: number) => {
+    const cast = (cx: number, cy: number): { id?: string; floor?: THREE.Vector3 } | null => {
       const r = renderer.domElement.getBoundingClientRect(); ndc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
-      ray.setFromCamera(ndc, camera); const h = ray.intersectObjects(hits, false)[0]; return (h?.object.userData.id as string) || null;
+      ray.setFromCamera(ndc, camera);
+      const h = ray.intersectObjects(hits, false)[0]; if (h) return { id: h.object.userData.id as string };
+      const f = ray.intersectObject(fl, false)[0]; if (f) return { floor: f.point };
+      return null;
     };
-    const pd = (e: PointerEvent) => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; last = { x: e.clientX, y: e.clientY }; moved = 0; };
+    const pd = (e: PointerEvent) => { if (e.target !== renderer.domElement) return; down = { x: e.clientX, y: e.clientY, t: performance.now() }; last = { x: e.clientX, y: e.clientY }; moved = 0; };
     const pmv = (e: PointerEvent) => {
       if (down) {
         const dx = e.clientX - last.x, dy = e.clientY - last.y; last = { x: e.clientX, y: e.clientY }; moved += Math.abs(dx) + Math.abs(dy);
-        vYaw = dx * 0.0022; vPitch = dy * 0.0016; yaw = Math.max(-0.45, Math.min(0.45, yaw + vYaw)); pitch = Math.max(-0.16, Math.min(0.16, pitch + vPitch));
-      } else if (e.pointerType === 'mouse') {
-        const id = pick(e.clientX, e.clientY); if (id !== hover) { hover = id; renderer.domElement.style.cursor = id ? 'pointer' : 'grab'; }
+        if (moved > 6) { yaw += dx * 0.0042; pitch = Math.max(-0.7, Math.min(0.6, pitch + dy * 0.003)); if (goal) goal = null; }
+      } else if (e.pointerType === 'mouse' && e.target === renderer.domElement) {
+        const h = cast(e.clientX, e.clientY); const id = h?.id ?? null;
+        if (id !== hover) hover = id;
+        renderer.domElement.style.cursor = id ? 'pointer' : h?.floor ? 'crosshair' : 'grab';
       }
     };
     const pu = (e: PointerEvent) => {
       if (!down) return;
-      const dx = e.clientX - down.x, quick = performance.now() - down.t < 380;
-      if (moved < 8) { const id = pick(e.clientX, e.clientY); if (id) cb.current.onPick(id); }
-      else if (e.pointerType !== 'mouse' && quick && Math.abs(dx) > 60 && !st.focus) { goRoom(st.room + (dx < 0 ? 1 : -1)); yaw = 0; }
+      if (moved < 8) {
+        const h = cast(e.clientX, e.clientY);
+        if (h?.id) cb.current.onPick(h.id);
+        else if (h?.floor) {
+          // 床を押すと、そこまで歩く（向きはそのまま、少し進行方向へ）
+          const p = h.floor.clone(); p.x = Math.max(-HX + 0.8, Math.min(HX - 0.8, p.x)); p.z = Math.max(-HZ + 0.8, Math.min(HZ - 0.8, p.z)); p.y = EYE;
+          goal = { p, yaw: yawTo(pos, p), pitch: -0.04 }; if (st.focus) { st.focus = null; } emit();
+        }
+      }
       down = null;
     };
-    const key = (e: KeyboardEvent) => { if (e.key === 'ArrowRight') goRoom(st.room + 1); if (e.key === 'ArrowLeft') goRoom(st.room - 1); if (e.key === 'Escape') focus(null); };
+    const kd = (e: KeyboardEvent) => { if ((e.target as HTMLElement)?.tagName === 'INPUT') return; keys.add(e.key.toLowerCase()); if (e.key === 'Escape') focus(null); if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(e.key.toLowerCase())) e.preventDefault(); };
+    const ku = (e: KeyboardEvent) => keys.delete(e.key.toLowerCase());
     renderer.domElement.style.cursor = 'grab'; renderer.domElement.style.touchAction = 'none';
-    renderer.domElement.addEventListener('pointerdown', pd); addEventListener('pointermove', pmv); addEventListener('pointerup', pu); addEventListener('keydown', key);
+    addEventListener('pointerdown', pd); addEventListener('pointermove', pmv); addEventListener('pointerup', pu); addEventListener('keydown', kd); addEventListener('keyup', ku);
+    // スマホの左下のスティック
+    const joy = { x: 0, y: 0, id: -1, cx: 0, cy: 0 };
+    const sEl = stick.current;
+    const js = (e: PointerEvent) => { if (!sEl) return; e.stopPropagation(); joy.id = e.pointerId; const r = sEl.getBoundingClientRect(); joy.cx = r.left + r.width / 2; joy.cy = r.top + r.height / 2; sEl.setPointerCapture(e.pointerId); jm(e); };
+    const jm = (e: PointerEvent) => { if (e.pointerId !== joy.id || !sEl) return; const dx = e.clientX - joy.cx, dy = e.clientY - joy.cy, L = Math.min(1, Math.hypot(dx, dy) / 46), a = Math.atan2(dy, dx); joy.x = Math.cos(a) * L; joy.y = Math.sin(a) * L; (sEl.firstElementChild as HTMLElement).style.transform = `translate(${joy.x * 34}px, ${joy.y * 34}px)`; if (L > 0.1) { goal = null; if (st.focus) { st.focus = null; emit(); } } };
+    const je = (e: PointerEvent) => { if (e.pointerId !== joy.id || !sEl) return; joy.id = -1; joy.x = joy.y = 0; (sEl.firstElementChild as HTMLElement).style.transform = ''; };
+    sEl?.addEventListener('pointerdown', js); sEl?.addEventListener('pointermove', jm); sEl?.addEventListener('pointerup', je); sEl?.addEventListener('pointercancel', je);
 
-    const size = () => {
-      const w = el.clientWidth, h = el.clientHeight; renderer.setSize(w, h); composer?.setSize(w, h);
-      camera.aspect = w / h; camera.updateProjectionMatrix();
-      // 板が画面いっぱいを覆う大きさ
-      const vh = 2 * 0.9 * Math.tan((camera.fov * Math.PI) / 360), vw = vh * camera.aspect;
-      slab.scale.set(vw * 1.05, vh * 1.3, 1); slab2.scale.set(vw * 0.5, vh * 1.3, 1); slab.userData.vw = vw;
-      // 縦長：一番広い壁面（＋植物）が横幅に収まる距離までカメラを下げる
-      if (tall) {
-        const half = Math.max(...rooms.map((r) => Math.min(2, r.pieces.length) * 1.75 + 0.9)) / 2 + 0.75;
-        fitZ = Math.min(5.3, WALL_Z + half / (Math.tan((camera.fov * Math.PI) / 360) * camera.aspect));
-        if (!st.focus && !trans) baseView(st.room);
-      }
-    };
+    const size = () => { const w = el.clientWidth, h = el.clientHeight; renderer.setSize(w, h); composer?.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); };
     size(); addEventListener('resize', size);
 
     // ---- 毎フレーム ----
-    let raf = 0, prev = performance.now(), first = true;
-    const ease = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
-    const tmp = new THREE.Vector3();
+    let raf = 0, prev = performance.now(), first = true, zoneT = 0;
+    const fwd = new THREE.Vector3(), right = new THREE.Vector3();
+    const angDiff = (a: number, b: number) => { let d = b - a; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return d; };
     const loop = () => {
       raf = requestAnimationFrame(loop);
-      const now = performance.now();
-      const dt = Math.min(0.05, (now - prev) / 1000); prev = now;
-      if (trans) {
-        const u = Math.min(1, (now - trans.t0) / (reduce ? 500 : 1500)), e = ease(u);
-        pos.lerpVectors(trans.from, tPos, e); look.lerpVectors(trans.fromL, tLook, e);
-        // 板：右から入って画面を覆い、左へ抜ける（戻るときは逆）
-        const vw = slab.userData.vw as number, k = Math.min(1, Math.max(0, (u - 0.04) / 0.92));
-        const sx = (1 - 2 * ease(k)) * vw * 1.08 * trans.dir;
-        slab.visible = slab2.visible = !reduce; slab.position.set(sx, 0, -0.9); slab2.position.set(sx + trans.dir * vw * 0.82, 0, -0.88);
-        sun.intensity = 0.9;
-        if (u >= 1) { trans = null; slab.visible = slab2.visible = false; sun.intensity = 0; emit(); }
-      } else {
-        const k = 1 - Math.pow(0.0025, dt);
-        pos.lerp(tPos, k); look.lerp(tLook, k);
-        if (!down) { yaw *= 1 - Math.min(1, dt * (st.focus ? 3 : 0.6)); pitch *= 1 - Math.min(1, dt * 1.2); }
+      const now = performance.now(), dt = Math.min(0.05, (now - prev) / 1000); prev = now;
+      // 歩く入力（キーボード・スティック）
+      let mx = 0, mz = 0;
+      if (keys.has('w') || keys.has('arrowup')) mz += 1;
+      if (keys.has('s') || keys.has('arrowdown')) mz -= 1;
+      if (keys.has('a')) mx -= 1;
+      if (keys.has('d')) mx += 1;
+      if (keys.has('arrowleft')) yaw += dt * 1.6;
+      if (keys.has('arrowright')) yaw -= dt * 1.6;
+      mx += joy.x; mz += -joy.y;
+      if (mx || mz) { goal = null; if (st.focus) { st.focus = null; emit(); } }
+      fwd.set(-Math.sin(yaw), 0, -Math.cos(yaw)); right.set(Math.cos(yaw), 0, -Math.sin(yaw));
+      const sp = (keys.has('shift') ? 5.2 : 3.0) * dt;
+      pos.addScaledVector(fwd, mz * sp).addScaledVector(right, mx * sp);
+      if (goal) {
+        const k = 1 - Math.pow(0.02, dt);
+        pos.lerp(goal.p, k); yaw += angDiff(yaw, goal.yaw) * k; pitch += (goal.pitch - pitch) * k;
+        if (pos.distanceTo(goal.p) < 0.02 && Math.abs(angDiff(yaw, goal.yaw)) < 0.003) { goal = null; emit(); }
       }
-      // ゆっくり漂う
-      const drift = reduce ? 0 : 1;
-      camera.position.set(pos.x + Math.sin(now / 5200) * 0.06 * drift, pos.y + Math.sin(now / 3900) * 0.025 * drift, pos.z);
-      tmp.copy(look).sub(pos).applyAxisAngle(new THREE.Vector3(0, 1, 0), -yaw); tmp.y -= pitch * 4; tmp.add(camera.position);
-      camera.lookAt(tmp);
-      // ポイントの呼吸
+      // 壁と家具にぶつからない
+      pos.x = Math.max(-HX + 0.7, Math.min(HX - 0.7, pos.x)); pos.z = Math.max(-HZ + 0.7, Math.min(HZ - 0.7, pos.z));
+      for (const o of obstacles) { const dx = pos.x - o.x, dz = pos.z - o.z, d = Math.hypot(dx, dz); if (d < o.r && d > 1e-4) { pos.x = o.x + (dx / d) * o.r; pos.z = o.z + (dz / d) * o.r; } }
+      // 歩くと視線がわずかに上下する
+      const walking = mx || mz || goal ? 1 : 0;
+      const bob = reduce ? 0 : Math.sin(now / 160) * 0.012 * walking;
+      camera.position.set(pos.x, EYE + bob, pos.z);
+      camera.rotation.set(pitch, yaw, 0);
+      // いま見ている作品の壁（エリア）を判定して知らせる
+      if (!st.focus && (zoneT += dt) > 0.25) {
+        zoneT = 0; let best = st.room, bs = -1e9;
+        zones.forEach((z, i) => { const to = z.center.clone().sub(pos); const d = to.length(); to.normalize(); const sc = to.dot(fwd) * 2 - d * 0.08; if (sc > bs) { bs = sc; best = i; } });
+        if (best !== st.room) { st.room = best; emit(); }
+      }
       rings.forEach((r, i) => { const on = r.userData.id === hover || r.userData.id === st.focus; const s = r.userData.base * (on ? 1.25 : 1 + Math.sin(now / 700 + i) * 0.06); r.scale.setScalar(r.scale.x + (s - r.scale.x) * 0.2); (r.material as THREE.SpriteMaterial).opacity = st.focus && !on ? 0.35 : 0.95; });
       if (composer) composer.render(); else renderer.render(scene, camera);
       if (first) { first = false; emit(); }
@@ -416,12 +388,16 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
 
     return () => {
       alive = false;
-      cancelAnimationFrame(raf); removeEventListener('resize', size); removeEventListener('pointermove', pmv); removeEventListener('pointerup', pu); removeEventListener('keydown', key);
-      renderer.domElement.removeEventListener('pointerdown', pd);
+      cancelAnimationFrame(raf); removeEventListener('resize', size); removeEventListener('pointerdown', pd); removeEventListener('pointermove', pmv); removeEventListener('pointerup', pu); removeEventListener('keydown', kd); removeEventListener('keyup', ku);
+      sEl?.removeEventListener('pointerdown', js); sEl?.removeEventListener('pointermove', jm); sEl?.removeEventListener('pointerup', je); sEl?.removeEventListener('pointercancel', je);
       scene.traverse((o) => { const m = o as THREE.Mesh; m.geometry?.dispose?.(); const mt = m.material as THREE.Material | THREE.Material[] | undefined; (Array.isArray(mt) ? mt : mt ? [mt] : []).forEach((x) => x.dispose()); });
       pm.dispose(); composer?.dispose(); renderer.dispose(); el.removeChild(renderer.domElement); apiRef.current = null;
     };
-  }, [rooms, apiRef, tall]);
+  }, [rooms, apiRef]);
 
-  return <div ref={host} className="gr-3d" />;
+  return (
+    <div className="gr-3d" ref={host}>
+      {coarse && <div className="gr-stick" ref={stick} aria-label="move"><i /></div>}
+    </div>
+  );
 }

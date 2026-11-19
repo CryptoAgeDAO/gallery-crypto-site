@@ -48,7 +48,7 @@ export default function GalleryClient({ initial }: { initial: ShopItem[] }) {
   const api = useRef<GalleryApi | null>(null);
   const [st, setSt] = useState<GState>({ room: 0, focus: null, moving: false, ready: false });
   const [label, setLabel] = useState(0);
-  useEffect(() => { if (!st.moving) setLabel(st.room); }, [st.room, st.moving]);
+  useEffect(() => { setLabel(st.room); }, [st.room]);
   const g = groups[label];
   const cur = st.focus ? items.find((i) => i.id === st.focus) : null;
   const inRoom = cur ? groups[st.room]?.list || [] : [];
@@ -73,17 +73,17 @@ export default function GalleryClient({ initial }: { initial: ShopItem[] }) {
 
       {g && (
         <div className={`gr-room ${st.moving ? 'out' : ''} ${cur ? 'dim' : ''}`} key={label}>
-          <em>{t('Room', 'ルーム')} {two(label + 1)} / {two(groups.length)}</em>
+          <em>{t('Area', 'エリア')} {two(label + 1)} / {two(groups.length)}</em>
           <b>{lang === 'ja' ? g.ja : g.en}</b>
           <p>{lang === 'ja' ? g.dja : g.den}</p>
-          <small>{t('Tap a glowing circle to see a piece · drag to look around', '光る丸を押すと作品の詳細 · ドラッグで見回す')}</small>
+          <small>{t('Walk anywhere: tap the floor or use W A S D / the stick · drag to look · tap a circle for details', '自由に歩けます：床をタップ、または W A S D／左下のスティック · ドラッグで見回す · 丸を押すと詳細')}</small>
         </div>
       )}
 
-      <nav className={`gr-nav ${cur ? 'dim' : ''}`} aria-label={t('Rooms', '部屋')}>
-        <button onClick={() => go(st.room - 1)} disabled={st.room === 0} aria-label={t('Previous room', '前の部屋')}>←</button>
+      <nav className={`gr-nav ${cur ? 'dim' : ''}`} aria-label={t('Areas', 'エリア')}>
+        <button onClick={() => go(st.room - 1)} disabled={st.room === 0} aria-label={t('Previous area', '前のエリアへ歩く')}>←</button>
         <span>{groups.map((r, i) => <i key={r.z} className={i === st.room ? 'on' : ''} onClick={() => go(i)} title={lang === 'ja' ? r.ja : r.en} />)}</span>
-        <button onClick={() => go(st.room + 1)} disabled={st.room >= groups.length - 1} aria-label={t('Next room', '次の部屋')}>→</button>
+        <button onClick={() => go(st.room + 1)} disabled={st.room >= groups.length - 1} aria-label={t('Next area', '次のエリアへ歩く')}>→</button>
       </nav>
 
       <aside className={`gr-panel ${cur ? 'on' : ''}`} aria-hidden={!cur}>
