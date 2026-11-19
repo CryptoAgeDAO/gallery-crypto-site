@@ -165,11 +165,42 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
     const obstacles: { x: number; z: number; r: number }[] = [];
 
     // ---- 建物：床・天井・壁・鉄骨・天窓 ----
-    if (!mobile) { const rf = new Reflector(new THREE.PlaneGeometry(HX * 2, HZ * 2), { textureWidth: 1024, textureHeight: 1024, color: 0x9a9995 }); rf.rotation.x = -Math.PI / 2; rf.position.y = -0.002; scene.add(rf); }
-    const fl = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), floorMat); fl.rotation.x = -Math.PI / 2; fl.userData.floor = true; scene.add(fl);
+    // 床：手前左に、コンクリートのボウル（くぼみ）を切り抜く
+    const BX = -5.2, BZ = 4.6, BRX = 3.0, BRZ = 1.9;
+    const floorShape = new THREE.Shape(); floorShape.moveTo(-HX, -HZ); floorShape.lineTo(HX, -HZ); floorShape.lineTo(HX, HZ); floorShape.lineTo(-HX, HZ); floorShape.lineTo(-HX, -HZ);
+    const hole = new THREE.Path(); hole.absellipse(BX, -BZ, BRX, BRZ, 0, Math.PI * 2, false, 0); floorShape.holes.push(hole);
+    const floorGeo = new THREE.ShapeGeometry(floorShape, 48);
+    { const uv = floorGeo.attributes.uv as THREE.BufferAttribute, ps = floorGeo.attributes.position as THREE.BufferAttribute; for (let i = 0; i < uv.count; i++) uv.setXY(i, (ps.getX(i) + HX) / (HX * 2), (ps.getY(i) + HZ) / (HZ * 2)); }
+    if (!mobile) { const rf = new Reflector(floorGeo, { textureWidth: 1024, textureHeight: 1024, color: 0x9a9995 }); rf.rotation.x = -Math.PI / 2; rf.position.y = -0.002; scene.add(rf); }
+    const fl = new THREE.Mesh(floorGeo, floorMat); fl.rotation.x = -Math.PI / 2; fl.userData.floor = true; scene.add(fl);
+    {
+      // ボウルの内側（なめらかな曲面）と、ふちの金属のコーピング
+      const prof: THREE.Vector2[] = []; for (let k = 0; k <= 20; k++) { const a = (k / 20) * Math.PI / 2; prof.push(new THREE.Vector2(Math.sin(a) * 0.999 + 0.001, -Math.cos(a) * 1.55)); }
+      const bowl = new THREE.Mesh(new THREE.LatheGeometry(prof, 64), new THREE.MeshStandardMaterial({ map: tex(concrete(), [3, 2]), roughness: 0.35, side: THREE.BackSide, color: 0xe6e4df }));
+      bowl.scale.set(BRX, 1, BRZ); bowl.position.set(BX, 0, BZ); scene.add(bowl);
+      const cop = new THREE.Mesh(new THREE.TorusGeometry(1, 0.035, 10, 96), new THREE.MeshStandardMaterial({ color: 0xbfc2c6, metalness: 0.9, roughness: 0.3 }));
+      cop.rotation.x = Math.PI / 2; cop.scale.set(BRX, BRZ, 1); cop.position.set(BX, 0.02, BZ); scene.add(cop);
+      for (let k = 0; k < 10; k++) { const a = (k / 10) * Math.PI * 2; obstacles.push({ x: BX + Math.cos(a) * BRX * 0.6, z: BZ + Math.sin(a) * BRZ * 0.6, r: 1.25 }); }
+    }
     const ce = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, HZ * 2), ceilMat); ce.rotation.x = Math.PI / 2; ce.position.y = CH; scene.add(ce);
     box(HX * 2, CH, 0.2, wallMat(8, 2), 0, CH / 2, -HZ - 0.1, scene);
-    box(HX * 2, CH, 0.2, wallMat(8, 2), 0, CH / 2, HZ + 0.1, scene);
+    // 手前の壁：左半分は壁、右半分は通りに面したガラス張り（外の夕景が見える）
+    box(HX, CH, 0.2, wallMat(4, 2), -HX / 2, CH / 2, HZ + 0.1, scene);
+    box(HX, CH - 3.4, 0.3, wallMat(4, 1), HX / 2, 3.4 + (CH - 3.4) / 2, HZ + 0.1, scene);
+    box(HX, 0.35, 0.3, wallMat(4, 0.2), HX / 2, 0.175, HZ + 0.1, scene);
+    for (let i = 0; i <= 6; i++) box(0.09, 3.1, 0.16, steel, i * 2, 1.9, HZ + 0.05, scene);
+    { const gl = new THREE.Mesh(new THREE.PlaneGeometry(HX, 3.05), new THREE.MeshPhysicalMaterial({ color: 0xdfe9ef, transparent: true, opacity: 0.16, roughness: 0.05, metalness: 0, side: THREE.DoubleSide })); gl.position.set(HX / 2, 1.9, HZ + 0.08); scene.add(gl); }
+    {
+      const sky = canvas(2048, 768, (g, w, h) => {
+        const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#5b7fae'); gr.addColorStop(0.55, '#c7b6c6'); gr.addColorStop(0.8, '#f0c9a0'); gr.addColorStop(1, '#2b2b30'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+        g.fillStyle = '#3b4a3c'; g.beginPath(); g.moveTo(0, h * 0.78); for (let x = 0; x <= w; x += 32) g.lineTo(x, h * 0.62 + Math.sin(x / 140) * 26 + Math.sin(x / 47) * 10); g.lineTo(w, h * 0.82); g.lineTo(0, h * 0.82); g.fill();
+        for (let i = 0; i < 70; i++) { g.fillStyle = `rgba(255,${200 + R(0, 50)},150,${R(0.5, 1)})`; g.fillRect(R(0, w), h * R(0.64, 0.8), 3, 3); }
+        g.fillStyle = '#1d1d21'; g.fillRect(0, h * 0.82, w, h * 0.18);
+        g.fillStyle = 'rgba(255,255,255,.6)'; for (let x = 0; x < w; x += 140) g.fillRect(x, h * 0.9, 70, 4);
+      });
+      const out = new THREE.Mesh(new THREE.PlaneGeometry(40, 15), new THREE.MeshBasicMaterial({ map: tex(sky) })); out.position.set(HX / 2, 4.2, HZ + 9); out.rotation.y = Math.PI; scene.add(out);
+      const road = new THREE.Mesh(new THREE.PlaneGeometry(40, 9), new THREE.MeshBasicMaterial({ color: 0x2a2a2e })); road.rotation.x = -Math.PI / 2; road.position.set(HX / 2, -0.01, HZ + 4.6); scene.add(road);
+    }
     box(0.2, CH, HZ * 2, wallMat(6, 2), -HX - 0.1, CH / 2, 0, scene);
     box(0.2, CH, HZ * 2, wallMat(6, 2), HX + 0.1, CH / 2, 0, scene);
     box(HX * 2, 0.14, 0.04, black, 0, 0.07, -HZ + 0.02, scene); box(HX * 2, 0.14, 0.04, black, 0, 0.07, HZ - 0.02, scene);
@@ -246,18 +277,50 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
       for (let i = 0; i < 16; i++) { const l = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.8), leafMat); const a = (i / 16) * Math.PI * 2 + R(-0.2, 0.2); l.position.set(Math.cos(a) * 0.12, 0.62 + R(0.35, 1.05), Math.sin(a) * 0.12); l.rotation.set(R(-0.5, 0.5), a, Math.cos(a) * R(0.4, 0.9)); pg.add(l); }
       floorShadow(px, pz, 1.1 * sc, 1.1 * sc, 0.7); obstacles.push({ x: px, z: pz, r: 0.6 * sc });
     };
-    // 手前の壁いっぱいの壁画（振り返ると見える）
-    const mw = 9, mur = new THREE.Mesh(new THREE.PlaneGeometry(mw, mw * 0.56), muralMat); mur.position.set(-3.5, 2.7, HZ - 0.03); mur.rotation.y = Math.PI; scene.add(mur);
-    // 中央に吊るした木の舟形
-    const prof: THREE.Vector2[] = []; for (let k = 0; k <= 16; k++) { const a2 = (k / 16) * Math.PI / 2; prof.push(new THREE.Vector2(Math.sin(a2), -Math.cos(a2))); }
-    const hull = new THREE.Mesh(new THREE.LatheGeometry(prof, 48), woodMat); hull.scale.set(2.8, 0.6, 1.4); hull.position.set(-5.5, CH - 1.6, 3.2); scene.add(hull);
-    for (const cx2 of [-1, 1]) box(0.01, 1.3, 0.01, black, hull.position.x + cx2 * 1.7, CH - 0.65, 3.2, scene);
-    // 記録のブロックを積んだ彫刻
-    const sx2 = 5.2, sz2 = 1.8;
+    // 奥の壁の右に大きな壁画（自前の抽象画）
+    const mw = 6.4, mur = new THREE.Mesh(new THREE.PlaneGeometry(mw, mw * 0.56), muralMat); mur.position.set(8.3, 2.6, -HZ + 0.03); scene.add(mur);
+    // 手前の壁（左半分）いっぱいの、色とりどりの板を並べた壁面インスタレーション
+    {
+      const cols = [0xc23b2a, 0x2f4a8a, 0xe1a43a, 0x1f1f1f, 0x6c8f5a, 0xd77fa1, 0x3c9fb0, 0xf2efe8, 0x8a5a3c];
+      const geo = new THREE.BoxGeometry(0.22, 0.82, 0.03);
+      const mats = cols.map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.5 }));
+      for (let r = 0; r < 4; r++) for (let c = 0; c < 30; c++) { const m = new THREE.Mesh(geo, mats[(r * 7 + c * 3 + (c % 4)) % mats.length]); m.position.set(-HX + 1 + c * 0.33, 0.9 + r * 1.0, HZ - 0.14); scene.add(m); }
+      for (let r = 0; r < 4; r++) box(10.2, 0.03, 0.12, steel, -HX + 5.8, 0.47 + r * 1.0, HZ - 0.1, scene);
+    }
+    // 宙に浮く木のボウル（白い鉄骨の架台に載る。下から合板のリブが見える）
+    {
+      const FX = 5.6, FZ = 5.0, FY = CH - 1.75;
+      const prof: THREE.Vector2[] = []; for (let k = 0; k <= 16; k++) { const a2 = (k / 16) * Math.PI / 2; prof.push(new THREE.Vector2(Math.sin(a2), -Math.cos(a2))); }
+      const hull = new THREE.Mesh(new THREE.LatheGeometry(prof, 56), woodMat); hull.scale.set(3.2, 0.95, 1.9); hull.position.set(FX, FY, FZ); scene.add(hull);
+      for (let k = 0; k < 9; k++) { const rib = new THREE.Mesh(new THREE.TorusGeometry(1, 0.025, 6, 48, Math.PI), woodMat); const t = (k / 8) * 2 - 1; const rr = Math.sqrt(Math.max(0.05, 1 - t * t)); rib.scale.set(1.9 * rr, 0.95 * rr, 1); rib.rotation.set(Math.PI, Math.PI / 2, 0); rib.position.set(FX + t * 3.1, FY, FZ); scene.add(rib); }
+      box(6.8, 0.14, 0.14, steel, FX, FY + 0.02, FZ - 2.0, scene); box(6.8, 0.14, 0.14, steel, FX, FY + 0.02, FZ + 2.0, scene);
+      for (const [dx, dz] of [[-3.3, -2], [3.3, -2], [-3.3, 2], [3.3, 2]]) { box(0.14, FY, 0.14, steel, FX + dx, FY / 2, FZ + dz, scene); obstacles.push({ x: FX + dx, z: FZ + dz, r: 0.4 }); }
+    }
+    // 中央：記録のブロックを積んだ彫刻
+    const sx2 = 4.2, sz2 = 0.6;
     ([[0, 0.45, 0, 0.9, steel], [0.12, 1.25, 0.08, 0.7, chrome], [-0.05, 1.86, -0.04, 0.52, steel], [0.06, 2.3, 0.03, 0.36, black]] as [number, number, number, number, THREE.Material][]).forEach(([dx, y, dz, s2, mm]) => { const c2 = box(s2, s2, s2, mm, sx2 + dx, y, sz2 + dz, scene); c2.rotation.y = y * 0.6; });
     floorShadow(sx2, sz2, 2, 2, 0.6); obstacles.push({ x: sx2, z: sz2, r: 0.9 });
-    bench(-2.5, -2.5, 2.4); bench(2.5, -2.5, 2.4); bench(-5.5, 3.2, 2.2); bench(1.0, 5.2, 2.0);
-    plant(-HX + 1, -HZ + 1, 1.1); plant(HX - 1, -HZ + 1, 1.1); plant(HX - 1, HZ - 1, 1.0); plant(-HX + 1, HZ - 1.2, 0.9);
+    // 奥の左の角：試着室（白い箱に生地のカーテン、外壁に自前のキャラクターの絵）
+    {
+      const FX = -9.6, FZ = -6.8;
+      box(2.4, 2.7, 0.08, wallMat(1, 1), FX, 1.35, FZ - 1.0, scene); box(0.08, 2.7, 2.0, wallMat(1, 1), FX - 1.2, 1.35, FZ, scene); box(0.08, 2.7, 2.0, wallMat(1, 1), FX + 1.2, 1.35, FZ, scene);
+      const cg = new THREE.PlaneGeometry(2.3, 2.5, 40, 1); const cp = cg.attributes.position as THREE.BufferAttribute; for (let i = 0; i < cp.count; i++) cp.setZ(i, Math.sin(cp.getX(i) * 9) * 0.05); cg.computeVertexNormals();
+      const cur = new THREE.Mesh(cg, new THREE.MeshStandardMaterial({ color: 0x2f3b33, roughness: 0.9, side: THREE.DoubleSide })); cur.position.set(FX, 1.3, FZ + 1.0); scene.add(cur);
+      box(2.5, 0.04, 0.04, chrome, FX, 2.58, FZ + 1.0, scene);
+      const ch = canvas(512, 600, (g, w, h) => {
+        g.fillStyle = '#f3f2ee'; g.fillRect(0, 0, w, h);
+        g.fillStyle = '#e1a43a'; g.beginPath(); g.ellipse(w / 2, h * 0.52, w * 0.34, h * 0.36, 0, 0, 7); g.fill();
+        g.strokeStyle = '#1f1f1f'; g.lineWidth = 10; g.stroke();
+        g.fillStyle = '#fff'; for (const ex of [0.4, 0.6]) { g.beginPath(); g.arc(w * ex, h * 0.45, 34, 0, 7); g.fill(); g.stroke(); }
+        g.fillStyle = '#1f1f1f'; for (const ex of [0.41, 0.61]) { g.beginPath(); g.arc(w * ex, h * 0.46, 13, 0, 7); g.fill(); }
+        g.beginPath(); g.arc(w / 2, h * 0.62, 50, 0.15 * Math.PI, 0.85 * Math.PI); g.stroke();
+        g.fillStyle = '#c23b2a'; g.fillRect(w * 0.2, h * 0.08, w * 0.6, 40);
+      });
+      const pic = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 1.65), new THREE.MeshStandardMaterial({ map: tex(ch), roughness: 0.9 })); pic.position.set(FX + 1.25, 1.5, FZ); pic.rotation.y = Math.PI / 2; scene.add(pic);
+      obstacles.push({ x: FX, z: FZ, r: 1.6 });
+    }
+    bench(-2.8, -2.6, 2.4); bench(3.4, -2.6, 2.4); bench(-0.8, 6.6, 2.0);
+    plant(HX - 1, -HZ + 1, 1.1); plant(HX - 1, HZ - 1, 1.0); plant(-HX + 1, HZ - 1.2, 0.9);
 
     // 光る作品はブルームで少しにじませる（PC）
     let composer: EffectComposer | null = null;
