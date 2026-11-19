@@ -47,6 +47,13 @@ export default function GalleryClient({ initial }: { initial: ShopItem[] }) {
   const rooms: GRoom[] = useMemo(() => groups.map((g) => ({ key: g.z, pieces: g.list.map((i) => ({ id: i.id, title: i.title, kind: i.img ? 'art' as const : kindOf(i), tex: i.img || (i.pid ? cutout(i.pid) : '') })) })), [groups]);
   const api = useRef<GalleryApi | null>(null);
   const [st, setSt] = useState<GState>({ room: 0, focus: null, moving: false, ready: false });
+  // レールの「展示室で見る」から来たときは、その作品の前まで歩いていく
+  const handed = useRef(false);
+  useEffect(() => {
+    if (!st.ready || handed.current) return; handed.current = true;
+    const m = /[#&]p=([^&]+)/.exec(location.hash); if (!m) return;
+    const id = decodeURIComponent(m[1]); setTimeout(() => api.current?.focus(id), 900);
+  }, [st.ready]);
   const [label, setLabel] = useState(0);
   useEffect(() => { setLabel(st.room); }, [st.room]);
   const g = groups[label];
@@ -100,6 +107,7 @@ export default function GalleryClient({ initial }: { initial: ShopItem[] }) {
               {cur.buy === 'stripe' && <BuyButton itemId={cur.id} />}
               {cur.buy === 'sold' && <span className="gr-fine">{t('Sold', '売約済み')}</span>}
               <a className="gr-btn" href={`/shop#p=${encodeURIComponent(cur.id)}`}>{t('View in the shop →', 'ショップで見る →')}</a>
+              <a className="gr-btn ghost" href="/shop/rail">{t('See it on the rail →', 'レールで見る →')}</a>
               {(cur.buy === 'demo' || cur.buy === 'local') && <p className="gr-fine">{t('Sample — not for sale. Sales open in 2027 (card / Apple Pay).', '見本のため購入はできません。販売は2027年から（カード／Apple Pay）。')}</p>}
             </div>
             {inRoom.length > 1 && (

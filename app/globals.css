@@ -3097,3 +3097,16 @@ body:has(.cxh) .gt-go{background:#ece8df;color:#09090a}
 /* 全体：文字と画像をくっきり */
 html{text-rendering:optimizeLegibility;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;font-kerning:normal}
 img{image-rendering:auto}
+/* レール：背景を展示室と同じ白い倉庫に */
+.rs.rail .rs-stage::before,.rs.rail .rs-stage::after{display:none}
+.rs-hall{position:absolute;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.rs-ceil{position:absolute;left:0;right:0;top:0;width:100%;height:11%;display:block;border-bottom:1px solid #dddcd8}
+.rs-wall{position:absolute;left:0;right:0;top:11%;bottom:12%;background:radial-gradient(70% 90% at 50% 20%,#fbfbfa,#efeeea 70%,#e6e5e1);box-shadow:inset 0 14px 22px -14px rgba(0,0,0,.12)}
+.rs-base{position:absolute;left:0;right:0;bottom:12%;height:7px;background:#1b1b1c}
+.rs-hfloor{position:absolute;left:0;right:0;bottom:0;height:12%;background:linear-gradient(180deg,rgba(255,255,255,.55),rgba(255,255,255,0) 30%),linear-gradient(180deg,#d6d5d1,#cfcecb 40%,#c5c4c0);}
+.rs-hfloor::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 calc(25% - 1px),rgba(90,90,88,.18) calc(25% - 1px) 25%);opacity:.6}
+.rs.rail .rs-rail,.rs.rail .rs-track,.rs.rail .rs-glow{z-index:1}
+.rs.rail .rs-glow::before{background:radial-gradient(closest-side,rgba(255,255,255,.9),rgba(255,255,255,.35) 45%,rgba(255,255,255,0))}
+.rs-area{color:inherit;text-decoration:none;border-bottom:1px solid currentColor}
+.gr-btn.ghost{background:transparent;color:#14120f!important;border:1px solid #14120f}
+.gr-btn.ghost:hover{background:#14120f;color:#fff!important}

@@ -210,7 +210,7 @@ export default function RailShop({ initial, saleOpen }: { initial: ShopItem[]; s
           </span>
         </div>
         <div className="rs-row2">
-          <span>{t('Only at Gallery Crypto', 'GALLERY CRYPTO 限定')}</span>
+          <a href="/shop/room" className="rs-area">{t('Showroom · area 02 — the rail', '展示室 · エリア02 — レール')}</a>
           <span>DROP 01 — {pad2(n)} PIECES</span>
           <span className="rs-views">
             <button aria-pressed={view === 'rail'} onClick={() => setView('rail')}>RAIL</button>
@@ -246,6 +246,27 @@ export default function RailShop({ initial, saleOpen }: { initial: ShopItem[]; s
         onPointerCancel={() => { drag.current = null; ph.current.drag = false; }}
         style={{ ['--w' as string]: `${w}px` }}
       >
+        {view === 'rail' && (
+          // 背景は 3D 展示室と同じ白い倉庫：むき出しの白い鉄骨・線状の照明・天窓・白い壁・黒い幅木・磨いたコンクリートの床
+          <div className="rs-hall" aria-hidden>
+            <svg className="rs-ceil" viewBox="0 0 1600 140" preserveAspectRatio="xMidYMin slice">
+              <defs>
+                <linearGradient id="rsc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#ecebe8" /><stop offset="1" stopColor="#f6f5f2" /></linearGradient>
+                <linearGradient id="rss" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#e3ecf7" /><stop offset="1" stopColor="#f4f7fb" /></linearGradient>
+                <filter id="rsglow" x="-20%" y="-200%" width="140%" height="500%"><feGaussianBlur stdDeviation="2.4" /></filter>
+              </defs>
+              <rect width="1600" height="140" fill="url(#rsc)" />
+              {[0, 1, 2, 3].map((k) => <rect key={k} x={60 + k * 400} y="10" width="280" height="22" fill="url(#rss)" stroke="#d9d8d4" strokeWidth="1" />)}
+              <path d="M0 52 H1600 M0 96 H1600" stroke="#fdfdfc" strokeWidth="7" />
+              <path d="M0 52 H1600 M0 96 H1600" stroke="#d7d6d2" strokeWidth="1" transform="translate(0 4)" />
+              <path d={Array.from({ length: 41 }, (_, k) => `M${k * 40} 55 L${k * 40 + 20} 93 L${k * 40 + 40} 55`).join(' ')} fill="none" stroke="#f8f8f6" strokeWidth="3.4" />
+              <path d={Array.from({ length: 41 }, (_, k) => `M${k * 40 + 1} 57 L${k * 40 + 21} 95`).join(' ')} fill="none" stroke="#d9d8d4" strokeWidth="1" />
+              {[0, 1, 2, 3, 4].map((k) => <g key={k}><rect x={-20 + k * 400} y="116" width="240" height="3" fill="#fff" filter="url(#rsglow)" /><rect x={-20 + k * 400} y="116" width="240" height="2.2" fill="#fff" /></g>)}
+              <rect x="34" y="66" width="22" height="34" rx="2" fill="#1b1b1c" /><rect x="1544" y="66" width="22" height="34" rx="2" fill="#1b1b1c" />
+            </svg>
+            <i className="rs-wall" /><i className="rs-base" /><i className="rs-hfloor" />
+          </div>
+        )}
         {view === 'rail' && (
           // 床置きのハンガーラック：上の棒・左右の支柱・床の脚とキャスター・床の影
           <div className="rs-rail" aria-hidden style={{ width: `min(94%, ${Math.round((n - 1) * railGap(w) + w * 1.5)}px)` }}><i /><b /><b /><u /><u /><em /></div>
@@ -354,6 +375,7 @@ export default function RailShop({ initial, saleOpen }: { initial: ShopItem[]; s
               <span className="rs-fbtns">
                 {f.buy === 'stripe' ? <BuyButton itemId={f.id} label={`${t('Buy', '購入')} — ${f.price}`} /> : f.buy === 'sold' ? <span className="rs-pill off">SOLD</span> : <button className="rs-pill" onClick={() => add(f.id)}>{cart.includes(f.id) ? t('In cart ✓', 'カートに入っています ✓') : `${t('Add', 'カートに入れる')} — ${f.price}`}</button>}
                 <button className="rs-pill ghost" onClick={() => setOpen(f.id)}>{t('Details', '詳細')}</button>
+                <a className="rs-pill ghost" href={`/shop/room#p=${encodeURIComponent(f.id)}`}>{t('See it in the showroom', '展示室で見る')} →</a>
               </span>
             </div>
             <button className="rs-farrow l" onClick={() => step(-1)} aria-label={t('Previous', '前へ')}>‹</button>
