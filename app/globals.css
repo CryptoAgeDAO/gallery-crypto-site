@@ -3094,3 +3094,6 @@ body:has(.cxh) .gt-go{background:#ece8df;color:#09090a}
   .gr-room{right:130px}
   .gr-room small{display:none}
 }
+/* 全体：文字と画像をくっきり */
+html{text-rendering:optimizeLegibility;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;font-kerning:normal}
+img{image-rendering:auto}

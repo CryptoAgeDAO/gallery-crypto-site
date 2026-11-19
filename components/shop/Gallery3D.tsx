@@ -124,7 +124,7 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
     BW = mobile ? 1024 : 2048;
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: true });
-    renderer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.4 : 2));
+    renderer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.5 : 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.88;
     el.appendChild(renderer.domElement);
     renderer.domElement.addEventListener('webglcontextlost', (e) => { e.preventDefault(); cb.current.onState({ room: 0, focus: null, moving: false, ready: true, lost: true }); });
@@ -325,8 +325,22 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
     // 光る作品はブルームで少しにじませる（PC）
     let composer: EffectComposer | null = null;
     if (!mobile) {
-      composer = new EffectComposer(renderer);
+      // 縁がギザギザにならないよう、ポストエフェクトでも4倍のマルチサンプリングで描く
+      composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { samples: 4, type: THREE.HalfFloatType }));
       composer.addPass(new RenderPass(scene, camera));
+      // 天窓からの光で、台・彫刻・額・服の影を床と壁に落とす（PC）
+      renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      const sun = new THREE.DirectionalLight(0xffffff, 1.1); sun.position.set(-6, CH + 6, 4); sun.target.position.set(0, 0, -1); scene.add(sun, sun.target);
+      sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02; sun.shadow.radius = 4;
+      Object.assign(sun.shadow.camera, { left: -HX - 1, right: HX + 1, top: HZ + 1, bottom: -HZ - 1, near: 1, far: 40 }); sun.shadow.camera.updateProjectionMatrix();
+      scene.traverse((o) => {
+        const m = o as THREE.Mesh; if (!m.isMesh) return;
+        const g2 = m.geometry as THREE.BufferGeometry; g2.computeBoundingSphere?.(); const r = g2.boundingSphere?.radius ?? 0;
+        const sc = Math.max(m.scale.x, m.scale.y, m.scale.z) * r;
+        m.receiveShadow = true;
+        m.castShadow = sc < 6 && !(m.material as THREE.Material).transparent;
+      });
+      fl.receiveShadow = true;
       composer.addPass(new UnrealBloomPass(new THREE.Vector2(1, 1), 0.12, 0.4, 0.995));
       composer.addPass(new OutputPass());
     }

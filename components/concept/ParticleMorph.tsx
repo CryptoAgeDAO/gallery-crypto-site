@@ -18,7 +18,7 @@ export default function ParticleMorph({ targets, active, dim = false }: { target
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
     let r: THREE.WebGLRenderer;
     try { r = new THREE.WebGLRenderer({ antialias: false, alpha: true }); } catch { return; }
-    const N = mobile ? 5000 : 10000;
+    const N = mobile ? 6500 : 17000;
     r.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.6 : 2)); el.appendChild(r.domElement);
     const scene = new THREE.Scene();
     let W = innerWidth, H = innerHeight;
@@ -29,7 +29,7 @@ export default function ParticleMorph({ targets, active, dim = false }: { target
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.setAttribute('seed', new THREE.BufferAttribute(seed, 1));
     const mat = new THREE.ShaderMaterial({
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, vertexColors: true,
-      uniforms: { uSize: { value: (mobile ? 2.3 : 2.1) * r.getPixelRatio() }, uMouse: { value: new THREE.Vector2(-9999, -9999) }, uTime: { value: 0 } },
+      uniforms: { uSize: { value: (mobile ? 2.0 : 1.75) * r.getPixelRatio() }, uMouse: { value: new THREE.Vector2(-9999, -9999) }, uTime: { value: 0 } },
       vertexShader: `attribute float seed; uniform float uSize; uniform vec2 uMouse; uniform float uTime; varying vec3 vC; varying float vA;
         void main(){ vec3 p = position; vec2 d = p.xy - uMouse; float L = length(d); p.xy += normalize(d + 1e-4) * smoothstep(110.0, 0.0, L) * 34.0;
           gl_Position = projectionMatrix * modelViewMatrix * vec4(p,1.0); gl_PointSize = uSize * (0.65 + seed * 0.8); vC = color; vA = 0.72 + 0.28 * sin(uTime * 2.0 + seed * 40.0); }`,

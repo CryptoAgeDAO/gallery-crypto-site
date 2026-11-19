@@ -8,7 +8,7 @@ import * as THREE from 'three';
 export type SceneApi = { blocks: () => { x: number; y: number; v: number }[] };
 
 const BLOCKS = 7;
-const N_DESK = 14000, N_MOB = 7000;
+const N_DESK = 22000, N_MOB = 9000;
 
 function sampleGarment(src: string, n: number): Promise<{ pos: Float32Array; col: Float32Array }> {
   return new Promise((res) => {
@@ -55,7 +55,7 @@ export default function RecordScene({ src, progress, apiRef }: { src: string; pr
     geo.setAttribute('seed', new THREE.BufferAttribute(seed, 1));
     const mat = new THREE.ShaderMaterial({
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, vertexColors: true,
-      uniforms: { uSize: { value: (mobile ? 2.8 : 2.5) * r.getPixelRatio() }, uMouse: { value: new THREE.Vector2(9, 9) }, uTime: { value: 0 }, uAspect: { value: 1 } },
+      uniforms: { uSize: { value: (mobile ? 2.4 : 2.0) * r.getPixelRatio() }, uMouse: { value: new THREE.Vector2(9, 9) }, uTime: { value: 0 }, uAspect: { value: 1 } },
       vertexShader: `
         attribute float seed; uniform float uSize; uniform vec2 uMouse; uniform float uTime; uniform float uAspect; varying vec3 vC; varying float vA;
         void main(){

@@ -370,7 +370,7 @@ export default function Journey3D({ looks, onState, onPick, apiRef }: { looks: L
 
     const resize = () => { const w = el.clientWidth, h = el.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); };
     // 光のにじみ（パソコンだけ。スマホは軽さを優先）
-    const composer = mobile ? null : new EffectComposer(renderer);
+    const composer = mobile ? null : new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { samples: 4, type: THREE.HalfFloatType }));
     let bloom: UnrealBloomPass | null = null;
     if (composer) { composer.addPass(new RenderPass(scene, cam)); bloom = new UnrealBloomPass(new THREE.Vector2(el.clientWidth, el.clientHeight), 0.55, 0.6, 0.82); composer.addPass(bloom); composer.addPass(new OutputPass()); }
     const resize0 = resize;
