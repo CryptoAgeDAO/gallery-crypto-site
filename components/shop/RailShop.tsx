@@ -2,7 +2,11 @@
 // ショップ：服がレールに掛かっていて、横にスライドすると一着ずつ正面に回ってくる。正面の一着をタップすると購入画面。
 // 「LINEUP」に切り替えると、作品が横一列に立ち、中央だけがくっきり見える並びになる。
 // サイトで公開した商品は自動でレールに掛かる（20秒ごとに取り直し）。
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
+import type { GLState } from './RailGL';
+const RailGL = dynamic(() => import('./RailGL'), { ssr: false });
+const HOOK_URL = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="160" height="280" viewBox="0 0 40 70"><defs><linearGradient id="m" x1="0" x2="1"><stop offset="0" stop-color="#6d6f73"/><stop offset=".45" stop-color="#f2f3f5"/><stop offset="1" stop-color="#7c7f84"/></linearGradient></defs><path d="M20 2 c-8 0 -9 11 -1 13 v22" fill="none" stroke="url(#m)" stroke-width="3.4" stroke-linecap="round"/><path d="M20 37 v20" stroke="#555" stroke-width="1.2"/></svg>');
 import { renderToStaticMarkup } from 'react-dom/server';
 import { LangToggle, useLang } from '../Lang';
 import { ProjectPic } from '../HubArt';
@@ -106,6 +110,10 @@ export default function RailShop({ initial, saleOpen }: { initial: ShopItem[]; s
   const el = (i: number) => (els.current[i] ||= { p: null, s: null, sh: null, tg: null });
   const sp = useRef<{ o: number; ov: number; k: number; kv: number; a: number; av: number }[]>([]);
   const glow = useRef<HTMLDivElement>(null);
+  // 布の描画（WebGL）に渡す一着ずつの位置・向き・揺れ
+  const glState = useRef<GLState[]>([]);
+  const [gl, setGl] = useState(false);
+  const onGl = useCallback((ok: boolean) => setGl(ok), []);
   const hovR = useRef<number | null>(null); hovR.current = hov;
   // レールは最初、全体の真ん中を見せる
   const centered = useRef(false);
@@ -156,7 +164,9 @@ export default function RailShop({ initial, saleOpen }: { initial: ShopItem[]; s
             d.p.style.transform = `translateX(${x.toFixed(1)}px) translateY(${(k * 8).toFixed(1)}px) perspective(1600px) translateZ(${(k * 70).toFixed(1)}px) rotateY(${r.toFixed(2)}deg) scale(${(0.8 + k * 0.16).toFixed(3)})`;
             d.p.style.zIndex = String(500 + Math.round(k * 100) - Math.round(Math.abs(i - s.pos)));
           }
-          if (d?.s) d.s.style.transform = `rotate(${(s.sway * (0.75 + ((i * 0.37) % 1) * 0.5) + q.a + Math.sin(now / 1100 + i * 1.7) * 0.3 * (1 - k)).toFixed(2)}deg)`;
+          const swA = s.sway * (0.75 + ((i * 0.37) % 1) * 0.5) + q.a + Math.sin(now / 1100 + i * 1.7) * 0.3 * (1 - k);
+          if (d?.s) d.s.style.transform = `rotate(${swA.toFixed(2)}deg)`;
+          glState.current[i] = { x, ty: k * 8, z: k * 70, r, sc: 0.8 + k * 0.16, sw: swA, av: q.av + s.vel * 6, k };
           if (d?.sh) { d.sh.style.opacity = ((1 - Math.min(1, k)) * 0.9).toFixed(3); d.sh.style.background = `linear-gradient(90deg, rgba(0,0,0,${side < 0 ? 0.06 : 0.5}), rgba(0,0,0,${side < 0 ? 0.5 : 0.06}))`; }
           if (d?.tg) { const v = Math.max(0, Math.min(1, (k - 0.55) / 0.45)); d.tg.style.opacity = v.toFixed(3); d.tg.style.transform = `rotate(${(-8 + (1 - v) * 24 + q.a * 0.6).toFixed(1)}deg)`; }
           if (k > gk) { gk = k; gx = x; }
@@ -195,10 +205,11 @@ export default function RailShop({ initial, saleOpen }: { initial: ShopItem[]; s
   const add = (id: string) => { setCart((c) => (c.includes(id) ? c : [...c, id])); sfx('coin'); };
   const inCart = all.filter((i) => cart.includes(i.id));
   const pad2 = (v: number) => String(v).padStart(2, '0');
+  const glPieces = useMemo(() => all.map((it) => ({ src: it.src, kind: it.kind, photo: !!it.img })), [all]);
   const story = (i: (typeof all)[number]) => (lang === 'ja' && i.pid ? PROJECTS.find((p) => p.id === i.pid)?.story[1] : i.desc);
 
   return (
-    <div className={`rs ${view} ${view === 'rail' && focus !== null ? 'focused' : ''}`} translate="no">
+    <div className={`rs ${view} ${view === 'rail' && focus !== null ? 'focused' : ''} ${gl && view === 'rail' ? 'gl' : ''}`} translate="no">
       <header className="rs-top">
         <div className="rs-row1">
           <a href="/shop">[ ← SHOP ]</a>
@@ -271,6 +282,7 @@ export default function RailShop({ initial, saleOpen }: { initial: ShopItem[]; s
           // 床置きのハンガーラック：上の棒・左右の支柱・床の脚とキャスター・床の影
           <div className="rs-rail" aria-hidden style={{ width: `min(94%, ${Math.round((n - 1) * railGap(w) + w * 1.5)}px)` }}><i /><b /><b /><u /><u /><em /></div>
         )}
+        {view === 'rail' && <RailGL pieces={glPieces} hookSrc={HOOK_URL} hangerSrc={HANGER_URL} state={glState} els={els as unknown as React.MutableRefObject<{ p: HTMLElement | null }[]>} stageRef={stage} onReady={onGl} />}
         {view === 'rail' && <div className="rs-glow" ref={glow} aria-hidden><b>{hov !== null ? pad2(hov + 1) : ''}</b></div>}
         <div className="rs-track" onPointerLeave={(e) => { if (e.pointerType === 'mouse') setHov(null); }}>
           {all.map((it, i) => {

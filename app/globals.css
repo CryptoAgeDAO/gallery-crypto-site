@@ -3110,3 +3110,9 @@ img{image-rendering:auto}
 .rs-area{color:inherit;text-decoration:none;border-bottom:1px solid currentColor}
 .gr-btn.ghost{background:transparent;color:#14120f!important;border:1px solid #14120f}
 .gr-btn.ghost:hover{background:#14120f;color:#fff!important}
+/* レールの布（WebGL）：DOM の絵は隠し、押す判定と値札だけ残す */
+.rs-gl{position:absolute;inset:0;z-index:1;pointer-events:none}
+.rs-gl canvas{display:block}
+.rs.gl.rail .rs-swing>img,.rs.gl.rail .rs-swing>svg,.rs.gl.rail .rs-body img,.rs.gl.rail .rs-shade{opacity:0}
+.rs.gl.rail .rs-track{z-index:2}
+.rs.rail .rs-glow{z-index:0}
