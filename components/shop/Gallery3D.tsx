@@ -236,10 +236,10 @@ const glowTex = (r: number, gg: number, b: number) => canvas(256, 256, (g) => { 
 const shadowTex = () => canvas(128, 128, (g) => { const cg = g.createRadialGradient(64, 64, 0, 64, 64, 64); cg.addColorStop(0, 'rgba(0,0,0,.55)'); cg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = cg; g.fillRect(0, 0, 128, 128); });
 const plyTex = () => canvas(512, 128, (g, w, h) => { g.fillStyle = '#c9a77c'; g.fillRect(0, 0, w, h); for (let i = 0; i < 90; i++) { g.strokeStyle = `rgba(120,80,40,${R(0.06, 0.18)})`; g.lineWidth = R(0.5, 2); g.beginPath(); const y = R(0, h); g.moveTo(0, y); g.bezierCurveTo(w * 0.3, y + R(-10, 10), w * 0.7, y + R(-10, 10), w, y + R(-6, 6)); g.stroke(); } });
 
-export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: GRoom[]; apiRef: React.MutableRefObject<GalleryApi | null>; onState: (s: GState) => void; onPick: (id: string) => void }) {
+export default function Gallery3D({ rooms, apiRef, onState, onPick, paused = false }: { rooms: GRoom[]; apiRef: React.MutableRefObject<GalleryApi | null>; onState: (s: GState) => void; onPick: (id: string) => void; paused?: boolean }) {
   const host = useRef<HTMLDivElement>(null);
   const stick = useRef<HTMLDivElement>(null);
-  const cb = useRef({ onState, onPick }); cb.current = { onState, onPick };
+  const cb = useRef({ onState, onPick, paused }); cb.current = { onState, onPick, paused };
   const [coarse] = useState(() => typeof window !== 'undefined' && matchMedia('(pointer: coarse)').matches);
 
   useEffect(() => {
@@ -470,6 +470,16 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
           const foldCols = [0x2b2d33, 0xcbc4b6, 0x4f5f74, 0x8a2a24, 0xe8e4da, 0x5c6b4a];
           for (let k = 0, xx = x0 + 0.35; xx < x1 - 0.3; xx += 0.62, k++) for (let st = 0; st < 3; st++) { const f2 = box(0.42, 0.07, 0.32, new THREE.MeshStandardMaterial({ color: foldCols[(k + st * 2) % foldCols.length], roughness: 0.9 }), xx, 0.66 + st * 0.075, 0.24, g); f2.rotation.y = (st - 1) * 0.04; }
           for (let xx = x0 + 0.3; xx < x1 - 0.3; xx += 0.5) box(0.38, 0.13, 0.26, new THREE.MeshStandardMaterial({ color: 0xd8c3a0, roughness: 0.8 }), xx, 0.36, 0.24, g);
+          // バーの両端：横向きに詰めて掛けた在庫（肩の厚みだけが見える、古着屋のラックのように）
+          const spineM = foldCols.map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.92 }));
+          const hookM = new THREE.MeshStandardMaterial({ color: 0x9c6b37, roughness: 0.5 });
+          for (const [a, b] of [[x0 + 0.06, x0 + 0.62], [x1 - 0.62, x1 - 0.06]]) {
+            for (let xx = a, k = 0; xx <= b; xx += mobile ? 0.14 : 0.075, k++) {
+              const hgt = 0.72 + ((k * 37) % 7) * 0.035, sp = box(0.045, hgt, 0.5, spineM[(k * 5 + (a > mid ? 2 : 0)) % spineM.length], xx, RAILY - 0.16 - hgt / 2, 0.345, g);
+              sp.rotation.y = (((k * 13) % 5) - 2) * 0.03;
+              box(0.012, 0.03, 0.44, hookM, xx, RAILY - 0.13, 0.345, g);
+            }
+          }
         }
         const cx = room.pieces.map((q, k) => (q.kind === 'cap' ? xs[k] : null)).filter((v): v is number => v !== null);
         if (cx.length) {
@@ -759,7 +769,7 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
       }
       down = null;
     };
-    const kd = (e: KeyboardEvent) => { if ((e.target as HTMLElement)?.tagName === 'INPUT') return; keys.add(e.key.toLowerCase()); if (e.key === 'Escape') focus(null); if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(e.key.toLowerCase())) e.preventDefault(); };
+    const kd = (e: KeyboardEvent) => { if ((e.target as HTMLElement)?.tagName === 'INPUT') return; if (st.focus && e.key.startsWith('Arrow')) return; /* 作品を見ている間の矢印は「前後の作品へ」に使う */ keys.add(e.key.toLowerCase()); if (e.key === 'Escape') focus(null); if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(e.key.toLowerCase())) e.preventDefault(); };
     const ku = (e: KeyboardEvent) => keys.delete(e.key.toLowerCase());
     renderer.domElement.style.cursor = 'grab'; renderer.domElement.style.touchAction = 'none';
     addEventListener('pointerdown', pd); addEventListener('pointermove', pmv); addEventListener('pointerup', pu); addEventListener('keydown', kd); addEventListener('keyup', ku);
@@ -812,6 +822,8 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
         if (best !== st.room) { st.room = best; emit(); }
       }
       rings.forEach((r, i) => { const on = r.userData.id === hover || r.userData.id === st.focus; const s = r.userData.base * (on ? 1.25 : 1 + Math.sin(now / 700 + i) * 0.06); r.scale.setScalar(r.scale.x + (s - r.scale.x) * 0.2); (r.material as THREE.SpriteMaterial).opacity = st.focus && !on ? 0.35 : 0.95; });
+      // 服を手に取っている間（上にレールが出ている間）は、3D の描き直しを止めて端末の負担を減らす（最後の絵はそのまま残る）
+      if (cb.current.paused && !goal) return;
       if (composer) composer.render(); else renderer.render(scene, camera);
       if (first) { first = false; emit(); }
     };

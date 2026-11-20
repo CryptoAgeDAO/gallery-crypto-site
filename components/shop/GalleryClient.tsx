@@ -9,6 +9,7 @@ import type { ShopItem } from './types';
 import { demoItems } from './demo';
 import { cutout, kindOf } from './pieceArt';
 import type { GalleryApi, GRoom, GState } from './Gallery3D';
+import HangRail, { type RailItem } from './HangRail';
 
 const Gallery3D = dynamic(() => import('./Gallery3D'), { ssr: false });
 
@@ -60,14 +61,17 @@ export default function GalleryClient({ initial }: { initial: ShopItem[] }) {
   const cur = st.focus ? items.find((i) => i.id === st.focus) : null;
   const inRoom = cur ? groups[st.room]?.list || [] : [];
   const k = cur ? inRoom.findIndex((i) => i.id === cur.id) : -1;
+  // 服を押したら、ラックから外して手に取る：その売り場の服が一本のレールに並び、押した一着が真ん中に寄る
+  const isG = !!cur && kindOf(cur) === 'garment';
+  const railItems: RailItem[] = useMemo(() => (isG ? inRoom.filter((i) => kindOf(i) === 'garment').map((i) => ({ ...i, src: i.img || (i.pid ? cutout(i.pid) : ''), kind: 'garment' as const })) : []), [isG, inRoom]);
   const go = (i: number) => { if (i < 0 || i >= groups.length) return; api.current?.goRoom(i); sfx('tick'); };
   const step = (d: number) => { const n = inRoom[(k + d + inRoom.length) % inRoom.length]; if (n) { api.current?.focus(n.id); sfx('tick'); } };
   const two = (n: number) => String(n).padStart(2, '0');
 
   return (
-    <div className={`gr ${cur ? 'has-panel' : ''}`} translate="no">
+    <div className={`gr ${cur && !isG ? 'has-panel' : ''} ${isG ? 'taking' : ''}`} translate="no">
       <Safe fallback={<Fallback />}>
-        <Gallery3D rooms={rooms} apiRef={api} onState={setSt} onPick={(id) => { api.current?.focus(id); sfx('open'); }} />
+        <Gallery3D paused={isG} rooms={rooms} apiRef={api} onState={setSt} onPick={(id) => { api.current?.focus(id); sfx('open'); }} />
       </Safe>
       {st.lost && <Fallback />}
       <div className={`gr-veil ${st.ready ? 'off' : ''}`}><em>Gallery Crypto</em><span>{t('Opening the showroom…', 'ショールームをひらいています…')}</span></div>
@@ -93,8 +97,14 @@ export default function GalleryClient({ initial }: { initial: ShopItem[] }) {
         <button onClick={() => go(st.room + 1)} disabled={st.room >= groups.length - 1} aria-label={t('Next area', '次のエリアへ歩く')}>→</button>
       </nav>
 
-      <aside className={`gr-panel ${cur ? 'on' : ''}`} aria-hidden={!cur}>
-        {cur && (
+      {isG && cur && (
+        <div className="gr-take" role="dialog" aria-label={cur.title}>
+          <HangRail dark items={railItems} focusId={cur.id} onFocus={(id) => { api.current?.focus(id); sfx('tick'); }} />
+          <a className="gr-take-shop" href={`/shop#p=${encodeURIComponent(cur.id)}`}>{t('View in the shop →', 'ショップで見る →')}</a>
+        </div>
+      )}
+      <aside className={`gr-panel ${cur && !isG ? 'on' : ''}`} aria-hidden={!cur || isG}>
+        {cur && !isG && (
           <div key={cur.id}>
             <button className="gr-x" onClick={() => { api.current?.focus(null); sfx('tick'); }} aria-label={t('Close', '閉じる')}>×</button>
             <em className="gr-code">{cur.code}{cur.buy === 'demo' ? ` · ${t('Sample', '見本')}` : ''}</em>

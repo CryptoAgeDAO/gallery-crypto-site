@@ -3,7 +3,6 @@
 // 商品をタップすると商品ページ（全画面）、カートは右から出る引き出し。サイトで公開した商品は自動で並ぶ。
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { LangToggle, useLang } from '../Lang';
-import dynamic from 'next/dynamic';
 import BuyButton from '../BuyButton';
 import { PROJECTS, EVENTS0 } from '@/lib/hub';
 import { supabase } from '@/lib/supabase';
@@ -13,7 +12,8 @@ import type { ShopItem } from './types';
 import { toShop } from './toShop';
 import { demoItems } from './demo';
 import { cutout } from './pieceArt';
-const ParticlePiece = dynamic(() => import('../concept/ParticlePiece'), { ssr: false });
+import HangRail, { type RailItem } from './HangRail';
+import { kindOf } from './pieceArt';
 
 const LKEY = 'gc-shop-local', CKEY = 'gc-shop-cart';
 type Cat = 'all' | 'new' | 'vintage' | 'used' | 'tops' | 'outer' | 'caps' | 'art' | 'archive';
@@ -83,6 +83,18 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
   }, [local, real, J]);
   const byCat = (c: Cat) => all.filter((i) => i.cat.includes(c));
   const product = all.find((i) => i.id === pid) || null;
+  const rail = (i: P): RailItem => ({ ...i, kind: kindOf(i) });
+  const railAll = useMemo(() => all.filter((i) => kindOf(i) === 'garment').slice(0, 14).map(rail), [all]); // eslint-disable-line react-hooks/exhaustive-deps
+  // 商品ページのレール：開いた一着と同じカテゴリのもの
+  const railFor = useMemo(() => {
+    if (!product) return [];
+    // 同じ種類（服なら服、キャップならキャップ）を同じレールに
+    const kd = kindOf(product);
+    const same = all.filter((x) => x.id === product.id || (kindOf(x) === kd && (cat && cat !== 'all' && cat !== 'new' ? x.cat.includes(cat) : true)));
+    const list = (same.length > 2 ? same : all).slice(0, 12);
+    if (!list.some((x) => x.id === product.id)) list.unshift(product);
+    return list.map(rail);
+  }, [product, all, cat]); // eslint-disable-line react-hooks/exhaustive-deps
   const inCart = all.filter((i) => cart.includes(i.id));
 
   // 告知バーとスライドショーの自動送り
@@ -162,6 +174,12 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
             ))}
             <div className="sf-dots">{hero.map((s, i) => <button key={s.k} aria-label={s.k} aria-pressed={i === slide} onClick={() => setSlide(i)} />)}</div>
           </section>
+
+          {/* 一本のレール：押すと商品ページ（同じレールで、その一着が真ん中に寄る） */}
+          <section className="sf-sec">
+            <div className="sf-h"><h2>{t('On the rail', 'レールに掛かっているもの')}</h2><a href="/shop/rail">{t('Open the rail', 'レールを開く')} →</a></div>
+          </section>
+          <div className="sf-railsec"><HangRail mode="section" items={railAll} focusId={null} onFocus={(id) => id && nav(cat, id)} /></div>
 
           <Row title={t('This just in', '新着')} c="new" items={byCat('new')} />
 
@@ -280,25 +298,24 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
 
       {/* 商品ページ */}
       {product && (
-        <div className="sf-pdp cxp" role="dialog" aria-modal="true" aria-label={product.title}>
-          <button className="sf-x" onClick={() => nav(cat)} aria-label={t('Close', '閉じる')}>×</button>
-          <div className="sf-pimgs">
-            {/* コンセプトページと同じ「光の粒」から、本物の絵（写真）が浮かび上がる */}
-            <ParticlePiece key={product.id} src={product.src} photo={!!product.img} reveal className="sf-pmain" />
-            <p className="sf-phint">{t('Move over the piece — the light parts around it.', '服の上を指やカーソルでなぞると、光の粒がよけます。')}</p>
+        <div className="sf-pdp hrp" role="dialog" aria-modal="true" aria-label={product.title}>
+          {/* 上：一本のレール。開いた一着が真ん中に寄り、ほかは左右でぼける。左右の矢印・スワイプで隣の服へ */}
+          <div className="sf-pstage">
+            <HangRail items={railFor} focusId={product.id} onFocus={(id) => nav(cat, id)} renderBuy={(it) => {
+              const p = all.find((x) => x.id === it.id)!;
+              return (
+                <>
+                  {p.buy === 'stripe' && <BuyButton itemId={p.id} />}
+                  {p.buy === 'sold' && <span className="hr-btn off">{t('Sold', '売約済み')}</span>}
+                  {(p.buy === 'demo' || p.buy === 'local') && <button className="hr-btn" onClick={() => add(p.id)}>{cart.includes(p.id) ? t('In your cart ✓', 'カートに入っています ✓') : t('Add to cart', 'カートに入れる')}</button>}
+                  {p.lottery && <a className="hr-btn ghost" href="/#events">{t('Enter the lottery', '抽選に申し込む')}</a>}
+                </>
+              );
+            }} />
           </div>
           <div className="sf-pinfo">
-            <span className="sf-pcode">{product.code}{product.buy === 'demo' ? ` · ${t('Sample', '見本')}` : ''}</span>
-            <h1>{product.title}</h1>
-            <span className="sf-psub">{product.sub}</span>
-            <b className="sf-pprice">{product.price}</b>
-            <div className="sf-pbuy">
-              {product.buy === 'stripe' && <BuyButton itemId={product.id} />}
-              {product.buy === 'sold' && <span className="sf-fine">{t('Sold', '売約済み')}</span>}
-              {(product.buy === 'demo' || product.buy === 'local') && <button className="sf-btn" onClick={() => add(product.id)}>{cart.includes(product.id) ? t('In your cart ✓', 'カートに入っています ✓') : t('Add to cart', 'カートに入れる')}</button>}
-              {product.lottery && <a className="sf-btn ghost" href="/#events">{t('Enter the lottery', '抽選に申し込む')} — {product.lottery}</a>}
-              {(product.buy === 'demo' || product.buy === 'local') && <p className="sf-fine">{t('Sample — not for sale. Sales open in 2027 (card / Apple Pay).', '見本のため購入はできません。販売は2027年から（カード／Apple Pay）。')}</p>}
-            </div>
+            <span className="sf-pcode">{product.code}{product.buy === 'demo' ? ` · ${t('Sample', '見本')}` : ''} · {product.sub}</span>
+            {(product.buy === 'demo' || product.buy === 'local') && <p className="sf-fine">{t('Sample — not for sale. Sales open in 2027 (card / Apple Pay).', '見本のため購入はできません。販売は2027年から（カード／Apple Pay）。')}</p>}
             <details open><summary>{t('Description', '説明')}</summary><p>{J && product.pid ? PROJECTS.find((x) => x.id === product.pid)?.story[1] : product.desc}</p></details>
             {product.facts.length > 0 && <details open><summary>{t('Details', '詳細')}</summary><dl>{product.facts.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl></details>}
             <details><summary>{t('Digital record', 'デジタル記録')}</summary><p>{t('Each piece has its own record — photos, history and ownership — that you can check on its passport page.', '一点ごとに、写真・来歴・持ち主の記録があり、パスポートのページで確かめられます。')}</p>{product.passport && <a className="sf-link" href={product.passport}>{t('Open the passport', 'パスポートを開く')} →</a>}</details>
