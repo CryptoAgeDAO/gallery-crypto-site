@@ -20,8 +20,8 @@ class Safe extends Component<{ children: React.ReactNode; fallback: React.ReactN
 }
 
 const ROOMS: { z: ShopItem['zone']; en: string; ja: string; den: string; dja: string }[] = [
-  { z: 'rwa', en: 'RWA — vintage & collab', ja: 'RWA — 証明つきヴィンテージとコラボ', den: 'Left wall. One-of-one pieces pinned in steel frames, each with its signed record.', dja: '左の壁。鉄の額にピンで留めた一点もの。来歴は署名して記録に残しています。' },
-  { z: 'vintage', en: 'Vintage & used', ja: 'ヴィンテージ・古着', den: 'The long table. Laid flat, one piece at a time, each linked to its own page.', dja: '奥の長いテーブル。一着ずつ平置きにして、それぞれのページにつながります。' },
+  { z: 'rwa', en: 'RWA — vintage & collab', ja: 'RWA — 証明つきヴィンテージとコラボ', den: 'Left wall. One-of-one pieces on a steel shelf rack, each with its signed record.', dja: '左の壁。鉄の棚に並べた一点もの。来歴は署名して記録に残しています。' },
+  { z: 'vintage', en: 'Vintage & used', ja: 'ヴィンテージ・古着', den: 'The rack at the back. Each piece hangs face-out, with folded stock on the shelves below.', dja: '奥のハンガーラック。一着ずつ正面を向けて掛け、下の棚にはたたんだ服。' },
   { z: 'art', en: 'Art & projects', ja: 'アート・プロジェクト', den: 'Right wall. Prints, sound and objects beyond fashion.', dja: '右の壁。版画・音・オブジェなど、ファッションの外の企画。' },
   { z: 'archive', en: 'Archive', ja: 'アーカイブ', den: 'Back wall, under the mural. Pieces kept for the record.', dja: '奥の壁、壁画の下。記録として残す作品。' },
 ];
@@ -44,7 +44,7 @@ export default function GalleryClient({ initial }: { initial: ShopItem[] }) {
   useEffect(() => { try { setLocal(JSON.parse(localStorage.getItem('gc-shop-local') || '[]')); } catch { /* 無視 */ } }, []);
   const items = useMemo(() => [...local, ...initial, ...(initial.length ? [] : demoItems())], [local, initial]);
   const groups = useMemo(() => ROOMS.map((r) => ({ ...r, list: items.filter((i) => i.zone === r.z).slice(0, PER_ROOM) })).filter((r) => r.list.length), [items]);
-  const rooms: GRoom[] = useMemo(() => groups.map((g) => ({ key: g.z, pieces: g.list.map((i) => ({ id: i.id, title: i.title, code: i.code, kind: i.img ? 'art' as const : kindOf(i), tex: i.img || (i.pid ? cutout(i.pid) : '') })) })), [groups]);
+  const rooms: GRoom[] = useMemo(() => groups.map((g) => ({ key: g.z, pieces: g.list.map((i) => ({ id: i.id, title: i.title, code: i.code, kind: i.img && kindOf(i) !== 'cap' ? 'art' as const : kindOf(i), tex: i.img || (i.pid ? cutout(i.pid) : '') })) })), [groups]);
   const api = useRef<GalleryApi | null>(null);
   const [st, setSt] = useState<GState>({ room: 0, focus: null, moving: false, ready: false });
   // ショップの「ショールームで見る」から来たときは、その作品の前まで歩いていく

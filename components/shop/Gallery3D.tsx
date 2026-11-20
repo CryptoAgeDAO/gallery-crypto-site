@@ -276,13 +276,20 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
     const plyMat = new THREE.MeshStandardMaterial({ map: tex(plyTex()), roughness: 0.7 });
     const shadowT = tex(shadowTex()), ringT = tex(ringTex()), poolT = tex(glowTex(255, 236, 205)), lampT = tex(glowTex(255, 196, 130));
     const TEXMAX = mobile ? 512 : 1024;
-    const loadTex = (url: string, done: (t: THREE.Texture, aspect: number) => void) => {
+    const loadTex = (url: string, done: (t: THREE.Texture, aspect: number) => void, key = false) => {
       const im = new Image(); im.crossOrigin = 'anonymous'; im.decoding = 'async';
       im.onload = () => {
         if (!alive) return;
         const w = im.naturalWidth || 720, h = im.naturalHeight || 660, k = Math.min(1, TEXMAX / Math.max(w, h));
         const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(w * k)); c.height = Math.max(1, Math.round(h * k));
         try { c.getContext('2d')!.drawImage(im, 0, 0, c.width, c.height); } catch { return; }
+        // 棚に置く写真（キャップ）は、四隅の背景色を抜いて切り抜きにする
+        if (key && !url.startsWith('data:image/svg')) { try {
+          const cx2 = c.getContext('2d', { willReadFrequently: true })!, id = cx2.getImageData(0, 0, c.width, c.height), q = id.data, W2 = c.width, H2 = c.height;
+          let br = 0, bgc = 0, bb = 0; for (const i of [0, W2 - 1, (H2 - 1) * W2, H2 * W2 - 1]) { br += q[i * 4] / 4; bgc += q[i * 4 + 1] / 4; bb += q[i * 4 + 2] / 4; }
+          for (let i = 0; i < q.length; i += 4) { const dd = Math.hypot(q[i] - br, q[i + 1] - bgc, q[i + 2] - bb); q[i + 3] = Math.max(0, Math.min(255, (dd - 22) * 8)); }
+          cx2.putImageData(id, 0, 0);
+        } catch { /* 読めない画像はそのまま */ } }
         const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = mobile ? 2 : 8; done(t, w / h);
       };
       im.src = url;
@@ -372,9 +379,9 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
     const hits: THREE.Object3D[] = [];
     const rings: THREE.Sprite[] = [];
     const spots: { id: string; room: number; pos: THREE.Vector3; normal: THREE.Vector3; d: number }[] = [];
-    const ZDEF = [
+    const ZDEF: { kind: 'wall' | 'table'; pos: THREE.Vector3; ry: number; max: number; dist: number; rack?: boolean }[] = [
       { kind: 'wall' as const, pos: V(-HX, 0, -2.2), ry: Math.PI / 2, max: 11.5, dist: mobile ? 7.2 : 5.6 },
-      { kind: 'table' as const, pos: V(0, 0, -5.6), ry: 0, max: 6.6, dist: mobile ? 5.4 : 4.0 },
+      { kind: 'wall' as const, pos: V(0, 0, -5.9), ry: 0, max: 7.4, dist: mobile ? 6.4 : 4.8, rack: true },
       { kind: 'wall' as const, pos: V(HX, 0, -2.2), ry: -Math.PI / 2, max: 11.5, dist: mobile ? 7.2 : 5.6 },
       { kind: 'wall' as const, pos: V(0, 0, -HZ), ry: 0, max: 8.6, dist: mobile ? 9.0 : 7.2 },
     ];
@@ -416,7 +423,7 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
             prop.position.set(0, h * 0.85 + 0.05, -0.05); prop.scale.set(w / 0.5, 1, 1);
           };
           fit(1);
-          if (p.tex) loadTex(p.tex, (t, a) => { mat.map = t; mat.needsUpdate = true; fit(a); });
+          if (p.tex) loadTex(p.tex, (t, a) => { mat.map = t; mat.needsUpdate = true; fit(a); }, p.kind === 'cap');
           card(g, x, tableTop + 0.003, 0.56, p).rotation.x = -Math.PI / 2;
           const ring = new THREE.Sprite(new THREE.SpriteMaterial({ map: ringT, transparent: true, depthWrite: false, opacity: 0.95 }));
           ring.position.set(x, tableTop + 0.12, 0.72); ring.scale.setScalar(0.26); ring.userData.id = p.id; ring.userData.base = 0.26; g.add(ring); hits.push(ring); rings.push(ring);
@@ -429,16 +436,52 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
       // 壁：作品ごとに額と、上から当てたスポットの光だまり
       zones.push({ center: Z.pos.clone().setY(1.7), normal, dist: Z.dist });
       const onBack = Math.abs(Z.ry) < 0.01;
+      const RAILY = 2.5;
+      // ラック：服があれば壁付けの銀のバー（腕木つき）と下の二段の鉄の棚、キャップがあれば三段の鉄の棚
+      {
+        const gx = room.pieces.map((q, k) => (q.kind === 'garment' ? xs[k] : null)).filter((v): v is number => v !== null);
+        if (gx.length) {
+          const x0 = Math.min(...gx) - 0.75, x1 = Math.max(...gx) + 0.75, mid = (x0 + x1) / 2, len = x1 - x0;
+          rod(V(x0, RAILY, 0.345), V(x1, RAILY, 0.345), 0.018, chrome, g, 10);
+          if (Z.rack) {
+            // 床置きのラック：左右の支柱・脚・キャスター（壁はなく、まわりを歩ける）
+            for (const ex of [x0, x1]) {
+              rod(V(ex, 0.12, 0.345), V(ex, RAILY + 0.02, 0.345), 0.02, chrome, g, 8);
+              rod(V(ex, 0.12, -0.05), V(ex, 0.12, 0.74), 0.018, chrome, g, 6);
+              for (const ez of [-0.05, 0.74]) { const cw = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.035, 14), black); cw.rotation.x = Math.PI / 2; cw.position.set(ex, 0.05, ez); g.add(cw); }
+            }
+            for (let t = x0; t <= x1; t += 0.8) obstacles.push({ x: Z.pos.x + t, z: Z.pos.z + 0.35, r: 0.75 });
+            floorShadow(Z.pos.x + mid, Z.pos.z + 0.35, len * 1.1, 1.6, 0.5);
+          }
+          for (const bx of [x0 + 0.05, mid, x1 - 0.05]) { rod(V(bx, RAILY, 0.0), V(bx, RAILY, 0.345), 0.012, chrome, g, 6); box(0.08, 0.14, 0.02, chrome, bx, RAILY, 0.01, g); }
+          // 下の棚：たたんだ服とスニーカーの箱
+          for (const y of [0.28, 0.62]) box(len, 0.03, 0.42, steel, mid, y, 0.23, g);
+          for (const ex of [x0, x1]) for (const ez of [0.04, 0.42]) box(0.03, 0.66, 0.03, steel, ex, 0.33, ez, g);
+          const foldCols = [0x2b2d33, 0xcbc4b6, 0x4f5f74, 0x8a2a24, 0xe8e4da, 0x5c6b4a];
+          for (let k = 0, xx = x0 + 0.35; xx < x1 - 0.3; xx += 0.62, k++) for (let st = 0; st < 3; st++) { const f2 = box(0.42, 0.07, 0.32, new THREE.MeshStandardMaterial({ color: foldCols[(k + st * 2) % foldCols.length], roughness: 0.9 }), xx, 0.66 + st * 0.075, 0.24, g); f2.rotation.y = (st - 1) * 0.04; }
+          for (let xx = x0 + 0.3; xx < x1 - 0.3; xx += 0.5) box(0.38, 0.13, 0.26, new THREE.MeshStandardMaterial({ color: 0xd8c3a0, roughness: 0.8 }), xx, 0.36, 0.24, g);
+        }
+        const cx = room.pieces.map((q, k) => (q.kind === 'cap' ? xs[k] : null)).filter((v): v is number => v !== null);
+        if (cx.length) {
+          const x0 = Math.min(...cx) - 0.55, x1 = Math.max(...cx) + 0.55, mid = (x0 + x1) / 2, len = x1 - x0;
+          for (const ex of [x0, x1]) for (const ez of [0.03, 0.34]) box(0.03, 2.3, 0.03, steel, ex, 1.15, ez, g);
+          for (const y of [0.4, 0.9, 2.1]) box(len, 0.03, 0.34, steel, mid, y, 0.18, g);
+          box(len, 2.3, 0.01, new THREE.MeshStandardMaterial({ color: 0xe9e5dc, roughness: 0.9 }), mid, 1.15, 0.005, g);
+          // 下の段：キャップの箱と、重ねた在庫
+          const boxM = [0xf1eee6, 0x1d1d1f, 0xc23b2a].map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.75 }));
+          for (let xx = x0 + 0.3, k = 0; xx < x1 - 0.25; xx += 0.42, k++) { for (let st = 0; st < 2; st++) box(0.34, 0.2, 0.28, boxM[(k + st) % 3], xx, 0.52 + st * 0.205, 0.18, g); box(0.34, 0.26, 0.28, boxM[(k + 1) % 2], xx, 0.15, 0.18, g); }
+        }
+      }
       room.pieces.forEach((p, k) => {
         const x = xs[k];
-        const maxH = p.kind === 'garment' ? 1.3 : p.kind === 'cap' ? 0.5 : 1.05;
+        const maxH = p.kind === 'garment' ? 1.3 : p.kind === 'cap' ? 0.66 : 1.05;
         const cy = onBack ? 1.62 : p.kind === 'cap' ? 1.5 : 1.78;
         const maxW = Math.min(1.45, (fw - 1.0) / Math.max(1, n) + 0.15);
         const mat = new THREE.MeshStandardMaterial({ color: p.kind === 'art' ? 0xdcd6cc : 0xf2eee8, roughness: 0.9, transparent: true, alphaTest: 0.04 });
         const plane = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat); plane.userData.id = p.id; hits.push(plane);
         const z = p.kind === 'cap' ? 0.3 : 0.16;
         plane.position.set(x, cy, z); g.add(plane);
-        const lp = pool(g, x, cy + 0.35, 0.03, 2.2, 3.0);
+        const lp = pool(g, x, cy + 0.35, 0.03, 2.2, 3.0); lp.visible = !Z.rack;
         // 額：服は奥行きのある鉄のシャドーボックス（白い裏板にピン留め）、絵や写真は白いマットの黒い額
         const fr = new THREE.Group(); fr.position.set(x, cy, 0); g.add(fr);
         const back = box(1, 1, 0.02, white, 0, 0, 0.06, fr);
@@ -446,6 +489,15 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
         const pins = p.kind === 'garment' ? [0, 1].map(() => { const s = new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 6), chrome); fr.add(s); return s; }) : [];
         let shelf: THREE.Mesh | null = null;
         if (p.kind === 'cap') { shelf = box(0.9, 0.035, 0.32, steel, x, cy - maxH / 2 - 0.02, 0.17, g); fr.visible = false; }
+        // 服はラックに掛ける：額をやめ、木のハンガーで銀のバーから吊るす
+        let hanger: THREE.Group | null = null;
+        if (p.kind === 'garment') {
+          fr.visible = false; plane.position.z = 0.34;
+          hanger = new THREE.Group(); g.add(hanger);
+          const hb = box(0.46, 0.028, 0.02, new THREE.MeshStandardMaterial({ color: 0x9c6b37, roughness: 0.5 }), 0, 0, 0, hanger); hb.rotation.z = 0;
+          rod(V(0, 0.014, 0), V(0, 0.09, 0), 0.006, chrome, hanger, 4);
+          const hook = new THREE.Mesh(new THREE.TorusGeometry(0.025, 0.005, 6, 16, Math.PI * 1.3), chrome); hook.position.set(0, 0.11, 0); hanger.add(hook);
+        }
         const fit = (a: number) => {
           let w = maxH * a, h = maxH; if (w > maxW) { w = maxW; h = w / a; }
           plane.scale.set(w, h, 1);
@@ -457,14 +509,15 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
           edges[3].scale.set(1, H, 1); edges[3].position.set(W / 2, 0, 0.1);
           pins.forEach((s, i) => s.position.set((i ? 1 : -1) * w * 0.3, h / 2 - h * 0.07, z + 0.01));
           if (shelf) plane.position.y = cy - maxH / 2 + h / 2;
+          if (hanger) { plane.position.y = RAILY - 0.14 - h / 2; hanger.position.set(x, RAILY - 0.12, 0.345); }
           lb.position.set(x + W / 2 + 0.22, cy - H / 2 + 0.1, 0.02);
           lp.scale.set(W / 1.2, H / 1.3, 1);
         };
         const lb = card(g, x, cy, 0.02, p);
         fit(1);
-        if (p.tex) loadTex(p.tex, (t, a) => { mat.map = t; mat.needsUpdate = true; fit(a); });
+        if (p.tex) loadTex(p.tex, (t, a) => { mat.map = t; mat.needsUpdate = true; fit(a); }, p.kind === 'cap');
         const ring = new THREE.Sprite(new THREE.SpriteMaterial({ map: ringT, transparent: true, depthWrite: false, opacity: 0.95 }));
-        ring.position.set(x, 0.62, 0.32); ring.scale.setScalar(0.32); ring.userData.id = p.id; ring.userData.base = 0.32; g.add(ring); hits.push(ring); rings.push(ring);
+        ring.position.set(x, p.kind === 'garment' ? 0.95 : p.kind === 'cap' ? 0.62 : 0.62, p.kind === 'garment' ? 0.52 : 0.38); ring.scale.setScalar(0.32); ring.userData.id = p.id; ring.userData.base = 0.32; g.add(ring); hits.push(ring); rings.push(ring);
         g.updateMatrixWorld(true);
         const wp = new THREE.Vector3(x, cy, z); g.localToWorld(wp);
         spots.push({ id: p.id, room: ri, pos: wp, normal, d: mobile ? 3.0 : 2.5 });
@@ -474,44 +527,89 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
       });
     });
 
-    // ---- 店の真ん中：絨毯の上のダートバイク ----
+    // ---- 店の真ん中：キャンディ塗装のローライダー（油圧で前輪を持ち上げた姿勢。ときどき上下に弾む） ----
+    let carTick: ((now: number) => void) | null = null;
     {
-      const BXP = -0.2, BZP = 3.6;
-      const rg = new THREE.Mesh(new THREE.PlaneGeometry(3.8, 2.6), new THREE.MeshStandardMaterial({ map: tex(rug()), roughness: 0.95 })); rg.rotation.x = -Math.PI / 2; rg.rotation.z = 0.12; rg.position.set(BXP, 0.008, BZP); scene.add(rg);
-      const plinth = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.2, 0.12, 48), black); plinth.position.set(BXP, 0.07, BZP); scene.add(plinth);
-      const bike = new THREE.Group(); bike.position.set(BXP, 0.13, BZP); bike.rotation.y = 0.62; scene.add(bike);
-      const wheel = (cx: number, r: number) => {
-        const w = new THREE.Group(); w.position.set(cx, r + 0.055, 0); bike.add(w);
-        const tire = new THREE.Mesh(new THREE.TorusGeometry(r, 0.06, 12, 48), rubber); tire.scale.z = 1.15; w.add(tire);
-        const rim = new THREE.Mesh(new THREE.TorusGeometry(r - 0.06, 0.012, 6, 48), chrome); w.add(rim);
-        const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.18, 14), chrome); hub.rotation.x = Math.PI / 2; w.add(hub);
-        for (let i = 0; i < (mobile ? 10 : 18); i++) { const a = (i / (mobile ? 10 : 18)) * Math.PI * 2, s = i % 2 ? 0.05 : -0.05; rod(V(0, 0, s), V(Math.cos(a) * (r - 0.06), Math.sin(a) * (r - 0.06), 0), 0.003, chrome, w, 3); }
-        const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.008, 24), chrome); disc.rotation.x = Math.PI / 2; disc.position.z = 0.07; w.add(disc);
+      const CX = 0, CZ = 3.4, L = 5.3, W = 1.94;
+      const car = new THREE.Group(); car.position.set(CX, 0, CZ); car.rotation.y = -0.38; scene.add(car);
+      const body = new THREE.Group(); car.add(body); // 油圧で傾く部分
+      const paint = new THREE.MeshPhysicalMaterial({ color: 0x5c0b2e, metalness: 0.55, roughness: 0.22, clearcoat: 1, clearcoatRoughness: 0.04, sheen: 0.4, sheenColor: new THREE.Color(0xff5a8a) });
+      const glassM = new THREE.MeshPhysicalMaterial({ color: 0x0d1014, metalness: 0.2, roughness: 0.05, clearcoat: 1, transparent: true, opacity: 0.86 });
+      const gold = new THREE.MeshStandardMaterial({ color: 0xd8b25a, metalness: 1, roughness: 0.25 });
+      const glow = (c: number) => new THREE.MeshBasicMaterial({ color: c });
+      // 横から見た車体の輪郭（長いボンネット・低い屋根・長いトランク。車輪の上はアーチで切り欠く）
+      const RW = 0.43, FXw = 1.62, RXw = -1.58;
+      const sh = new THREE.Shape();
+      sh.moveTo(L / 2, 0.3);
+      sh.lineTo(L / 2, 0.62); sh.quadraticCurveTo(L / 2 - 0.05, 0.72, L / 2 - 0.3, 0.74);
+      sh.lineTo(0.95, 0.8); sh.lineTo(0.35, 1.22); sh.quadraticCurveTo(0.25, 1.27, 0.1, 1.27);
+      sh.lineTo(-0.95, 1.27); sh.quadraticCurveTo(-1.08, 1.26, -1.15, 1.2); sh.lineTo(-1.62, 0.83);
+      sh.lineTo(-L / 2 + 0.25, 0.79); sh.quadraticCurveTo(-L / 2, 0.76, -L / 2, 0.6); sh.lineTo(-L / 2, 0.3);
+      sh.lineTo(RXw - RW - 0.06, 0.3); sh.absarc(RXw, 0.3, RW + 0.06, Math.PI, 0, true);
+      sh.lineTo(FXw - RW - 0.06, 0.3); sh.absarc(FXw, 0.3, RW + 0.06, Math.PI, 0, true);
+      sh.lineTo(L / 2, 0.3);
+      const bg = new THREE.ExtrudeGeometry(sh, { depth: W - 0.12, bevelEnabled: true, bevelThickness: 0.06, bevelSize: 0.06, bevelSegments: 4, curveSegments: 24 });
+      bg.translate(0, 0, -(W - 0.12) / 2);
+      const shell = new THREE.Mesh(bg, paint); body.add(shell);
+      // 窓（左右・前・後ろ）
+      const win = new THREE.Shape(); win.moveTo(0.88, 0.86); win.lineTo(0.33, 1.18); win.lineTo(-0.92, 1.18); win.lineTo(-1.45, 0.86); win.lineTo(0.88, 0.86);
+      for (const sZ of [-1, 1]) { const wm = new THREE.Mesh(new THREE.ShapeGeometry(win), glassM); wm.position.z = sZ * (W / 2 + 0.005); if (sZ < 0) wm.rotation.y = Math.PI, wm.position.x = 0, wm.scale.x = -1; body.add(wm); }
+      const ws = box(0.66, 0.012, W - 0.3, glassM, 0.64, 1.02, 0, body); ws.rotation.z = -0.62;
+      const rw = box(0.6, 0.012, W - 0.3, glassM, -1.4, 1.03, 0, body); rw.rotation.z = 0.68;
+      // B ピラーなしのハードトップ：窓の真ん中に細いクロームの縁
+      for (const sZ of [-1, 1]) { rod(V(0.88, 0.86, sZ * (W / 2 + 0.012)), V(-1.45, 0.86, sZ * (W / 2 + 0.012)), 0.012, chrome, body, 6); rod(V(0.33, 1.19, sZ * (W / 2 + 0.012)), V(-0.92, 1.19, sZ * (W / 2 + 0.012)), 0.01, chrome, body, 6); }
+      // クロームのバンパー・サイドモール・グリル・ライト
+      for (const [bx, d] of [[L / 2 + 0.04, 1], [-L / 2 - 0.04, -1]] as [number, number][]) {
+        const bump = new THREE.Mesh(new THREE.CapsuleGeometry(0.075, W - 0.05, 6, 12), chrome); bump.rotation.x = Math.PI / 2; bump.position.set(bx, 0.36, 0); body.add(bump);
+        for (const sZ of [-1, 1]) { const tip = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 12), chrome); tip.position.set(bx - d * 0.08, 0.36, sZ * (W / 2 - 0.02)); body.add(tip); }
+      }
+      for (const sZ of [-1, 1]) rod(V(L / 2 - 0.15, 0.56, sZ * (W / 2 + 0.035)), V(-L / 2 + 0.15, 0.56, sZ * (W / 2 + 0.035)), 0.016, chrome, body, 6);
+      // 金のピンストライプ（ボンネットとトランクの上を細く）
+      for (const sZ of [-1, 1]) { const ps = new THREE.CatmullRomCurve3([V(L / 2 - 0.25, 0.745, sZ * 0.55), V(1.9, 0.765, sZ * 0.42), V(1.2, 0.79, sZ * 0.5)]); body.add(new THREE.Mesh(new THREE.TubeGeometry(ps, 24, 0.006, 5), gold)); const pt = new THREE.CatmullRomCurve3([V(-L / 2 + 0.25, 0.79, sZ * 0.55), V(-2.1, 0.81, sZ * 0.4), V(-1.7, 0.83, sZ * 0.5)]); body.add(new THREE.Mesh(new THREE.TubeGeometry(pt, 24, 0.006, 5), gold)); }
+      const grille = new THREE.Group(); grille.position.set(L / 2 + 0.07, 0.52, 0); body.add(grille);
+      box(0.03, 0.2, W - 0.55, chrome, 0, 0, 0, grille); for (let i = 0; i < 14; i++) box(0.035, 0.18, 0.012, black, 0.006, 0, -(W - 0.7) / 2 + i * ((W - 0.7) / 13), grille);
+      for (const sZ of [-1, 1]) for (const dz of [0, 0.2]) { const hl = new THREE.Mesh(new THREE.CircleGeometry(0.075, 20), glow(0xfff6dd)); hl.position.set(L / 2 + 0.065, 0.62, sZ * (W / 2 - 0.2 - dz)); hl.rotation.y = Math.PI / 2; body.add(hl); const rim = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.012, 8, 24), chrome); rim.position.copy(hl.position); rim.rotation.y = Math.PI / 2; body.add(rim); }
+      for (const sZ of [-1, 1]) for (const dz of [0, 0.18]) { const tl = new THREE.Mesh(new THREE.CircleGeometry(0.06, 18), glow(0xff2a2a)); tl.position.set(-L / 2 - 0.065, 0.6, sZ * (W / 2 - 0.22 - dz)); tl.rotation.y = -Math.PI / 2; body.add(tl); }
+      // 室内：白いタックロールのベンチシートとステアリング（窓越しに見える）
+      const seatM = new THREE.MeshStandardMaterial({ color: 0xece6da, roughness: 0.7 });
+      box(0.5, 0.18, W - 0.35, seatM, 0.0, 0.62, 0, body); box(0.12, 0.38, W - 0.35, seatM, -0.22, 0.86, 0, body);
+      box(0.5, 0.18, W - 0.35, seatM, -0.95, 0.62, 0, body); box(0.12, 0.38, W - 0.35, seatM, -1.17, 0.86, 0, body);
+      const wheelS = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.014, 8, 32), chrome); wheelS.position.set(0.5, 0.92, 0.38); wheelS.rotation.set(0, Math.PI / 2, 0.45); body.add(wheelS);
+      // ワイヤーホイール＋ホワイトリボンのタイヤ（細く小径）
+      const tireM = new THREE.MeshStandardMaterial({ color: 0x141414, roughness: 0.85 }), wwM = new THREE.MeshStandardMaterial({ color: 0xf3f1ea, roughness: 0.7 });
+      const wheel = (wx: number, sZ: number) => {
+        const w = new THREE.Group(); w.position.set(wx, RW, sZ * (W / 2 - 0.12)); car.add(w);
+        const tire = new THREE.Mesh(new THREE.TorusGeometry(RW - 0.09, 0.09, 16, 48), tireM); w.add(tire);
+        const ww = new THREE.Mesh(new THREE.TorusGeometry(RW - 0.1, 0.03, 8, 48), wwM); ww.position.z = sZ * 0.07; w.add(ww);
+        const rimR = RW - 0.17; const rim = new THREE.Mesh(new THREE.TorusGeometry(rimR, 0.02, 8, 48), chrome); rim.position.z = sZ * 0.05; w.add(rim);
+        const dish = new THREE.Mesh(new THREE.CylinderGeometry(rimR, rimR, 0.04, 40, 1, true), chrome); dish.rotation.x = Math.PI / 2; w.add(dish);
+        const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.065, 0.14, 16), chrome); hub.rotation.x = Math.PI / 2; hub.position.z = sZ * 0.05; w.add(hub);
+        const knock = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.06, 3), gold); knock.rotation.x = sZ * Math.PI / 2; knock.position.z = sZ * 0.13; w.add(knock);
+        const nS = mobile ? 24 : 48;
+        for (let i = 0; i < nS; i++) { const a2 = (i / nS) * Math.PI * 2, cross = (i % 2 ? 1 : -1) * 0.04; rod(V(Math.cos(a2) * 0.04, Math.sin(a2) * 0.04, sZ * (0.05 + cross)), V(Math.cos(a2 + 0.35) * rimR, Math.sin(a2 + 0.35) * rimR, sZ * 0.02), 0.0035, chrome, w, 3); }
         return w;
       };
-      const RX = -0.72, FX = 0.76, RR = 0.33, FR = 0.36;
-      wheel(RX, RR); wheel(FX, FR);
-      const H = V(0.44, 1.02, 0), S = V(-0.26, 0.95, 0), B = V(-0.02, 0.36, 0), P = V(-0.22, 0.5, 0);
-      for (const [a, b, r] of [[H, S, 0.025], [H, B, 0.028], [B, P, 0.024], [S, P, 0.022]] as [THREE.Vector3, THREE.Vector3, number][]) rod(a, b, r, red, bike);
-      for (const s of [-0.07, 0.07]) rod(V(P.x, P.y, s), V(RX, RR + 0.055, s), 0.022, chrome, bike);
-      rod(V(-0.2, 0.92, 0), V(-0.42, 0.56, 0), 0.03, new THREE.MeshStandardMaterial({ color: 0xc9a227, metalness: 0.8, roughness: 0.3 }), bike);
-      for (const s of [-0.075, 0.075]) { rod(V(0.47, 1.12, s), V(0.62, 0.7, s), 0.026, new THREE.MeshStandardMaterial({ color: 0xc9a227, metalness: 0.8, roughness: 0.25 }), bike); rod(V(0.62, 0.7, s), V(FX, FR + 0.055, s), 0.022, chrome, bike); }
-      rod(V(0.47, 1.16, -0.38), V(0.47, 1.16, 0.38), 0.012, chrome, bike);
-      for (const s of [-1, 1]) rod(V(0.47, 1.16, s * 0.3), V(0.47, 1.16, s * 0.4), 0.019, rubber, bike);
-      const tank = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16), new THREE.MeshStandardMaterial({ map: tex(tankTex()), roughness: 0.3, metalness: 0.1 })); tank.scale.set(0.3, 0.12, 0.16); tank.position.set(0.14, 1.02, 0); tank.rotation.z = -0.1; bike.add(tank);
-      const seat = box(0.78, 0.07, 0.2, rubber, -0.32, 1.05, 0, bike); seat.rotation.z = 0.04;
-      const fender = box(0.62, 0.02, 0.18, white, -0.78, 1.0, 0, bike); fender.rotation.z = 0.22;
-      const ffender = box(0.42, 0.02, 0.16, white, 0.86, 0.86, 0, bike); ffender.rotation.z = -0.18;
-      for (const s of [-1, 1]) { const sp = box(0.32, 0.18, 0.01, white, -0.38, 0.88, s * 0.11, bike); sp.rotation.z = 0.12; }
-      box(0.3, 0.28, 0.24, new THREE.MeshStandardMaterial({ color: 0x8e9095, metalness: 0.7, roughness: 0.4 }), 0.0, 0.52, 0, bike);
-      for (let i = 0; i < 5; i++) box(0.2 - i * 0.012, 0.012, 0.28, black, 0.06, 0.7 + i * 0.03, 0, bike);
-      rod(V(0.14, 0.56, 0.12), V(0.02, 0.8, 0.17), 0.026, chrome, bike); rod(V(0.02, 0.8, 0.17), V(-0.52, 0.88, 0.17), 0.026, chrome, bike);
-      const muf = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.05, 0.4, 16), chrome); muf.rotation.z = Math.PI / 2 - 0.08; muf.position.set(-0.68, 0.9, 0.17); bike.add(muf);
-      const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.2), new THREE.MeshStandardMaterial({ map: textTex(256, 256, plateDraw), roughness: 0.5, side: THREE.DoubleSide })); plate.position.set(0.58, 1.02, 0); plate.rotation.set(0, Math.PI / 2, -0.32); bike.add(plate);
-      box(0.24, 0.3, 0.24, black, -0.05, 0.15, 0, bike);
-      floorShadow(BXP, BZP, 2.6, 1.8, 0.6); obstacles.push({ x: BXP, z: BZP, r: 1.55 });
-      const sp = new THREE.SpotLight(0xfff1dc, 26, 9, 0.42, 0.6, 1.2); sp.position.set(BXP + 0.6, CH - 0.4, BZP + 1.4); sp.target.position.set(BXP, 0.6, BZP); scene.add(sp, sp.target);
-      spotHead(V(BXP + 0.6, CH - 0.4, BZP + 1.4), V(BXP, 0.6, BZP));
+      const wheels = [wheel(FXw, -1), wheel(FXw, 1), wheel(RXw, -1), wheel(RXw, 1)];
+      body.position.y = 0.0;
+      // 床：黒い艶の円台と、映り込みの影
+      const plinth = new THREE.Mesh(new THREE.CylinderGeometry(3.05, 3.1, 0.08, 64), new THREE.MeshPhysicalMaterial({ color: 0x111113, roughness: 0.15, clearcoat: 1 })); plinth.position.set(CX, 0.04, CZ); scene.add(plinth);
+      const ringL = new THREE.Mesh(new THREE.TorusGeometry(3.07, 0.012, 6, 96), glow(0xffffff)); ringL.rotation.x = Math.PI / 2; ringL.position.set(CX, 0.085, CZ); scene.add(ringL);
+      car.position.y = 0.08;
+      floorShadow(CX, CZ, 5.8, 2.8, 0.55);
+      for (let t = -2.4; t <= 2.4; t += 0.8) obstacles.push({ x: CX + Math.cos(-0.38) * t * 1, z: CZ - Math.sin(-0.38) * t, r: 1.25 });
+      obstacles.push({ x: CX, z: CZ, r: 3.15 });
+      // 油圧：前を持ち上げたまま、数秒ごとにぽんと弾む
+      carTick = (now: number) => {
+        const t = now / 1000, ph = (t % 6) / 6;
+        const hop = ph < 0.12 ? Math.sin((ph / 0.12) * Math.PI) * 0.16 : 0;
+        const lift = 0.22 + hop + Math.sin(t * 1.3) * 0.01;
+        body.rotation.z = Math.atan2(lift, 3.2) * 0.9; body.rotation.x = Math.sin(t * 0.9) * 0.012 + 0.03;
+        body.position.y = 0.06 + lift * 0.45;
+        wheels[0].position.y = wheels[1].position.y = RW + lift * 0.25;
+      };
+      const sp = new THREE.SpotLight(0xffffff, 40, 11, 0.55, 0.6, 1.2); sp.position.set(CX + 1.2, CH - 0.4, CZ + 2.0); sp.target.position.set(CX, 0.5, CZ); scene.add(sp, sp.target);
+      const sp2 = new THREE.SpotLight(0xffd9ec, 22, 11, 0.6, 0.7, 1.2); sp2.position.set(CX - 1.6, CH - 0.4, CZ - 2.2); sp2.target.position.set(CX, 0.5, CZ); scene.add(sp2, sp2.target);
+      spotHead(V(CX + 1.2, CH - 0.4, CZ + 2.0), V(CX, 0.5, CZ)); spotHead(V(CX - 1.6, CH - 0.4, CZ - 2.2), V(CX, 0.5, CZ));
     }
 
     // ---- 入口の左：積んだギターアンプとロードケース ----
@@ -673,6 +771,7 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
     const loop = () => {
       raf = requestAnimationFrame(loop);
       const now = performance.now(), dt = Math.min(0.05, (now - prev) / 1000); prev = now;
+      if (!reduce) carTick?.(now);
       let mx = 0, mz = 0;
       if (keys.has('w') || keys.has('arrowup')) mz += 1;
       if (keys.has('s') || keys.has('arrowdown')) mz -= 1;
