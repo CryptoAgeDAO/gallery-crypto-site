@@ -1,6 +1,7 @@
 'use client';
 // ホームの背景：画面全体に固定した光の粒。スクロールした章や指した柱に合わせて、
 // 服 → キャップ → Tシャツ → アート → 抽選番号 …と形を変える（コンセプトページと同じ表現）。
+import { isPhone } from '@/lib/device';
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { sample } from './ParticlePiece';
@@ -14,7 +15,7 @@ export default function ParticleMorph({ targets, active, dim = false }: { target
   useEffect(() => {
     const el = host.current; if (!el || !targets.length) return;
     let alive = true;
-    const mobile = matchMedia('(max-width: 760px)').matches;
+    const mobile = isPhone();
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
     let r: THREE.WebGLRenderer;
     try { r = new THREE.WebGLRenderer({ antialias: false, alpha: true }); } catch { return; }

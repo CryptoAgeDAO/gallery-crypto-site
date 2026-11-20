@@ -2,6 +2,7 @@
 // レールの服を WebGL で描く：一着ずつ細かい網目の布にして、ハンガーの肩から下が遅れて揺れ、
 // 裾がはためき、胴に膨らみとドレープのしわが出る。光は布の傾きから計算するので、横向きは陰に、正面は明るくなる。
 // 位置・向き・揺れは RailShop の動き（バネ）をそのまま受け取る。押した判定は今までどおり DOM のボタンが受け持つ。
+import { isPhone } from '@/lib/device';
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 
@@ -82,7 +83,7 @@ export default function RailGL({ pieces, hookSrc, hangerSrc, state, els, stageRe
   useEffect(() => {
     const el = host.current, stage = stageRef.current; if (!el || !stage) return;
     let alive = true;
-    const mobile = matchMedia('(max-width: 760px)').matches;
+    const mobile = isPhone();
     let r: THREE.WebGLRenderer;
     try { r = new THREE.WebGLRenderer({ antialias: !mobile, alpha: true, powerPreference: mobile ? 'default' : 'high-performance' }); } catch { onReady(false); return; }
     r.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.4 : 2)); r.outputColorSpace = THREE.SRGBColorSpace;

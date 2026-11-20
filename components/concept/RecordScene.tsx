@@ -2,6 +2,7 @@
 // コンセプトページの3D：一着の服が、光の粒でできている。
 // スクロールに合わせて 粒の雲 → 服（実物）→ 記録のブロックの鎖（ハッシュ）→ 来歴のらせん → 服 と姿を変える。
 // 粒は服の絵から拾った色と位置を持つ。マウスや指を近づけると粒がよける。
+import { isPhone } from '@/lib/device';
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 
@@ -41,7 +42,7 @@ export default function RecordScene({ src, progress, apiRef }: { src: string; pr
   const host = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = host.current!; let alive = true;
-    const mobile = matchMedia('(max-width: 760px)').matches;
+    const mobile = isPhone();
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const N = mobile ? N_MOB : N_DESK;
     const r = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: 'high-performance' });

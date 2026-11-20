@@ -3,6 +3,7 @@
 // ・開くと散らばった粒が集まって服の形になり、reveal なら本物の絵（写真）が粒の中から浮かび上がる
 // ・マウスや指を近づけると粒がよける
 // ・mode="record" にすると、服がほどけて記録のブロックの鎖になる（購入完了の画面など）
+import { isPhone } from '@/lib/device';
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 
@@ -66,7 +67,7 @@ export default function ParticlePiece({ src, photo = false, reveal = false, mode
     const el = host.current; if (!el) return;
     let alive = true;
     setShown(false); setFailed(false); setCut(null);
-    const mobile = matchMedia('(max-width: 760px)').matches;
+    const mobile = isPhone();
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
     let r: THREE.WebGLRenderer;
     try { r = new THREE.WebGLRenderer({ antialias: false, alpha: true }); } catch { setFailed(true); return; }

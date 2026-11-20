@@ -3,6 +3,7 @@
 // むき出しのコンクリートの床、白いプレスティン（型押し鉄板）の天井、鎖で吊った蛍光灯。中央にダートバイク。
 // 服はハンガーに掛けず、鉄の額（シャドーボックス）にピンで留めるか、合板のテーブルに平置きで見せる。
 // 窓の外は夜の通りで、開店を待つ人が並んでいる。床の丸（または作品）を押すと作品に近づき、横から詳細が開く。
+import { isPhone } from '@/lib/device';
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
@@ -26,11 +27,14 @@ let seed = 11;
 const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
 const R = (a: number, b: number) => a + rnd() * (b - a);
 type Draw = (g: CanvasRenderingContext2D, w: number, h: number) => void;
+// スマホでは大きな描画素材（1024px 以上）を半分の大きさで作り、GPU のメモリを節約する
+let SMALL = false;
 function canvas(w: number, h: number, draw: Draw) {
+  if (SMALL && Math.max(w, h) >= 1024) { w = Math.round(w / 2); h = Math.round(h / 2); }
   const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d')!, w, h); return c;
 }
 function tex(c: HTMLCanvasElement, rep?: [number, number]) {
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = SMALL ? 2 : 8;
   if (rep) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rep[0], rep[1]); }
   return t;
 }
@@ -240,7 +244,7 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
 
   useEffect(() => {
     const el = host.current!; seed = 11; let alive = true;
-    const mobile = matchMedia('(max-width: 760px)').matches;
+    const mobile = isPhone(); SMALL = mobile;
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const renderer = new THREE.WebGLRenderer({ antialias: !mobile, powerPreference: mobile ? 'default' : 'high-performance', preserveDrawingBuffer: !mobile });
     renderer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.25 : 2));
@@ -262,7 +266,7 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
     const late: (() => void)[] = [];
     const textTex = (w: number, h: number, draw: Draw) => {
       const c = canvas(w, h, draw), t = tex(c);
-      late.push(() => { const g = c.getContext('2d')!; g.clearRect(0, 0, w, h); draw(g, w, h); t.needsUpdate = true; });
+      late.push(() => { const g = c.getContext('2d')!; g.clearRect(0, 0, c.width, c.height); draw(g, c.width, c.height); t.needsUpdate = true; });
       return t;
     };
 
