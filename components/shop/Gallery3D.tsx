@@ -242,8 +242,14 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
     const el = host.current!; seed = 11; let alive = true;
     const mobile = matchMedia('(max-width: 760px)').matches;
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: true });
-    renderer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.5 : 2));
+    const renderer = new THREE.WebGLRenderer({ antialias: !mobile, powerPreference: mobile ? 'default' : 'high-performance', preserveDrawingBuffer: !mobile });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.25 : 2));
+    // スマホでは重い物理ベースの素材（クリアコートなど）を使わず、軽い素材に置き換える（iPhone の GPU とメモリを守る）
+    const phys = (o: THREE.MeshPhysicalMaterialParameters) => {
+      if (!mobile) return new THREE.MeshPhysicalMaterial(o);
+      const { clearcoat, clearcoatRoughness, sheen, sheenColor, ...rest } = o; void clearcoat; void clearcoatRoughness; void sheen; void sheenColor;
+      return new THREE.MeshStandardMaterial(rest as THREE.MeshStandardMaterialParameters);
+    };
     renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.9;
     el.appendChild(renderer.domElement);
     renderer.domElement.addEventListener('webglcontextlost', (e) => { e.preventDefault(); cb.current.onState({ room: 0, focus: null, moving: false, ready: true, lost: true }); });
@@ -327,7 +333,7 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
       box(HX * 2, 0.22, 0.2, black, 0, 3.45, z, scene);
       box(HX * 2, CH - 3.56, 0.2, brickMat(HX * 2 / 1.6, (CH - 3.56) / 1.2), 0, 3.56 + (CH - 3.56) / 2, z + 0.05, scene);
       for (const x of [-HX, -HX / 2 - 0.6, DOOR - 0.75, DOOR + 0.75, HX]) box(0.08, 2.9, 0.12, black, Math.max(-HX + 0.04, Math.min(HX - 0.04, x)), 1.95, z, scene);
-      const glass = new THREE.MeshPhysicalMaterial({ color: 0xd9e3ea, transparent: true, opacity: 0.12, roughness: 0.04, metalness: 0, side: THREE.DoubleSide });
+      const glass = phys({ color: 0xd9e3ea, transparent: true, opacity: 0.12, roughness: 0.04, metalness: 0, side: THREE.DoubleSide });
       const gl = new THREE.Mesh(new THREE.PlaneGeometry(HX * 2, 2.9), glass); gl.position.set(0, 1.95, z - 0.01); scene.add(gl);
       box(0.04, 0.04, 0.9, chrome, DOOR - 0.45, 1.1, z - 0.06, scene);
       box(1.5, 0.06, 0.12, black, DOOR, 0.53, z, scene);
@@ -346,7 +352,7 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
       // 開店を待つ行列と、ベルベットロープ
       const ppl = [0, 1, 2, 3, 4, 5, 6].map((v) => tex(personTex(v)));
       let px = DOOR - 1.2, k = 0;
-      while (px > -HX - 9 && k < (mobile ? 9 : 16)) {
+      while (px > -HX - 9 && k < (mobile ? 5 : 16)) {
         const hs = R(0.92, 1.06);
         const pp = new THREE.Mesh(new THREE.PlaneGeometry(0.62 * hs, 1.86 * hs), new THREE.MeshBasicMaterial({ map: ppl[(k * 5 + 2) % 7], transparent: true, alphaTest: 0.5, color: 0x9c9890 }));
         pp.position.set(px, 0.93 * hs, z + 1.15 + (k % 2) * 0.25); pp.rotation.y = Math.PI + R(-0.35, 0.35); scene.add(pp);
@@ -533,8 +539,8 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
       const CX = 0, CZ = 3.4, L = 5.3, W = 1.94;
       const car = new THREE.Group(); car.position.set(CX, 0, CZ); car.rotation.y = -0.38; scene.add(car);
       const body = new THREE.Group(); car.add(body); // 油圧で傾く部分
-      const paint = new THREE.MeshPhysicalMaterial({ color: 0x5c0b2e, metalness: 0.55, roughness: 0.22, clearcoat: 1, clearcoatRoughness: 0.04, sheen: 0.4, sheenColor: new THREE.Color(0xff5a8a) });
-      const glassM = new THREE.MeshPhysicalMaterial({ color: 0x0d1014, metalness: 0.2, roughness: 0.05, clearcoat: 1, transparent: true, opacity: 0.86 });
+      const paint = phys({ color: 0x5c0b2e, metalness: 0.55, roughness: 0.22, clearcoat: 1, clearcoatRoughness: 0.04, sheen: 0.4, sheenColor: new THREE.Color(0xff5a8a) });
+      const glassM = phys({ color: 0x0d1014, metalness: 0.2, roughness: 0.05, clearcoat: 1, transparent: true, opacity: 0.86 });
       const gold = new THREE.MeshStandardMaterial({ color: 0xd8b25a, metalness: 1, roughness: 0.25 });
       const glow = (c: number) => new THREE.MeshBasicMaterial({ color: c });
       // 横から見た車体の輪郭（長いボンネット・低い屋根・長いトランク。車輪の上はアーチで切り欠く）
@@ -585,14 +591,14 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
         const dish = new THREE.Mesh(new THREE.CylinderGeometry(rimR, rimR, 0.04, 40, 1, true), chrome); dish.rotation.x = Math.PI / 2; w.add(dish);
         const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.065, 0.14, 16), chrome); hub.rotation.x = Math.PI / 2; hub.position.z = sZ * 0.05; w.add(hub);
         const knock = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.06, 3), gold); knock.rotation.x = sZ * Math.PI / 2; knock.position.z = sZ * 0.13; w.add(knock);
-        const nS = mobile ? 24 : 48;
+        const nS = mobile ? 14 : 48;
         for (let i = 0; i < nS; i++) { const a2 = (i / nS) * Math.PI * 2, cross = (i % 2 ? 1 : -1) * 0.04; rod(V(Math.cos(a2) * 0.04, Math.sin(a2) * 0.04, sZ * (0.05 + cross)), V(Math.cos(a2 + 0.35) * rimR, Math.sin(a2 + 0.35) * rimR, sZ * 0.02), 0.0035, chrome, w, 3); }
         return w;
       };
       const wheels = [wheel(FXw, -1), wheel(FXw, 1), wheel(RXw, -1), wheel(RXw, 1)];
       body.position.y = 0.0;
       // 床：黒い艶の円台と、映り込みの影
-      const plinth = new THREE.Mesh(new THREE.CylinderGeometry(3.05, 3.1, 0.08, 64), new THREE.MeshPhysicalMaterial({ color: 0x111113, roughness: 0.15, clearcoat: 1 })); plinth.position.set(CX, 0.04, CZ); scene.add(plinth);
+      const plinth = new THREE.Mesh(new THREE.CylinderGeometry(3.05, 3.1, 0.08, 64), phys({ color: 0x111113, roughness: 0.15, clearcoat: 1 })); plinth.position.set(CX, 0.04, CZ); scene.add(plinth);
       const ringL = new THREE.Mesh(new THREE.TorusGeometry(3.07, 0.012, 6, 96), glow(0xffffff)); ringL.rotation.x = Math.PI / 2; ringL.position.set(CX, 0.085, CZ); scene.add(ringL);
       car.position.y = 0.08;
       floorShadow(CX, CZ, 5.8, 2.8, 0.55);
@@ -608,7 +614,7 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick }: { rooms: G
         wheels[0].position.y = wheels[1].position.y = RW + lift * 0.25;
       };
       const sp = new THREE.SpotLight(0xffffff, 40, 11, 0.55, 0.6, 1.2); sp.position.set(CX + 1.2, CH - 0.4, CZ + 2.0); sp.target.position.set(CX, 0.5, CZ); scene.add(sp, sp.target);
-      const sp2 = new THREE.SpotLight(0xffd9ec, 22, 11, 0.6, 0.7, 1.2); sp2.position.set(CX - 1.6, CH - 0.4, CZ - 2.2); sp2.target.position.set(CX, 0.5, CZ); scene.add(sp2, sp2.target);
+      const sp2 = new THREE.SpotLight(0xffd9ec, 22, 11, 0.6, 0.7, 1.2); sp2.position.set(CX - 1.6, CH - 0.4, CZ - 2.2); sp2.target.position.set(CX, 0.5, CZ); if (!mobile) scene.add(sp2, sp2.target);
       spotHead(V(CX + 1.2, CH - 0.4, CZ + 2.0), V(CX, 0.5, CZ)); spotHead(V(CX - 1.6, CH - 0.4, CZ - 2.2), V(CX, 0.5, CZ));
     }
 

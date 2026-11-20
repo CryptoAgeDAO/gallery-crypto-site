@@ -84,8 +84,8 @@ export default function RailGL({ pieces, hookSrc, hangerSrc, state, els, stageRe
     let alive = true;
     const mobile = matchMedia('(max-width: 760px)').matches;
     let r: THREE.WebGLRenderer;
-    try { r = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' }); } catch { onReady(false); return; }
-    r.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.6 : 2)); r.outputColorSpace = THREE.SRGBColorSpace;
+    try { r = new THREE.WebGLRenderer({ antialias: !mobile, alpha: true, powerPreference: mobile ? 'default' : 'high-performance' }); } catch { onReady(false); return; }
+    r.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.4 : 2)); r.outputColorSpace = THREE.SRGBColorSpace;
     el.appendChild(r.domElement);
     r.domElement.addEventListener('webglcontextlost', (e) => { e.preventDefault(); onReady(false); });
     const scene = new THREE.Scene();
