@@ -553,7 +553,29 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick, paused = fal
       const CX = 0, CZ = 3.4, L = 5.3, W = 1.94;
       const car = new THREE.Group(); car.position.set(CX, 0, CZ); car.rotation.y = -0.38; scene.add(car);
       const body = new THREE.Group(); car.add(body); // 油圧で傾く部分
-      const paint = phys({ color: 0x5c0b2e, metalness: 0.55, roughness: 0.22, clearcoat: 1, clearcoatRoughness: 0.04, sheen: 0.4, sheenColor: new THREE.Color(0xff5a8a) });
+      // ショーカーの塗装：キャンディの地にメタルフレーク、側面の下半分にレース柄、金のスカラップ（ピンストライプ）
+      const paintC = canvas(2048, 512, (g, w, h) => {
+        const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#8a1747'); gr.addColorStop(0.45, '#5c0b2e'); gr.addColorStop(1, '#2a0414'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+        for (let i = 0; i < w * h / 90; i++) { g.fillStyle = `rgba(255,${180 + R(0, 75) | 0},${200 + R(0, 55) | 0},${R(0.05, 0.28)})`; g.fillRect(R(0, w), R(0, h), 1.2, 1.2); }
+        // レース：側面の下（車体の高さ 0.32〜0.55m のあたり）に、透かしの花模様
+        const y0 = h * (1 - 0.56 / 1.3), y1 = h * (1 - 0.33 / 1.3), cell = (y1 - y0) / 2;
+        g.save(); g.beginPath(); g.rect(w * 0.05, y0, w * 0.9, y1 - y0); g.clip();
+        g.strokeStyle = 'rgba(255,210,230,.34)'; g.lineWidth = 1.4;
+        for (let x = w * 0.05; x < w * 0.95; x += cell) for (let y = y0; y < y1; y += cell) {
+          const cx = x + cell / 2, cy = y + cell / 2;
+          for (let k = 0; k < 6; k++) { const a = (k / 6) * Math.PI * 2; g.beginPath(); g.ellipse(cx + Math.cos(a) * cell * 0.2, cy + Math.sin(a) * cell * 0.2, cell * 0.2, cell * 0.08, a, 0, 7); g.stroke(); }
+          g.beginPath(); g.arc(cx, cy, cell * 0.08, 0, 7); g.stroke(); g.beginPath(); g.arc(cx, cy, cell * 0.48, 0, 7); g.stroke();
+        }
+        g.restore();
+        const fade = g.createLinearGradient(0, y0, 0, y1); fade.addColorStop(0, 'rgba(92,11,46,.6)'); fade.addColorStop(0.25, 'rgba(92,11,46,0)'); fade.addColorStop(0.75, 'rgba(42,4,20,0)'); fade.addColorStop(1, 'rgba(42,4,20,.6)'); g.fillStyle = fade; g.fillRect(0, y0, w, y1 - y0);
+        // 金のスカラップ：前から後ろへ流れる、尖った炎のような線
+        g.strokeStyle = '#e4c26a'; g.lineWidth = 3; g.shadowColor = 'rgba(0,0,0,.4)'; g.shadowBlur = 2;
+        const sy = h * (1 - 0.66 / 1.3);
+        for (const dir of [1]) { void dir; g.beginPath(); g.moveTo(w * 0.08, sy); for (let i = 0; i < 7; i++) { const x = w * (0.1 + i * 0.12); g.quadraticCurveTo(x + w * 0.03, sy - h * 0.09, x + w * 0.1, sy - h * 0.01); g.quadraticCurveTo(x + w * 0.05, sy + h * 0.03, x + w * 0.12, sy); } g.stroke(); }
+        g.lineWidth = 1.2; g.beginPath(); g.moveTo(w * 0.08, sy + 8); g.lineTo(w * 0.92, sy + 8); g.stroke();
+      });
+      const paintT = tex(paintC); paintT.repeat.set(1 / L, 1 / 1.3); paintT.offset.set(0.5, 0);
+      const paint = phys({ color: 0xd9c2ca, map: paintT, metalness: 0.55, roughness: 0.22, clearcoat: 1, clearcoatRoughness: 0.04, sheen: 0.4, sheenColor: new THREE.Color(0xff5a8a) });
       const glassM = phys({ color: 0x0d1014, metalness: 0.2, roughness: 0.05, clearcoat: 1, transparent: true, opacity: 0.86 });
       const gold = new THREE.MeshStandardMaterial({ color: 0xd8b25a, metalness: 1, roughness: 0.25 });
       const glow = (c: number) => new THREE.MeshBasicMaterial({ color: c });
@@ -617,15 +639,53 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick, paused = fal
       car.position.y = 0.08;
       floorShadow(CX, CZ, 5.8, 2.8, 0.55);
       for (let t = -2.4; t <= 2.4; t += 0.8) obstacles.push({ x: CX + Math.cos(-0.38) * t * 1, z: CZ - Math.sin(-0.38) * t, r: 1.25 });
-      obstacles.push({ x: CX, z: CZ, r: 3.15 });
+      obstacles.push({ x: CX, z: CZ, r: 3.45 });
+      // ショーの展示：車の下に斜めの鏡（クロームの足まわりが映る）、クロームの足まわり、ロープの柵、トロフィー、展示札
+      const mirrorM = new THREE.MeshStandardMaterial({ color: 0xd8dde3, metalness: 1, roughness: 0.03 });
+      for (const [mx, mz, ry] of [[1.6, -0.55, 0.0], [1.6, 0.55, Math.PI], [-1.55, -0.55, 0.0], [-1.55, 0.55, Math.PI], [0.02, -0.6, 0.0], [0.02, 0.6, Math.PI]] as [number, number, number][]) {
+        const mg = new THREE.Group(); mg.position.set(mx, 0.03, mz); mg.rotation.y = ry; car.add(mg);
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.75), mirrorM); m.rotation.x = -Math.PI / 2 + 0.5; m.position.y = 0.16; mg.add(m);
+        box(1.14, 0.02, 0.78, black, 0, 0.15, 0.01, mg).rotation.x = 0.5;
+      }
+      const under = new THREE.Group(); under.position.y = 0.2; body.add(under);
+      for (const sZ of [-1, 1]) rod(V(L / 2 - 0.4, 0, sZ * 0.42), V(-L / 2 + 0.4, 0.02, sZ * 0.42), 0.035, chrome, under, 8);
+      for (const fx of [FXw, RXw]) { rod(V(fx, 0, -0.42), V(fx, 0, 0.42), 0.03, chrome, under, 8); for (const sZ of [-1, 1]) { rod(V(fx - 0.25, 0, sZ * 0.42), V(fx, 0.06, sZ * (W / 2 - 0.2)), 0.025, chrome, under, 6); const coil = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.012, 6, 18), gold); coil.rotation.x = Math.PI / 2; coil.position.set(fx, 0.08, sZ * 0.5); under.add(coil); const cyl = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.22, 14), chrome); cyl.position.set(fx, 0.1, sZ * 0.5); under.add(cyl); } }
+      const diff = new THREE.Mesh(new THREE.SphereGeometry(0.16, 18, 12), chrome); diff.scale.set(1, 0.8, 1); diff.position.set(RXw, 0.05, 0); under.add(diff);
+      rod(V(RXw, 0.05, 0), V(0.9, 0.05, 0), 0.04, chrome, under, 8);
+      const rope = new THREE.MeshStandardMaterial({ color: 0x7a0d1a, roughness: 0.85 });
+      const posts: THREE.Vector3[] = [];
+      for (let i = 0; i < 10; i++) { const a = (i / 10) * Math.PI * 2 + 0.3; if (Math.abs(Math.sin(a - 1.2)) < 0.2 && Math.cos(a - 1.2) > 0) continue; posts.push(V(CX + Math.cos(a) * 3.35, 0, CZ + Math.sin(a) * 3.35)); }
+      posts.forEach((pp) => { rod(V(pp.x, 0.02, pp.z), V(pp.x, 0.92, pp.z), 0.025, chrome, scene, 8); const b0 = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 0.04, 20), chrome); b0.position.set(pp.x, 0.02, pp.z); scene.add(b0); const tp = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 8), chrome); tp.position.set(pp.x, 0.95, pp.z); scene.add(tp); });
+      for (let i = 0; i < posts.length; i++) { const a = posts[i], b = posts[(i + 1) % posts.length]; if (a.distanceTo(b) > 2.6) continue; const mid = a.clone().lerp(b, 0.5).setY(0.62); const cu = new THREE.QuadraticBezierCurve3(a.clone().setY(0.88), mid, b.clone().setY(0.88)); scene.add(new THREE.Mesh(new THREE.TubeGeometry(cu, 16, 0.022, 6), rope)); }
+      // トロフィー（金のカップ）と展示札
+      const cupG = new THREE.LatheGeometry([new THREE.Vector2(0.0, 0), new THREE.Vector2(0.11, 0), new THREE.Vector2(0.11, 0.04), new THREE.Vector2(0.03, 0.06), new THREE.Vector2(0.025, 0.2), new THREE.Vector2(0.06, 0.24), new THREE.Vector2(0.13, 0.36), new THREE.Vector2(0.14, 0.44), new THREE.Vector2(0.12, 0.44)], 24);
+      for (const [tx, tz, sc] of [[2.25, 1.9, 1.3], [2.55, 1.55, 1], [1.95, 2.2, 0.85]] as [number, number, number][]) { const cup = new THREE.Mesh(cupG, gold); cup.position.set(CX + tx, 0.08, CZ + tz); cup.scale.setScalar(sc); scene.add(cup); box(0.3 * sc, 0.12, 0.3 * sc, black, CX + tx, 0.08, CZ + tz, scene).position.y = 0.02; }
+      const boardT = textTex(512, 640, (g, w, h) => {
+        g.fillStyle = '#141414'; g.fillRect(0, 0, w, h); g.strokeStyle = '#e4c26a'; g.lineWidth = 6; g.strokeRect(14, 14, w - 28, h - 28);
+        g.fillStyle = '#e4c26a'; g.textAlign = 'center'; g.font = `400 ${h * 0.05}px ${UI}`; g.fillText('GALLERY CRYPTO — SHOW DISPLAY', w / 2, h * 0.14);
+        g.fillStyle = '#f4efe6'; g.font = `400 ${h * 0.15}px ${DISP}`; g.fillText('CANDY', w / 2, h * 0.36); g.fillText('HARDTOP', w / 2, h * 0.52);
+        g.fillStyle = '#c9c2b4'; g.font = `400 ${h * 0.045}px ${UI}`; ['Candy paint · lace · gold leaf', 'Hydraulics · chrome undercarriage', 'Wire wheels · whitewalls'].forEach((l, i) => g.fillText(l, w / 2, h * (0.66 + i * 0.07)));
+        g.fillStyle = '#8a8478'; g.font = `400 ${h * 0.036}px ${UI}`; g.fillText('Sample display — not for sale', w / 2, h * 0.92);
+      });
+      const easel = new THREE.Group(); easel.position.set(CX - 2.7, 0, CZ + 2.3); easel.rotation.y = 0.75; scene.add(easel);
+      const bd = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.78), new THREE.MeshStandardMaterial({ map: boardT, roughness: 0.6 })); bd.position.set(0, 1.05, 0); bd.rotation.x = -0.12; easel.add(bd);
+      for (const ex of [-0.22, 0.22]) rod(V(ex, 0, 0.12), V(ex * 0.6, 1.45, -0.04), 0.012, chrome, easel, 5);
+      rod(V(0, 0, -0.35), V(0, 1.4, -0.05), 0.012, chrome, easel, 5);
+      obstacles.push({ x: CX - 2.7, z: CZ + 2.3, r: 0.5 });
       // 油圧：前を持ち上げたまま、数秒ごとにぽんと弾む
+      // 油圧の動き（12秒で一巡）：前を上げる → 三輪立ち（片方の前輪を宙に） → ぽんと弾む → 戻る
+      const sm = (a: number, b: number, x: number) => { const k = Math.max(0, Math.min(1, (x - a) / (b - a))); return k * k * (3 - 2 * k); };
       carTick = (now: number) => {
-        const t = now / 1000, ph = (t % 6) / 6;
-        const hop = ph < 0.12 ? Math.sin((ph / 0.12) * Math.PI) * 0.16 : 0;
-        const lift = 0.22 + hop + Math.sin(t * 1.3) * 0.01;
-        body.rotation.z = Math.atan2(lift, 3.2) * 0.9; body.rotation.x = Math.sin(t * 0.9) * 0.012 + 0.03;
-        body.position.y = 0.06 + lift * 0.45;
-        wheels[0].position.y = wheels[1].position.y = RW + lift * 0.25;
+        const t = now / 1000, ph = (t % 12) / 12;
+        const nose = 0.08 + sm(0.02, 0.1, ph) * 0.16 - sm(0.88, 0.97, ph) * 0.16;
+        const three = sm(0.2, 0.3, ph) - sm(0.62, 0.72, ph); // 三輪立ち
+        const hop = ph > 0.76 && ph < 0.84 ? Math.sin(((ph - 0.76) / 0.08) * Math.PI) * 0.18 : 0;
+        const lift = nose + hop + Math.sin(t * 1.3) * 0.006;
+        body.rotation.z = Math.atan2(lift, 3.2) * 0.9;
+        body.rotation.x = three * 0.075 + Math.sin(t * 0.9) * 0.008; // 左前を持ち上げて傾く
+        body.position.y = 0.06 + lift * 0.45 + three * 0.05;
+        wheels[0].position.y = RW + lift * 0.25 + three * 0.2; // 左前（宙に浮く）
+        wheels[1].position.y = RW + lift * 0.25 * (1 - three);
       };
       const sp = new THREE.SpotLight(0xffffff, 40, 11, 0.55, 0.6, 1.2); sp.position.set(CX + 1.2, CH - 0.4, CZ + 2.0); sp.target.position.set(CX, 0.5, CZ); scene.add(sp, sp.target);
       const sp2 = new THREE.SpotLight(0xffd9ec, 22, 11, 0.6, 0.7, 1.2); sp2.position.set(CX - 1.6, CH - 0.4, CZ - 2.2); sp2.target.position.set(CX, 0.5, CZ); if (!mobile) scene.add(sp2, sp2.target);
