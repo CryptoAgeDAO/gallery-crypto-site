@@ -15,6 +15,7 @@ export function supabase(): SupabaseClient | null {
 }
 
 export function photoUrl(path: string): string {
+  if (path.endsWith('#back')) path = path.slice(0, -5); // 背中の写真の印（lib/photoRole）
   if (path.startsWith('http') || path.startsWith('/')) return path;
   if (!url) return '';
   return `${url}/storage/v1/object/public/photos/${path}`;

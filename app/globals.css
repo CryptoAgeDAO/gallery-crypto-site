@@ -3204,3 +3204,15 @@ img{image-rendering:auto}
 .sf-tour-rail{height:clamp(380px,40vw,520px)}
 .sf-tour-rail .hr{min-height:0}
 @media (max-width:760px){.sf-tour{grid-template-columns:1fr}.sf-tour-rail{height:400px}}
+/* 管理画面：写真の正面・背中 */
+.photos figure.ph-r{height:auto;padding-bottom:26px;background:none}
+.photos figure.ph-r img{height:90px;background:var(--tile)}
+.photos figure.ph-r.front img{outline:2px solid #111;outline-offset:-2px}
+.photos figure.ph-r.back img{outline:2px dashed #b3261e;outline-offset:-2px}
+.ph-badge{position:absolute;left:3px;top:3px;font-style:normal;font-size:9px;font-weight:700;letter-spacing:.06em;padding:1px 4px;background:#111;color:#fff}
+.ph-r.back .ph-badge{background:#b3261e}
+.photos .ph-set{position:absolute;left:0;right:0;bottom:0;display:flex;gap:2px}
+.photos .ph-set button{position:static;flex:1;padding:3px 0;font-size:10px;background:#f1f0ec;border:1px solid #ddd;cursor:pointer}
+.photos .ph-set button[aria-pressed=true]{background:#111;color:#fff;border-color:#111}
+.ph-r.back .ph-set button[aria-pressed=true]{background:#b3261e;border-color:#b3261e}
+.ph-n{position:absolute;right:4px;bottom:28px;font-size:9px;color:#fff;text-shadow:0 0 3px #000}

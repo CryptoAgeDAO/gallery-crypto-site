@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase, photoUrl, configured } from '@/lib/supabase';
+import { bare, frontOf, isBack, setBack, setFront } from '@/lib/photoRole';
 import { shrink } from '@/lib/image';
 import { onSfxChange, setSfx, sfx, sfxBoot, sfxEnabled } from '@/lib/sfx';
 import Ticket from '@/components/Ticket';
@@ -198,12 +199,22 @@ function ItemForm({ init, onDone }: { init: Partial<Item> | null; onDone: (msg?:
     <div className="sec">
       <h4>{init?.id ? `Edit ${certNo(init as Item)}` : tt('Add a piece', '作品を追加')}</h4>
       <div className="photos">
-        {f.photos.map((p) => (
-          <figure key={p}>
-            <img src={photoUrl(p)} alt="" />
-            <button type="button" onClick={() => set('photos', f.photos.filter((x) => x !== p))} aria-label={tt('Remove photo', '写真を外す')}>×</button>
-          </figure>
-        ))}
+        {f.photos.map((p, i) => {
+          // 正面：先頭の写真（背中の印のないもの）。背中：「背中」を押した1枚。ショップの商品ページで「正面／背中」を切り替えられる
+          const role = isBack(p) ? 'back' : p === frontOf(f.photos) ? 'front' : '';
+          return (
+            <figure key={p} className={`ph-r ${role}`}>
+              <img src={photoUrl(p)} alt="" />
+              {role && <em className="ph-badge">{role === 'back' ? tt('Back', '背中') : tt('Front', '正面')}</em>}
+              <button type="button" onClick={() => set('photos', f.photos.filter((x) => x !== p))} aria-label={tt('Remove photo', '写真を外す')}>×</button>
+              <span className="ph-set">
+                <button type="button" aria-pressed={role === 'front'} disabled={role === 'front'} onClick={() => set('photos', setFront(f.photos, p))}>{tt('Front', '正面')}</button>
+                <button type="button" aria-pressed={role === 'back'} onClick={() => set('photos', setBack(f.photos, p))}>{tt('Back', '背中')}</button>
+              </span>
+              <small className="ph-n">{i + 1}</small>
+            </figure>
+          );
+        })}
         <label className="btn" style={{ cursor: 'pointer' }}>
           {tt('Add photos', '写真を追加')}
           <input type="file" accept="image/*" multiple hidden onChange={async (e) => {
@@ -352,7 +363,7 @@ function Items() {
             <button className="btn danger" style={{ fontSize: 11, padding: '4px 8px' }} onClick={async () => {
               if (!confirm(tt(`Delete ${certNo(it)} ${it.band}?`, `${certNo(it)} ${it.band} を削除しますか？`))) return;
               await db.from('items').delete().eq('id', it.id);
-              if (it.photos.length) await db.storage.from('photos').remove(it.photos);
+              if (it.photos.length) await db.storage.from('photos').remove(it.photos.map(bare));
               if (it.audio_path) await db.storage.from('audio').remove([it.audio_path]);
               load();
             }}>{tt('Delete', '削除')}</button>
