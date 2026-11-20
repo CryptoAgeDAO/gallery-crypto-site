@@ -11,7 +11,8 @@ export type Project = {
   year: string;
   price: number | null; // 円。null は価格未定
   img?: string; // 写真（RWA の見本はキャップの写真）
-  draw?: { kind: 'tee' | 'sweat' | 'jacket' | 'shirt' | 'denim'; color: string; accent: string }; // 古着の見本は図で描く
+  draw?: { kind: 'tee' | 'sweat' | 'jacket' | 'shirt' | 'denim'; color: string; accent: string; tour?: 'a' | 'b' | 'c' }; // 古着の見本は図で描く（tour：ツアーマーチの胸と背中のプリント）
+  tour?: boolean; // Gallery Crypto オリジナルのツアーマーチ（見本）
   art?: { seed: number; palette: string[]; form: 'rings' | 'grid' | 'wave' }; // アートの見本は図で描く
   facts: [string, string][]; // 情報（英, 日 は UI 側で切り替えない固有値）
   story: [string, string];
@@ -65,6 +66,20 @@ export const PROJECTS: Project[] = [
     facts: [['Size', 'L'], ['Condition', 'B'], ['Material', 'Cotton / poly'], ['Grade', 'Used (regular)']],
     story: ['Everyday layer with its record attached.', '記録付きの普段使いの一枚。'],
     log: [L('2026-10-05', 'Bought in, Yokohama', '横浜で買い付け')] },
+
+  // ツアーマーチ（Gallery Crypto オリジナルの見本）：背中のプリントは「その一着の来歴」をツアー日程のように並べたもの
+  { id: 't1', pillar: 'vintage', tour: true, code: 'GC-T-001', title: 'On Record Tour tee', sub: 'Tour merch · black · L', year: '2027', price: 9800, draw: { kind: 'tee', color: '#151517', accent: '#c9a45c', tour: 'a' },
+    facts: [['Size', 'L — chest 56 / length 72 cm'], ['Print', 'Front + back, water-based ink'], ['Material', 'Cotton 100%, heavyweight'], ['Grade', 'New — tour merch (sample)']],
+    story: ['Tour merch, recorded. The back print reads like tour dates, but each stop is a moment in this shirt\'s own record.', '記録されたツアーマーチ。背中はツアー日程のように見えますが、並んでいるのはこの一着自身の来歴です。'],
+    log: [L('2026-11-20', 'Design fixed (sample)', 'デザイン確定（見本）')] },
+  { id: 't2', pillar: 'vintage', tour: true, code: 'GC-T-002', title: 'On Record Tour longsleeve', sub: 'Tour merch · white · M', year: '2027', price: 12800, draw: { kind: 'sweat', color: '#ecebe6', accent: '#8f1d22', tour: 'b' },
+    facts: [['Size', 'M — chest 54 / length 70 cm'], ['Print', 'Chest, sleeve + back'], ['Material', 'Cotton 100%'], ['Grade', 'New — tour merch (sample)']],
+    story: ['Long sleeve with the tour name running down the arm and the record on the back.', '袖にツアー名、背中に記録を刷った長袖。'],
+    log: [L('2026-11-20', 'Design fixed (sample)', 'デザイン確定（見本）')] },
+  { id: 't3', pillar: 'vintage', tour: true, code: 'GC-T-003', title: 'On Record Tour tee — washed', sub: 'Tour merch · washed brown · XL', year: '2027', price: 9800, draw: { kind: 'tee', color: '#5a4636', accent: '#e8dcc2', tour: 'c' },
+    facts: [['Size', 'XL — chest 60 / length 75 cm'], ['Print', 'Front + back, cracked finish'], ['Material', 'Cotton 100%, garment-washed'], ['Grade', 'New — tour merch (sample)']],
+    story: ['Garment-washed so it feels worn from day one. The print is cracked on purpose.', '最初から着込んだ風合いに洗い加工。プリントはわざとひび割れさせています。'],
+    log: [L('2026-11-20', 'Design fixed (sample)', 'デザイン確定（見本）')] },
 
   // ❸ アート・ファッション以外のプロジェクト
   { id: 'a1', pillar: 'art', code: 'GC-A-001', title: 'Signal / Noise', sub: 'Print, edition of 20', year: '2027', price: 24000, art: { seed: 7, palette: ['#111', '#d2452f', '#f2efe8'], form: 'rings' },

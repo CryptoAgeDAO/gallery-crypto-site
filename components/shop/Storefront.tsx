@@ -16,10 +16,11 @@ import HangRail, { type RailItem } from './HangRail';
 import { kindOf } from './pieceArt';
 
 const LKEY = 'gc-shop-local', CKEY = 'gc-shop-cart';
-type Cat = 'all' | 'new' | 'vintage' | 'used' | 'tops' | 'outer' | 'caps' | 'art' | 'archive';
+type Cat = 'all' | 'new' | 'tour' | 'vintage' | 'used' | 'tops' | 'outer' | 'caps' | 'art' | 'archive';
 type P = ShopItem & { src: string; cat: Cat[]; n: number; yen: number; lottery?: string };
 const CATS: { k: Cat; en: string; ja: string }[] = [
   { k: 'new', en: 'New arrivals', ja: '新着' },
+  { k: 'tour', en: 'Tour merch', ja: 'ツアーマーチ' },
   { k: 'vintage', en: 'Vintage', ja: 'ヴィンテージ' },
   { k: 'used', en: 'Used', ja: '古着' },
   { k: 'tops', en: 'Tops', ja: 'トップス' },
@@ -38,6 +39,7 @@ function catsOf(i: ShopItem): Cat[] {
   if (i.zone === 'archive') c.push('archive', 'tops');
   if (p?.code.startsWith('GC-V')) c.push('vintage');
   if (p?.code.startsWith('GC-U')) c.push('used');
+  if (p?.tour) c.push('tour');
   if (p?.draw) c.push(p.draw.kind === 'jacket' || p.draw.kind === 'denim' ? 'outer' : 'tops');
   if (i.buy === 'local' && i.zone === 'vintage') c.push('used', 'tops');
   return c;
@@ -90,7 +92,7 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
     if (!product) return [];
     // 同じ種類（服なら服、キャップならキャップ）を同じレールに
     const kd = kindOf(product);
-    const same = all.filter((x) => x.id === product.id || (kindOf(x) === kd && (cat && cat !== 'all' && cat !== 'new' ? x.cat.includes(cat) : true)));
+    const same = product.tour ? all.filter((x) => x.tour) : all.filter((x) => x.id === product.id || (kindOf(x) === kd && (cat && cat !== 'all' && cat !== 'new' ? x.cat.includes(cat) : true)));
     const list = (same.length > 2 ? same : all).slice(0, 12);
     if (!list.some((x) => x.id === product.id)) list.unshift(product);
     return list.map(rail);
@@ -103,6 +105,7 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
   const hero = useMemo(() => {
     const pick = (id: string) => all.find((i) => i.id === id) || all[0];
     return [
+      { it: pick('demo-t1'), k: t('Tour merch', 'ツアーマーチ'), h: t('The On Record Tour — the back print is the shirt\'s own record', 'On Record Tour — 背中のプリントは、その一着の来歴'), c: 'tour' as Cat, bg: '#0d0d0e' },
       { it: pick('demo-r3'), k: t('New collab', '新作コラボ'), h: t('Numbered caps, recorded on chain', '番号入りのキャップ、記録はチェーンに'), c: 'caps' as Cat, bg: '#111' },
       { it: pick('demo-v3'), k: t('Vintage', 'ヴィンテージ'), h: t('One-of-one pieces, each with its history', '一点もの。それぞれに来歴を'), c: 'vintage' as Cat, bg: '#2b3a52' },
       { it: pick('demo-a1'), k: t('Art & objects', 'アート・オブジェ'), h: t('Prints and objects, one record per piece', '版画とオブジェも一点ずつ記録'), c: 'art' as Cat, bg: '#d9d4c7' },
@@ -182,6 +185,19 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
           <div className="sf-railsec"><HangRail mode="section" items={railAll} focusId={null} onFocus={(id) => id && nav(cat, id)} /></div>
 
           <Row title={t('This just in', '新着')} c="new" items={byCat('new')} />
+
+          {/* 特集：ツアーマーチ（黒地・太い文字・暗いレール） */}
+          {byCat('tour').length > 0 && (
+            <section className="sf-tour">
+              <div className="sf-tour-h">
+                <em>{t('Tour merch — sample', 'ツアーマーチ — 見本')}</em>
+                <h2>ON RECORD<br />TOUR</h2>
+                <p>{t('Tour shirts, recorded. The back reads like tour dates, but every stop is a moment in that shirt\'s own history — found, measured, recorded, tagged, sold.', '記録されたツアーシャツ。背中はツアー日程のように見えますが、並ぶのはその一着自身の来歴──見つけた日、採寸、記録、タグ、そして次の持ち主へ。')}</p>
+                <a href="#c=tour" className="sf-tour-cta">{t('Shop the tour', 'ツアーマーチを見る')} →</a>
+              </div>
+              <div className="sf-tour-rail"><HangRail dark mode="section" items={byCat('tour').map(rail)} focusId={null} onFocus={(id) => id && nav('tour', id)} /></div>
+            </section>
+          )}
 
           {/* 2枚並びのキャンペーン */}
           <section className="kx-split">

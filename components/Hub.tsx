@@ -371,7 +371,7 @@ export default function Hub() {
   const [openEv, setOpenEv] = useState<string>('e1');
   const [vf, setVf] = useState<'all' | 'v' | 'u'>('all');
   const L = (p: (typeof PILLARS)[number]) => (lang === 'ja' ? p.ja : p.en);
-  const by = (k: Pillar) => PROJECTS.filter((p) => p.pillar === k);
+  const by = (k: Pillar) => PROJECTS.filter((p) => p.pillar === k && !p.tour); // ツアーマーチはショップの特集で見せる
   const goEvent = (id: string) => { setSel(null); setOpenEv(id); setTimeout(() => document.getElementById(`ev-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60); };
   useEffect(() => { const h = decodeURIComponent(location.hash.slice(1)); const p = PROJECTS.find((x) => x.code === h); if (p) setSel(p); }, []);
   useReveal(`${vf}${evs ? 1 : 0}`);

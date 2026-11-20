@@ -24,14 +24,57 @@ function lum(hex: string) { const n = parseInt(hex.slice(1), 16); return (0.299 
 
 // 布の起伏を「高さの地図」として描き、SVG の光源フィルター（拡散光＋鏡面光）で照らす。
 // 平らな色に影を描き足すのではなく、膨らみ・ドレープ・縫い目のくぼみから陰影が生まれるので写真に近づく。
-export function realGarment(d: D, seed = 1): string {
+// ツアーマーチのプリント（オリジナル）。胸：アーチの文字・翼のついた砂時計・ツアー名。背中：その一着の来歴をツアー日程のように。
+function tourPrint(d: D, side: 'front' | 'back', id: string): string {
+  if (!d.tour) return '';
+  const dark = lum(d.color) < 0.35, ink = dark ? '#ece5d3' : '#141414', acc = d.accent;
+  const SER = "'Times New Roman',Georgia,serif", CON = "'Arial Narrow','Helvetica Neue',Arial,sans-serif";
+  // かすれ：プリントに細かい抜けをつくる
+  const wear = `<mask id="${id}pw" maskUnits="userSpaceOnUse" x="0" y="0" width="240" height="220"><rect width="240" height="220" fill="#fff"/><rect width="240" height="220" filter="url(#${id}pn)"/></mask>
+<filter id="${id}pn" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="${d.tour === 'c' ? 0.9 : 0.6}" numOctaves="2" seed="${id.length + 5}"/><feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 ${d.tour === 'c' ? -8 : -6} ${d.tour === 'c' ? 3.9 : 2.5}"/></filter>`;
+  let g = '';
+  if (side === 'front') {
+    if (d.tour === 'b') {
+      // 長袖：胸に小さく、袖に縦の文字
+      g = `<text x="146" y="66" font-family="${SER}" font-weight="700" font-style="italic" font-size="7.5" fill="${ink}" text-anchor="middle" textLength="34" lengthAdjust="spacingAndGlyphs">Gallery Crypto</text>
+<text x="146" y="74" font-family="${CON}" font-weight="700" font-size="3.6" letter-spacing="1.2" fill="${acc}" text-anchor="middle" textLength="30" lengthAdjust="spacingAndGlyphs">ON RECORD TOUR</text>
+<text transform="translate(61 64) rotate(66)" font-family="${CON}" font-weight="700" font-size="7" letter-spacing="2.2" fill="${acc}" textLength="52" lengthAdjust="spacingAndGlyphs">ON RECORD</text>
+<text transform="translate(178 64) rotate(114) scale(-1 -1)" font-family="${CON}" font-weight="700" font-size="5" letter-spacing="1.6" fill="${ink}" text-anchor="end" textLength="36" lengthAdjust="spacingAndGlyphs">TOKYO 2027</text>`;
+    } else {
+      g = `<path id="${id}arc" d="M86 76 Q120 52 154 76" fill="none"/>
+<text font-family="${SER}" font-weight="700" font-size="11" letter-spacing=".6" fill="${ink}"><textPath href="#${id}arc" startOffset="50%" text-anchor="middle" textLength="70" lengthAdjust="spacingAndGlyphs">Gallery Crypto</textPath></text>
+<g transform="translate(120 106)" fill="none" stroke="${ink}" stroke-width="1.5" stroke-linejoin="round">
+  <circle r="20" stroke-dasharray="2.2 1.6" stroke="${acc}"/>
+  ${Array.from({ length: 16 }, (_, i) => { const a = (i / 16) * Math.PI * 2; return `<path d="M${(Math.cos(a) * 20).toFixed(1)} ${(Math.sin(a) * 20).toFixed(1)} l${(Math.cos(a + 0.5) * 3.5).toFixed(1)} ${(Math.sin(a + 0.5) * 3.5).toFixed(1)}" stroke="${acc}" stroke-width="1"/>`; }).join('')}
+  <path d="M-8 -14 H8 L0 0 L8 14 H-8 L0 0 Z" fill="${ink}" fill-opacity=".12"/>
+  <path d="M-10 -15 H10 M-10 15 H10"/>
+  <path d="M-3 -8 L3 -8 L0 -3 Z M-5 12 Q0 6 5 12 Z" fill="${acc}" stroke="none"/>
+  ${[0, 1].map((sd) => { const m = sd ? -1 : 1; return Array.from({ length: 5 }, (_, i) => `<path d="M${m * 11} ${-2 + i * 1.5} Q${m * (22 + i * 3)} ${-14 + i * 4} ${m * (34 - i * 2)} ${-6 + i * 5}" stroke-width="${1.4 - i * 0.18}"/>`).join(''); }).join('')}
+</g>
+<text x="120" y="148" font-family="${CON}" font-weight="800" font-size="13" letter-spacing="1.4" fill="${ink}" text-anchor="middle" textLength="66" lengthAdjust="spacingAndGlyphs">ON RECORD</text>
+<text x="120" y="157" font-family="${CON}" font-weight="700" font-size="4.4" letter-spacing="2.4" fill="${acc}" text-anchor="middle" textLength="66" lengthAdjust="spacingAndGlyphs">WORLD TOUR · ONE OF ONE · 2027</text>`;
+    }
+  } else {
+    // 背中：来歴の「ツアー日程」
+    const rows: [string, string][] = [['TOKYO', 'FOUND'], ['TOKYO', 'MEASURED'], ['TOKYO', 'PHOTOGRAPHED'], ['TOKYO', 'RECORDED'], ['TOKYO', 'TAG SEWN IN'], ['ONLINE', 'LISTED'], ['ANYWHERE', 'NEXT OWNER']];
+    g = `<text x="120" y="64" font-family="${SER}" font-weight="700" font-size="12" fill="${ink}" text-anchor="middle" textLength="46" lengthAdjust="spacingAndGlyphs">On Record</text>
+<text x="120" y="73" font-family="${CON}" font-weight="700" font-size="4.6" letter-spacing="2.6" fill="${acc}" text-anchor="middle" textLength="56" lengthAdjust="spacingAndGlyphs">THE PROVENANCE TOUR</text>
+<path d="M92 79 H148" stroke="${acc}" stroke-width=".8"/>
+${rows.map(([c, e], i) => `<text x="94" y="${90 + i * 9}" font-family="${CON}" font-weight="700" font-size="4.4" letter-spacing=".4" fill="${ink}" textLength="${(6 + c.length * 2.6).toFixed(1)}" lengthAdjust="spacingAndGlyphs">${String(i + 1).padStart(2, '0')} ${c}</text><text x="146" y="${90 + i * 9}" font-family="${CON}" font-weight="400" font-size="4.4" letter-spacing=".3" fill="${ink}" text-anchor="end" textLength="${(e.length * 2.4).toFixed(1)}" lengthAdjust="spacingAndGlyphs">${e}</text>`).join('')}
+<path d="M92 ${90 + rows.length * 9 - 3} H148" stroke="${acc}" stroke-width=".8"/>
+<text x="120" y="${90 + rows.length * 9 + 6}" font-family="${CON}" font-weight="700" font-size="3.6" letter-spacing="1.6" fill="${ink}" fill-opacity=".8" text-anchor="middle" textLength="60" lengthAdjust="spacingAndGlyphs">EVERY STOP SIGNED · GALLERY CRYPTO</text>`;
+  }
+  return `<defs>${wear}</defs><g mask="url(#${id}pw)" opacity="${d.tour === 'c' ? 0.86 : 0.94}">${g}</g>`;
+}
+
+export function realGarment(d: D, seed = 1, side: 'front' | 'back' = 'front'): string {
   const p = BODY[d.kind], b = BOX[d.kind];
   const dark = lum(d.color) < 0.35;
   const id = `g${seed}`;
   let s0 = seed * 9301 + 49297; const rnd = () => { s0 = (s0 * 9301 + 49297) % 233280; return s0 / 233280; };
   const j = (v: number, a: number) => +(v + (rnd() - 0.5) * a).toFixed(1);
   const cx = 120, sl = b.sl;
-  const front = d.kind === 'jacket' || d.kind === 'denim' || d.kind === 'shirt';
+  const front = side === 'front' && (d.kind === 'jacket' || d.kind === 'denim' || d.kind === 'shirt');
   const neck = d.kind === 'tee' || d.kind === 'sweat';
   // ドレープ：肩（ハンガーの先）から裾へ落ちる谷と山。左右で少しずつ違う
   const valleys = [
@@ -68,11 +111,11 @@ ${ridges.map((v) => `<path d="${v}" fill="none" stroke="#fff" stroke-opacity=".5
 ${sleeveCreases.map((v) => `<path d="${v}" fill="none" stroke="#000" stroke-opacity=".5" stroke-width="4"/>`).join('')}
 <path d="M${b.l} 84 Q${b.l + 4} 62 ${b.l - 2} 42 M${b.r} 84 Q${b.r - 4} 62 ${b.r + 2} 42" fill="none" stroke="#000" stroke-opacity=".7" stroke-width="2.4"/>
 <path d="M${sl[0]} ${sl[1]} L${sl[2]} ${sl[3]} M${240 - sl[0]} ${sl[1]} L${240 - sl[2]} ${sl[3]}" stroke="#fff" stroke-opacity=".55" stroke-width="7"/>
-${neck ? `<path d="M100 30 Q120 ${d.kind === 'sweat' ? 46 : 48} 140 30" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"/>` : ''}
+${neck ? `<path d="M100 30 Q120 ${side === 'back' ? 36 : d.kind === 'sweat' ? 46 : 48} 140 30" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"/>` : ''}
 ${front ? `<path d="M104 26 L120 ${d.kind === 'shirt' ? 40 : 46} L136 26" fill="none" stroke="#fff" stroke-width="6"/><path d="M120 ${d.kind === 'shirt' ? 42 : 48} V${b.b}" stroke="#000" stroke-width="2.4"/>` : ''}
 ${d.kind === 'sweat' ? `<rect x="${b.l}" y="${b.b - 12}" width="${b.r - b.l}" height="12" fill="#b0b0b0"/>` : ''}
 ${d.kind === 'denim' ? `<path d="M86 96 h26 v18 h-26 Z M128 96 h26 v18 h-26 Z" fill="#a5a5a5" stroke="#000" stroke-opacity=".6" stroke-width="1.6"/><path d="M78 150 H162" stroke="#000" stroke-opacity=".6" stroke-width="2"/>` : ''}
-${d.kind === 'tee' && dark ? `<circle cx="120" cy="104" r="26" fill="none" stroke="#b5b5b5" stroke-width="5"/>` : ''}`;
+${d.kind === 'tee' && dark && !d.tour && side === 'front' ? `<circle cx="120" cy="104" r="26" fill="none" stroke="#b5b5b5" stroke-width="5"/>` : ''}`;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1320" viewBox="0 0 240 220">
 <defs>
 <filter id="${id}r" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="1.8"/><feComponentTransfer><feFuncA type="linear" slope="6" intercept="-2.6"/></feComponentTransfer></filter>
@@ -105,7 +148,8 @@ ${d.kind === 'tee' && dark ? `<circle cx="120" cy="104" r="26" fill="none" strok
   ${plaid}${twill}
   <rect width="240" height="220" filter="url(#${id}F)"/>
   ${d.kind === 'sweat' ? `<rect x="${b.l}" y="${b.b - 12}" width="${b.r - b.l}" height="12" fill="${d.accent}" opacity=".5"/>` : ''}
-  ${d.kind === 'tee' && dark ? `<circle cx="120" cy="104" r="26" fill="none" stroke="${d.accent}" stroke-width="5" opacity=".85"/>` : ''}
+  ${d.kind === 'tee' && dark && !d.tour && side === 'front' ? `<circle cx="120" cy="104" r="26" fill="none" stroke="${d.accent}" stroke-width="5" opacity=".85"/>` : ''}
+  ${tourPrint(d, side, id + side[0])}
   <g style="mix-blend-mode:multiply">
     <g filter="url(#${id}L)">${heightMap}</g>
   </g>
@@ -119,8 +163,8 @@ ${d.kind === 'tee' && dark ? `<circle cx="120" cy="104" r="26" fill="none" strok
 <path d="M${b.l} 84 Q${b.l + 4} 62 ${b.l - 2} 42 M${b.r} 84 Q${b.r - 4} 62 ${b.r + 2} 42" fill="none" stroke="${dark ? '#fff' : '#000'}" stroke-opacity=".22" stroke-width=".6" stroke-dasharray="1.6 1.3"/>
 ${front ? `<path d="M117.6 ${d.kind === 'shirt' ? 42 : 48} V${b.b - 1}" stroke="${d.accent}" stroke-width=".8" stroke-dasharray="1.8 1.3" opacity=".9"/>${Array.from({ length: d.kind === 'denim' ? 5 : 6 }, (_, i) => `<circle cx="122.6" cy="${60 + i * ((b.b - 70) / (d.kind === 'denim' ? 5 : 6))}" r="2.1" fill="${d.kind === 'denim' ? '#b88d45' : '#ece7da'}" stroke="#000" stroke-opacity=".45" stroke-width=".5"/><circle cx="122.1" cy="${59.5 + i * ((b.b - 70) / (d.kind === 'denim' ? 5 : 6))}" r=".7" fill="#fff" opacity=".6"/>`).join('')}` : ''}
 ${d.kind === 'denim' ? `<path d="M86 96 h26 v18 h-26 Z M128 96 h26 v18 h-26 Z M78 150 H162" fill="none" stroke="${d.accent}" stroke-width=".8" stroke-dasharray="1.8 1.2"/>` : ''}
-${neck ? `<path d="M103 33 Q120 50 137 33" fill="none" stroke="${dark ? '#fff' : '#000'}" stroke-opacity=".25" stroke-width=".6" stroke-dasharray="1.6 1.2"/>` : ''}
-${d.kind === 'tee' && !dark ? `<rect x="136" y="70" width="16" height="18" fill="none" stroke="#000" stroke-opacity=".22" stroke-width=".7" stroke-dasharray="1.6 1.2"/>` : ''}
+${neck ? `<path d="M103 33 Q120 ${side === 'back' ? 38 : 50} 137 33" fill="none" stroke="${dark ? '#fff' : '#000'}" stroke-opacity=".25" stroke-width=".6" stroke-dasharray="1.6 1.2"/>` : ''}
+${d.kind === 'tee' && !dark && !d.tour && side === 'front' ? `<rect x="136" y="70" width="16" height="18" fill="none" stroke="#000" stroke-opacity=".22" stroke-width=".7" stroke-dasharray="1.6 1.2"/>` : ''}
 </g>
 </svg>`;
 }

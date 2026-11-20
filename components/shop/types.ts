@@ -7,6 +7,8 @@ export type ShopItem = {
   price: string; // 表示用
   img?: string; // 写真の URL（または data URL）
   pid?: string; // 見本のとき PROJECTS の id（図を描く）
+  back?: string; // 背中の絵（ツアーマーチの見本など）
+  tour?: boolean;
   buy: 'stripe' | 'demo' | 'sold' | 'local';
   passport?: string;
   desc: string;

@@ -3194,3 +3194,13 @@ img{image-rendering:auto}
 .gr-take-shop{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:600;color:#ddd;font-size:11px;letter-spacing:.12em;text-transform:uppercase;text-decoration:underline;text-underline-offset:3px}
 .gr.taking .gr-room,.gr.taking .gr-nav{opacity:0;pointer-events:none}
 .gr.taking .gr-top{z-index:40}
+/* ショップ：ツアーマーチの特集 */
+.sf-tour{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);background:#0d0d0e;color:#f1ece2;margin:28px 0}
+.sf-tour-h{padding:clamp(28px,5vw,64px);display:flex;flex-direction:column;gap:14px;justify-content:center}
+.sf-tour-h em{font-style:normal;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#c9a45c}
+.sf-tour-h h2{margin:0;font-family:"Times New Roman",Georgia,serif;font-weight:700;font-size:clamp(44px,7vw,96px);line-height:.88;letter-spacing:-.01em}
+.sf-tour-h p{margin:0;max-width:420px;font-size:14px;line-height:1.75;color:#bdb6a8}
+.sf .sf-tour .sf-tour-cta{align-self:flex-start;margin-top:6px;padding:12px 20px;border-radius:999px;background:#f1ece2;color:#0d0d0e;font-weight:700;font-size:12px;letter-spacing:.12em;text-transform:uppercase;text-decoration:none}
+.sf-tour-rail{height:clamp(380px,40vw,520px)}
+.sf-tour-rail .hr{min-height:0}
+@media (max-width:760px){.sf-tour{grid-template-columns:1fr}.sf-tour-rail{height:400px}}

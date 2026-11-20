@@ -7,11 +7,12 @@ import { realGarment } from './garmentArt';
 
 export type Kind = 'garment' | 'cap' | 'art';
 
-export function cutout(pid: string) {
+export function cutout(pid: string, side: 'front' | 'back' = 'front') {
   const p = PROJECTS.find((x) => x.id === pid);
   if (!p) return '';
   // 服は布の陰影つきの絵に、それ以外は元の図
-  const m = p.draw ? realGarment(p.draw, PROJECTS.indexOf(p) + 3) : renderToStaticMarkup(<ProjectPic p={p} />).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1320" ');
+  if (side === 'back' && !p.draw?.tour) return '';
+  const m = p.draw ? realGarment(p.draw, PROJECTS.indexOf(p) + 3, side) : renderToStaticMarkup(<ProjectPic p={p} />).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1320" ');
   return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(m);
 }
 

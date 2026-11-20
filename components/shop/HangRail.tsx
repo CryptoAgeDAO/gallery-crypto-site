@@ -11,7 +11,7 @@ import { HANGER_URL } from './garmentArt';
 
 export type RailItem = {
   id: string; code: string; title: string; sub: string; price: string;
-  src: string; img?: string; facts: [string, string][];
+  src: string; back?: string; img?: string; facts: [string, string][];
   buy: 'stripe' | 'demo' | 'sold' | 'local'; passport?: string; kind?: 'garment' | 'cap' | 'art';
 };
 
@@ -45,10 +45,11 @@ function keyOut(src: string): Promise<string> {
   }
   return p;
 }
-function Pic({ it, onAsp }: { it: RailItem; onAsp: (r: number) => void }) {
+function Pic({ it, onAsp, back = false }: { it: RailItem; onAsp: (r: number) => void; back?: boolean }) {
   const cut = (it.kind || 'garment') !== 'garment' && !it.img;
-  const [src, setSrc] = useState(cut ? '' : it.src);
-  useEffect(() => { if (!cut) { setSrc(it.src); return; } let on = true; keyOut(it.src).then((u) => on && setSrc(u)); return () => { on = false; }; }, [it.src, cut]);
+  const want = back && it.back ? it.back : it.src;
+  const [src, setSrc] = useState(cut ? '' : want);
+  useEffect(() => { if (!cut) { setSrc(want); return; } let on = true; keyOut(want).then((u) => on && setSrc(u)); return () => { on = false; }; }, [want, cut]);
   if (!src) return <span className="hr-ph" />;
   // eslint-disable-next-line @next/next/no-img-element
   return <img src={src} alt={it.title} draggable={false} className={it.img ? 'photo' : ''} onLoad={(e) => { const im = e.currentTarget; if (im.naturalWidth) onAsp(im.naturalHeight / im.naturalWidth); }} />;
@@ -67,7 +68,7 @@ export default function HangRail({ items, focusId, onFocus, mode = 'page', rende
   const [box, setBox] = useState({ w: 1200, h: 760 });
   const [shift, setShift] = useState(0);
   const [hov, setHov] = useState<number | null>(null);
-  const [view, setView] = useState<'front' | 'detail'>('front');
+  const [view, setView] = useState<'front' | 'back' | 'detail'>('front');
   const [asp, setAsp] = useState<Record<string, number>>({}); // 絵の縦横比（高さ／幅）
   const k = focusId ? items.findIndex((i) => i.id === focusId) : -1;
   const n = items.length;
@@ -95,7 +96,7 @@ export default function HangRail({ items, focusId, onFocus, mode = 'page', rende
   const started = useRef(false);
   useEffect(() => { if (!started.current && maxShift > 0 && box.w !== 1200) { started.current = true; setShift(maxShift); } }, [maxShift, box.w]);
   const hOf = (i: number) => G * (asp[items[i]?.id] || 1.05) + G * 0.2; // ハンガー込みの高さ
-  const focusH = mode === 'section' ? H * 0.6 : phone ? H * 0.4 : H * 0.5;
+  const focusH = mode === 'section' ? H * 0.6 : phone ? H * 0.42 : H * 0.56;
   const S = k >= 0 ? Math.min(2.6, Math.max(1.2, focusH / hOf(k))) : 1;
   const place = (i: number) => {
     if (k < 0) {
@@ -178,7 +179,7 @@ export default function HangRail({ items, focusId, onFocus, mode = 'page', rende
                 ? <img className="hr-hanger" src={HANGER_URL} alt="" draggable={false} /> // eslint-disable-line @next/next/no-img-element
                 : <span className="hr-clip" />}
               <div className={`hr-pc ${i === k && view === 'detail' ? 'zoom' : ''}`}>
-                <Pic it={it} onAsp={(r) => setAsp((a) => (a[it.id] === r ? a : { ...a, [it.id]: r }))} />
+                <Pic it={it} back={i === k && view === 'back'} onAsp={(r) => setAsp((a) => (a[it.id] === r ? a : { ...a, [it.id]: r }))} />
               </div>
               {/* 値札（紙のタグ） */}
               <span className="hr-tag"><b>{it.code}</b><em>{it.price}</em></span>
@@ -193,6 +194,7 @@ export default function HangRail({ items, focusId, onFocus, mode = 'page', rende
           <span className="hr-price">{cur.price}{cur.buy === 'demo' || cur.buy === 'local' ? <em> · {t('Sample', '見本')}</em> : null}</span>
           <div className="hr-seg" role="tablist">
             <button aria-pressed={view === 'front'} onClick={() => setView('front')}>{t('Front', '正面')}</button>
+            {cur.back && <button aria-pressed={view === 'back'} onClick={() => setView('back')}>{t('Back', '背中')}</button>}
             <button aria-pressed={view === 'detail'} onClick={() => setView('detail')}>{t('Detail', '寄り')}</button>
           </div>
           <div className="hr-sizes">{sizes(cur).map((s) => <span key={s} className="on">{s}</span>)}<small>{t('One of one', '一点もの')}</small></div>
