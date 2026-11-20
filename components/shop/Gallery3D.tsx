@@ -579,6 +579,7 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick, paused = fal
       const glassM = phys({ color: 0x0d1014, metalness: 0.2, roughness: 0.05, clearcoat: 1, transparent: true, opacity: 0.86 });
       const gold = new THREE.MeshStandardMaterial({ color: 0xd8b25a, metalness: 1, roughness: 0.25 });
       const glow = (c: number) => new THREE.MeshBasicMaterial({ color: c });
+      const tireM0 = () => new THREE.MeshStandardMaterial({ color: 0x141414, roughness: 0.85 });
       // 横から見た車体の輪郭（長いボンネット・低い屋根・長いトランク。車輪の上はアーチで切り欠く）
       const RW = 0.43, FXw = 1.62, RXw = -1.58;
       const sh = new THREE.Shape();
@@ -611,7 +612,30 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick, paused = fal
       const grille = new THREE.Group(); grille.position.set(L / 2 + 0.07, 0.52, 0); body.add(grille);
       box(0.03, 0.2, W - 0.55, chrome, 0, 0, 0, grille); for (let i = 0; i < 14; i++) box(0.035, 0.18, 0.012, black, 0.006, 0, -(W - 0.7) / 2 + i * ((W - 0.7) / 13), grille);
       for (const sZ of [-1, 1]) for (const dz of [0, 0.2]) { const hl = new THREE.Mesh(new THREE.CircleGeometry(0.075, 20), glow(0xfff6dd)); hl.position.set(L / 2 + 0.065, 0.62, sZ * (W / 2 - 0.2 - dz)); hl.rotation.y = Math.PI / 2; body.add(hl); const rim = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.012, 8, 24), chrome); rim.position.copy(hl.position); rim.rotation.y = Math.PI / 2; body.add(rim); }
-      for (const sZ of [-1, 1]) for (const dz of [0, 0.18]) { const tl = new THREE.Mesh(new THREE.CircleGeometry(0.06, 18), glow(0xff2a2a)); tl.position.set(-L / 2 - 0.065, 0.6, sZ * (W / 2 - 0.22 - dz)); tl.rotation.y = -Math.PI / 2; body.add(tl); }
+      // 後ろ：左右に三つずつの丸いテールランプ（クロームの縁）
+      for (const sZ of [-1, 1]) for (const dz of [0, 0.17, 0.34]) { const tl = new THREE.Mesh(new THREE.CircleGeometry(0.058, 18), glow(0xff2a2a)); tl.position.set(-L / 2 - 0.066, 0.6, sZ * (W / 2 - 0.16 - dz)); tl.rotation.y = -Math.PI / 2; body.add(tl); const tr = new THREE.Mesh(new THREE.TorusGeometry(0.062, 0.01, 6, 20), chrome); tr.position.copy(tl.position); tr.rotation.y = Math.PI / 2; body.add(tr); }
+      // 後ろのフェンダーから外へ張り出すガルウィングのフィン（クロームの縁取り）
+      for (const sZ of [-1, 1]) {
+        // 薄い板を、外へ下がるように少し傾けて張り出す（上から見ると後ろへ広がる翼）
+        const fm = box(1.05, 0.025, 0.22, paint, -L / 2 + 0.6, 0.805, sZ * (W / 2 - 0.02), body); fm.rotation.x = sZ * 0.28; fm.rotation.z = 0.05; fm.rotation.y = -sZ * 0.06;
+        rod(V(-L / 2 + 0.07, 0.79, sZ * (W / 2 + 0.1)), V(-L / 2 + 1.12, 0.8, sZ * (W / 2 + 0.03)), 0.011, chrome, body, 5);
+      }
+      // コンチネンタルキット：後ろのバンパーの外に、クロームのカバーを付けたスペアタイヤ
+      { const ck = new THREE.Group(); ck.position.set(-L / 2 - 0.2, 0.46, 0); ck.rotation.y = Math.PI / 2; body.add(ck);
+        const t2 = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.075, 12, 36), tireM0()); ck.add(t2);
+        const cover = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.16, 36), paint); cover.rotation.x = Math.PI / 2; ck.add(cover);
+        const ring2 = new THREE.Mesh(new THREE.TorusGeometry(0.25, 0.018, 8, 36), chrome); ring2.position.z = -0.085; ck.add(ring2);
+        const cap2 = new THREE.Mesh(new THREE.SphereGeometry(0.09, 18, 12), chrome); cap2.scale.z = 0.4; cap2.position.z = -0.09; ck.add(cap2);
+        box(0.42, 0.06, 0.12, chrome, 0, -0.28, 0.02, ck); }
+      // ボンネットの先のマスコット（クロームの小さな翼）
+      { const orn = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.22, 4), chrome); orn.rotation.z = -Math.PI / 2 + 0.15; orn.position.set(L / 2 - 0.26, 0.79, 0); body.add(orn); }
+      // 後輪のフェンダースカート（車体と同じ色で、クロームの縁）
+      for (const sZ of [-1, 1]) {
+        const sk = new THREE.Shape(); sk.moveTo(-RW - 0.06, 0); sk.absarc(0, 0, RW + 0.06, Math.PI, 0, true); sk.lineTo(-RW - 0.06, 0);
+        const skm = new THREE.Mesh(new THREE.ShapeGeometry(sk, 24), paint); skm.position.set(RXw, 0.3, sZ * (W / 2 + 0.002)); if (sZ < 0) skm.rotation.y = Math.PI; body.add(skm);
+        const skr = new THREE.Mesh(new THREE.TorusGeometry(RW + 0.06, 0.012, 6, 32, Math.PI), chrome); skr.position.copy(skm.position); skr.position.z += sZ * 0.004; body.add(skr);
+        rod(V(RXw - RW - 0.06, 0.3, sZ * (W / 2 + 0.01)), V(RXw + RW + 0.06, 0.3, sZ * (W / 2 + 0.01)), 0.012, chrome, body, 5);
+      }
       // 室内：白いタックロールのベンチシートとステアリング（窓越しに見える）
       const seatM = new THREE.MeshStandardMaterial({ color: 0xece6da, roughness: 0.7 });
       box(0.5, 0.18, W - 0.35, seatM, 0.0, 0.62, 0, body); box(0.12, 0.38, W - 0.35, seatM, -0.22, 0.86, 0, body);
@@ -769,6 +793,8 @@ export default function Gallery3D({ rooms, apiRef, onState, onPick, paused = fal
     // ---- 歩く：位置と向き。目標があればそこへ歩いて向く ----
     const pos = new THREE.Vector3(0.9, EYE, HZ - 2.2);
     let yaw = 0.1, pitch = -0.05; // yaw=0 で奥（-z）を向く
+    // 確認用：?view=x,z,yaw,pitch で立ち位置と向きを指定できる（撮影・確認のため）
+    try { const v = new URLSearchParams(location.search).get('view')?.split(',').map(Number); if (v && v.length >= 3 && v.every(Number.isFinite)) { pos.x = v[0]; pos.z = v[1]; yaw = v[2]; if (v.length > 3) pitch = v[3]; } } catch { /* 無視 */ }
     let goal: { p: THREE.Vector3; yaw: number; pitch: number } | null = null;
     const st = { room: 0, focus: null as string | null };
     const emit = () => cb.current.onState({ room: st.room, focus: st.focus, moving: !!goal, ready: true });
