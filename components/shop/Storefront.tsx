@@ -212,6 +212,7 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
           <section className="sf-sec">
             <div className="sf-h"><h2>{t('Visit the showroom', 'ショールームへ')}</h2></div>
             <div className="sf-ways">
+              <a href="/shop/rail" className="sf-way rail"><b>{t('The rail', 'レール')}</b><span>{t('Pieces hang on a real rack and swing like cloth; hover to pull one out', 'ラックに掛かった服が布のように揺れる。指すと一着が手前に回る')}</span></a>
               <a href="/shop/room" className="sf-way room"><b>{t('The showroom', 'ショールーム')}</b><span>{t('Walk a raw pop-up store in 3D: framed pieces, a long table, a bike in the middle', '3Dのポップアップストアを歩く：額装の作品、長いテーブル、真ん中にバイク')}</span></a>
             </div>
           </section>
@@ -258,6 +259,7 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
           <nav>
             {CATS.map((c, i) => <a key={c.k} href={`#c=${c.k}`} onClick={() => setMenu(false)} style={{ ['--i' as string]: i }}>{J ? c.ja : c.en}<small>{byCat(c.k).length}</small></a>)}
             <a href="/#events" style={{ ['--i' as string]: 8 }}>{t('Lottery & events', '抽選・イベント')}</a>
+            <a href="/shop/rail" style={{ ['--i' as string]: 9 }}>{t('The rail', 'レール')}</a>
             <a href="/shop/room" style={{ ['--i' as string]: 9 }}>{t('The showroom', 'ショールーム')}</a>
             <a href="/" style={{ ['--i' as string]: 11 }}>{t('Gallery Crypto home', 'Gallery Crypto トップ')}</a>
           </nav>
