@@ -1,13 +1,13 @@
 'use client';
-// 展示室の画面（3D の上に重ねる UI）：部屋の名前・部屋の移動・押した作品の詳細パネル。
+// ショールームの画面（3D の上に重ねる UI）：いま見ている売り場の名前・売り場の移動・押した作品の詳細パネル。
 import { Component, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useLang, LangToggle } from '../Lang';
 import { sfx } from '@/lib/sfx';
 import BuyButton from '../BuyButton';
 import type { ShopItem } from './types';
-import { demoItems } from './ShopClient';
-import { cutout, kindOf } from './RailShop';
+import { demoItems } from './demo';
+import { cutout, kindOf } from './pieceArt';
 import type { GalleryApi, GRoom, GState } from './Gallery3D';
 
 const Gallery3D = dynamic(() => import('./Gallery3D'), { ssr: false });
@@ -20,10 +20,10 @@ class Safe extends Component<{ children: React.ReactNode; fallback: React.ReactN
 }
 
 const ROOMS: { z: ShopItem['zone']; en: string; ja: string; den: string; dja: string }[] = [
-  { z: 'rwa', en: 'RWA — vintage & collab', ja: 'RWA — 証明つきヴィンテージとコラボ', den: 'One-of-one pieces whose history is signed and recorded.', dja: '来歴に署名し、記録を残した一点もの。' },
-  { z: 'vintage', en: 'Vintage & used', ja: 'ヴィンテージ・古着', den: 'Everyday pieces, each linked to its own page and record.', dja: '一着ずつ、ページと記録につながる古着。' },
-  { z: 'art', en: 'Art & projects', ja: 'アート・プロジェクト', den: 'Prints, sound and objects beyond fashion.', dja: '版画・音・オブジェ。ファッションの外の企画。' },
-  { z: 'archive', en: 'Archive', ja: 'アーカイブ', den: 'Pieces kept for the record.', dja: '記録として残す作品。' },
+  { z: 'rwa', en: 'RWA — vintage & collab', ja: 'RWA — 証明つきヴィンテージとコラボ', den: 'Left wall. One-of-one pieces pinned in steel frames, each with its signed record.', dja: '左の壁。鉄の額にピンで留めた一点もの。来歴は署名して記録に残しています。' },
+  { z: 'vintage', en: 'Vintage & used', ja: 'ヴィンテージ・古着', den: 'The long table. Laid flat, one piece at a time, each linked to its own page.', dja: '奥の長いテーブル。一着ずつ平置きにして、それぞれのページにつながります。' },
+  { z: 'art', en: 'Art & projects', ja: 'アート・プロジェクト', den: 'Right wall. Prints, sound and objects beyond fashion.', dja: '右の壁。版画・音・オブジェなど、ファッションの外の企画。' },
+  { z: 'archive', en: 'Archive', ja: 'アーカイブ', den: 'Back wall, under the mural. Pieces kept for the record.', dja: '奥の壁、壁画の下。記録として残す作品。' },
 ];
 const PER_ROOM = 6;
 
@@ -31,9 +31,9 @@ function Fallback() {
   const { t } = useLang();
   return (
     <div className="gr-fail">
-      <b>{t('The 3D room could not be shown on this device.', 'この端末では3D展示室を表示できませんでした。')}</b>
-      <span>{t('Close other tabs and try again, or see the pieces on the rail.', 'ほかのタブを閉じてもう一度試すか、レールで作品をご覧ください。')}</span>
-      <div><button onClick={() => location.reload()}>{t('Try again', 'もう一度')}</button><a href="/shop/rail">{t('Open the rail', 'レールを見る')} →</a></div>
+      <b>{t('The showroom could not be shown on this device.', 'この端末ではショールームを表示できませんでした。')}</b>
+      <span>{t('Close other tabs and try again, or see every piece in the shop.', 'ほかのタブを閉じてもう一度試すか、ショップですべての商品をご覧ください。')}</span>
+      <div><button onClick={() => location.reload()}>{t('Try again', 'もう一度')}</button><a href="/shop">{t('Open the shop', 'ショップを見る')} →</a></div>
     </div>
   );
 }
@@ -44,10 +44,10 @@ export default function GalleryClient({ initial }: { initial: ShopItem[] }) {
   useEffect(() => { try { setLocal(JSON.parse(localStorage.getItem('gc-shop-local') || '[]')); } catch { /* 無視 */ } }, []);
   const items = useMemo(() => [...local, ...initial, ...(initial.length ? [] : demoItems())], [local, initial]);
   const groups = useMemo(() => ROOMS.map((r) => ({ ...r, list: items.filter((i) => i.zone === r.z).slice(0, PER_ROOM) })).filter((r) => r.list.length), [items]);
-  const rooms: GRoom[] = useMemo(() => groups.map((g) => ({ key: g.z, pieces: g.list.map((i) => ({ id: i.id, title: i.title, kind: i.img ? 'art' as const : kindOf(i), tex: i.img || (i.pid ? cutout(i.pid) : '') })) })), [groups]);
+  const rooms: GRoom[] = useMemo(() => groups.map((g) => ({ key: g.z, pieces: g.list.map((i) => ({ id: i.id, title: i.title, code: i.code, kind: i.img ? 'art' as const : kindOf(i), tex: i.img || (i.pid ? cutout(i.pid) : '') })) })), [groups]);
   const api = useRef<GalleryApi | null>(null);
   const [st, setSt] = useState<GState>({ room: 0, focus: null, moving: false, ready: false });
-  // レールの「展示室で見る」から来たときは、その作品の前まで歩いていく
+  // ショップの「ショールームで見る」から来たときは、その作品の前まで歩いていく
   const handed = useRef(false);
   useEffect(() => {
     if (!st.ready || handed.current) return; handed.current = true;
@@ -70,12 +70,12 @@ export default function GalleryClient({ initial }: { initial: ShopItem[] }) {
         <Gallery3D rooms={rooms} apiRef={api} onState={setSt} onPick={(id) => { api.current?.focus(id); sfx('open'); }} />
       </Safe>
       {st.lost && <Fallback />}
-      <div className={`gr-veil ${st.ready ? 'off' : ''}`}><em>Gallery Crypto</em><span>{t('Opening the gallery…', '展示室をひらいています…')}</span></div>
+      <div className={`gr-veil ${st.ready ? 'off' : ''}`}><em>Gallery Crypto</em><span>{t('Opening the showroom…', 'ショールームをひらいています…')}</span></div>
 
       <header className="gr-top">
         <a href="/shop">← {t('Shop', 'ショップ')}</a>
         <a className="gr-logo notranslate" href="/">Gallery Crypto</a>
-        <span className="gr-r"><a href="/shop/journey">{t('The walk', '旅する展示')}</a><LangToggle /></span>
+        <span className="gr-r"><LangToggle /></span>
       </header>
 
       {g && (
@@ -83,7 +83,7 @@ export default function GalleryClient({ initial }: { initial: ShopItem[] }) {
           <em>{t('Area', 'エリア')} {two(label + 1)} / {two(groups.length)}</em>
           <b>{lang === 'ja' ? g.ja : g.en}</b>
           <p>{lang === 'ja' ? g.dja : g.den}</p>
-          <small>{t('Walk anywhere: tap the floor or use W A S D / the stick · drag to look · tap a circle for details', '自由に歩けます：床をタップ、または W A S D／左下のスティック · ドラッグで見回す · 丸を押すと詳細')}</small>
+          <small>{t('Walk the store: tap the floor or use W A S D / the stick · drag to look around · tap a circle or a piece for details', '店内を歩けます：床をタップ、または W A S D／左下のスティック · ドラッグで見回す · 丸か作品を押すと詳細')}</small>
         </div>
       )}
 
@@ -107,7 +107,6 @@ export default function GalleryClient({ initial }: { initial: ShopItem[] }) {
               {cur.buy === 'stripe' && <BuyButton itemId={cur.id} />}
               {cur.buy === 'sold' && <span className="gr-fine">{t('Sold', '売約済み')}</span>}
               <a className="gr-btn" href={`/shop#p=${encodeURIComponent(cur.id)}`}>{t('View in the shop →', 'ショップで見る →')}</a>
-              <a className="gr-btn ghost" href="/shop/rail">{t('See it on the rail →', 'レールで見る →')}</a>
               {(cur.buy === 'demo' || cur.buy === 'local') && <p className="gr-fine">{t('Sample — not for sale. Sales open in 2027 (card / Apple Pay).', '見本のため購入はできません。販売は2027年から（カード／Apple Pay）。')}</p>}
             </div>
             {inRoom.length > 1 && (

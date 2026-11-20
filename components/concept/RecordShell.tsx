@@ -3,7 +3,7 @@
 // 背景に光の粒の服を置き、done なら服がほどけて記録の鎖になる。
 import dynamic from 'next/dynamic';
 import { LangToggle, useLang } from '../Lang';
-import { cutout } from '../shop/RailShop';
+import { cutout } from '../shop/pieceArt';
 
 const ParticlePiece = dynamic(() => import('./ParticlePiece'), { ssr: false });
 

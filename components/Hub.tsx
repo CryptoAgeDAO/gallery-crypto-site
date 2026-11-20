@@ -7,7 +7,7 @@ import { LangToggle, useLang } from './Lang';
 import { ProjectPic } from './HubArt';
 import { Countdown, DrawShow, Meters, useReveal } from './HubFX';
 import dynamic from 'next/dynamic';
-import { cutout } from './shop/RailShop';
+import { cutout } from './shop/pieceArt';
 import { textTarget, type MorphTarget } from './concept/morphText';
 const ParticleMorph = dynamic(() => import('./concept/ParticleMorph'), { ssr: false });
 const STAGE: Record<string, number> = { rwa: 1, vintage: 2, art: 3, events: 4 };
@@ -352,7 +352,7 @@ function EventCard({ ev, put, open, setOpen }: { ev: GcEv; put: (e: GcEv) => voi
 
 const TOOLS: { p: string; items: [string, string, string][] }[] = [
   { p: '01', items: [['/demo', 'Provenance demo', '来歴デモ'], ['/passport/GC-DEMO-1', 'Signed passport', '署名つきパスポート'], ['/demo/nfc', 'NFC tag', 'NFCタグ'], ['/demo/3d', '3D view', '3D表示'], ['/verify', 'Verify offline', 'オフライン検証'], ['/ledger', 'Ledger', '台帳'], ['/proof', 'Proof lab', 'Proof Lab']] },
-  { p: '02', items: [['/shop', '3D exhibition & shop', '3D展示室とショップ'], ['/studio', 'Smart scan (scan → 3D → pattern) · photo studio · ghost mannequin', 'スマートスキャン（撮影→立体→型紙）・写真スタジオ・ゴーストマネキン'], ['/labels', 'Tag labels', 'タグのラベル印刷'], ['/archive', 'Previous archive page', '以前のアーカイブページ']] },
+  { p: '02', items: [['/shop', 'Shop & 3D showroom', 'ショップと3Dショールーム'], ['/studio', 'Smart scan (scan → 3D → pattern) · photo studio · ghost mannequin', 'スマートスキャン（撮影→立体→型紙）・写真スタジオ・ゴーストマネキン'], ['/labels', 'Tag labels', 'タグのラベル印刷'], ['/archive', 'Previous archive page', '以前のアーカイブページ']] },
   { p: '03', items: [['/studio', 'Graphic studio · pattern lab (measure → pattern → 3D sewing)', 'グラフィック・パターンラボ（採寸→型紙→3D縫製）']] },
   { p: '04', items: [['/admin', 'Organizer admin (real events, tickets)', '運営の管理画面（本番のイベント・チケット）']] },
 ];
@@ -412,7 +412,7 @@ export default function Hub() {
           <p className="kh-lead">{t('Each physical piece — one-of-one vintage, collabs, used clothing and art — is linked to a digital record, and events run on fair, verifiable lotteries.', '一点もののヴィンテージ、コラボ、古着、アート。実物の一つひとつをデジタルの記録と結びつけ、イベントは確かめられる公平な抽選で。')}</p>
           <div className="kh-ctas">
             <a href="/shop" onClick={() => sfx('select')}>{t('Shop now', 'ショップへ')}</a>
-            <a href="/shop/room" className="ghost">{t('Walk the 3D room', '3D展示室を歩く')}</a>
+            <a href="/shop/room" className="ghost">{t('Walk the showroom', 'ショールームを歩く')}</a>
           </div>
           <div className="kh-stats">
             <span><b>{PROJECTS.length}</b>{t('pieces', '作品')}</span>

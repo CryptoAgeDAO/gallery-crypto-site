@@ -7,11 +7,11 @@ import { toShop } from '@/components/shop/toShop';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = {
-  title: 'The Gallery — Gallery Crypto',
-  description: 'A quiet 3D gallery of travertine and marble: tap the glowing circles to see each piece, and slide from room to room.',
+  title: 'The Showroom — Gallery Crypto',
+  description: 'Walk a raw pop-up store in 3D: white brick, a pressed-tin ceiling, a dirt bike in the middle, pieces framed on the walls and laid flat on a long table.',
 };
 
-// 公開中の商品を読み、展示室の壁に並べる
+// 公開中の商品を読み、ショールームの壁とテーブルに並べる
 export default async function ShopRoom() {
   const db = supabase();
   let items: ShopItem[] = [];

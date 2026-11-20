@@ -352,7 +352,7 @@ export default function SmartScan() {
                 <div className="ss-row">
                   <button className="ss-btn" onClick={exportGLB}>{tt('Download 3D (GLB)', '3Dを保存（GLB）')}</button>
                 </div>
-                <p className="ss-fine">{tt('Shaped from the front and back shots, not measured like a laser scan. Good for previews and the 3D room.', '正面と背面の2枚から形を推定したものです。レーザー測量のような精密なスキャンではありません。プレビューや3D展示室向けです。')}</p>
+                <p className="ss-fine">{tt('Shaped from the front and back shots, not measured like a laser scan. Good for previews and the showroom.', '正面と背面の2枚から形を推定したものです。レーザー測量のような精密なスキャンではありません。プレビューやショールーム向けです。')}</p>
               </div>
               <div className="ss-card">
                 <h3>{tt('Pattern (real size)', '型紙（実寸）')}</h3>

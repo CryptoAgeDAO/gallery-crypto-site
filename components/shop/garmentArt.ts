@@ -124,16 +124,3 @@ ${d.kind === 'tee' && !dark ? `<rect x="136" y="70" width="16" height="18" fill=
 </g>
 </svg>`;
 }
-
-// 本物っぽい木のハンガー（銀のフック）
-export const HANGER = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 80"><defs>
-<linearGradient id="hw" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c79a62"/><stop offset=".45" stop-color="#9c6b37"/><stop offset="1" stop-color="#5e3b1a"/></linearGradient>
-<linearGradient id="hm" x1="0" x2="1"><stop offset="0" stop-color="#6d6f73"/><stop offset=".4" stop-color="#f4f5f7"/><stop offset="1" stop-color="#7c7f84"/></linearGradient>
-<filter id="hs"><feGaussianBlur stdDeviation="1.6"/></filter></defs>
-<path d="M100 4 c-10 0 -12 14 -2 17 l2 1 v9" fill="none" stroke="url(#hm)" stroke-width="3.6" stroke-linecap="round"/>
-<path d="M14 66 Q60 40 96 30 Q100 29 104 30 Q140 40 186 66 Q190 70 184 71 Q140 52 100 44 Q60 52 16 71 Q10 70 14 66 Z" fill="#000" opacity=".25" transform="translate(2 4)" filter="url(#hs)"/>
-<path d="M14 66 Q60 40 96 30 Q100 29 104 30 Q140 40 186 66 Q190 70 184 71 Q140 52 100 44 Q60 52 16 71 Q10 70 14 66 Z" fill="url(#hw)"/>
-<path d="M20 64 Q60 42 100 33 Q140 42 180 64" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="1.2"/>
-<circle cx="100" cy="36" r="3.2" fill="url(#hm)"/>
-</svg>`;
-export const HANGER_URL = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(HANGER);

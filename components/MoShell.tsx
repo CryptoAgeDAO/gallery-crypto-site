@@ -38,8 +38,7 @@ export default function MoShell({ kicker, title, children }: { kicker?: string; 
         <div>
           <b>{t('Shop', 'ショップ')}</b>
           <a href="/shop">{t('All pieces', 'すべての商品')}</a>
-          <a href="/shop/rail">{t('The rail', 'レール')}</a>
-          <a href="/shop/room">{t('3D room', '3D展示室')}</a>
+          <a href="/shop/room">{t('The showroom', 'ショールーム')}</a>
         </div>
         <div>
           <b>{t('Help', 'ヘルプ')}</b>

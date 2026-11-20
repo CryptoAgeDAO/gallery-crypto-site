@@ -1,5 +1,5 @@
 'use client';
-// ショップ（EC 店舗の形）：告知バー → ヘッダー（全画面メニュー・検索・カート）→ 大きなスライドショー → 新着 → カテゴリ別 → 特集 → レールと3D展示室への入口 → お問い合わせ → フッター。
+// ショップ（EC 店舗の形）：告知バー → ヘッダー（全画面メニュー・検索・カート）→ 大きなスライドショー → 新着 → カテゴリ別 → 特集 → ショールームへの入口 → お問い合わせ → フッター。
 // 商品をタップすると商品ページ（全画面）、カートは右から出る引き出し。サイトで公開した商品は自動で並ぶ。
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { LangToggle, useLang } from '../Lang';
@@ -11,8 +11,8 @@ import { PUBLIC_ITEM_COLUMNS, type Item } from '@/lib/types';
 import { sfx } from '@/lib/sfx';
 import type { ShopItem } from './types';
 import { toShop } from './toShop';
-import { demoItems } from './ShopClient';
-import { cutout } from './RailShop';
+import { demoItems } from './demo';
+import { cutout } from './pieceArt';
 const ParticlePiece = dynamic(() => import('../concept/ParticlePiece'), { ssr: false });
 
 const LKEY = 'gc-shop-local', CKEY = 'gc-shop-cart';
@@ -210,11 +210,9 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
 
           {/* 別の見せ方への入口 */}
           <section className="sf-sec">
-            <div className="sf-h"><h2>{t('Other ways to browse', 'ほかの見せ方')}</h2></div>
+            <div className="sf-h"><h2>{t('Visit the showroom', 'ショールームへ')}</h2></div>
             <div className="sf-ways">
-              <a href="/shop/store" className="sf-way store"><b>{t('The store', '売り場')}</b><span>{t('Clothing, caps and art in a bright store', '服・キャップ・アートの明るい売り場')}</span></a>
-              <a href="/shop/rail" className="sf-way rail"><b>{t('The rail', 'レール')}</b><span>{t('Slide through the drop on hangers', 'ハンガーに掛かった服をスライドして選ぶ')}</span></a>
-              <a href="/shop/room" className="sf-way room"><b>{t('3D room', '3D展示室')}</b><span>{t('A quiet gallery of stone and marble', '石と大理石の静かな展示室')}</span></a>
+              <a href="/shop/room" className="sf-way room"><b>{t('The showroom', 'ショールーム')}</b><span>{t('Walk a raw pop-up store in 3D: framed pieces, a long table, a bike in the middle', '3Dのポップアップストアを歩く：額装の作品、長いテーブル、真ん中にバイク')}</span></a>
             </div>
           </section>
 
@@ -260,9 +258,7 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
           <nav>
             {CATS.map((c, i) => <a key={c.k} href={`#c=${c.k}`} onClick={() => setMenu(false)} style={{ ['--i' as string]: i }}>{J ? c.ja : c.en}<small>{byCat(c.k).length}</small></a>)}
             <a href="/#events" style={{ ['--i' as string]: 8 }}>{t('Lottery & events', '抽選・イベント')}</a>
-            <a href="/shop/store" style={{ ['--i' as string]: 9 }}>{t('The store', '売り場')}</a>
-            <a href="/shop/rail" style={{ ['--i' as string]: 9 }}>{t('The rail', 'レール')}</a>
-            <a href="/shop/room" style={{ ['--i' as string]: 10 }}>{t('3D room', '3D展示室')}</a>
+            <a href="/shop/room" style={{ ['--i' as string]: 9 }}>{t('The showroom', 'ショールーム')}</a>
             <a href="/" style={{ ['--i' as string]: 11 }}>{t('Gallery Crypto home', 'Gallery Crypto トップ')}</a>
           </nav>
         </div>

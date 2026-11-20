@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { LangToggle, useLang } from '../Lang';
-import { cutout } from '../shop/RailShop';
+import { cutout } from '../shop/pieceArt';
 import { PROJECTS } from '@/lib/hub';
 import type { SceneApi } from './RecordScene';
 
@@ -139,7 +139,7 @@ export default function Concept() {
           <div className="cx-ctas">
             <a href="/shop">{t('Shop the pieces', 'ショップを見る')}</a>
             <a className="ghost" href="/verify">{t('Verify a record', '記録を確かめる')}</a>
-            <a className="ghost" href="/shop/store">{t('Walk the store', '売り場を歩く')}</a>
+            <a className="ghost" href="/shop/room">{t('Walk the showroom', 'ショールームを歩く')}</a>
           </div>
           <p className="cx-fine">{t('Gallery Crypto is in preparation. Sales open in 2027 (card / Apple Pay). All pieces, owners and dates on this page are samples.', 'Gallery Crypto は準備中です。販売は2027年から（カード／Apple Pay）。このページの服・持ち主・日付はすべて見本です。')}</p>
         </section>
