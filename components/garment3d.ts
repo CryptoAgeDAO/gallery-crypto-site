@@ -13,8 +13,8 @@ function bbox(L: Layer): Box | null {
 const med = (a: number[]) => { if (!a.length) return 0; const s = [...a].sort((p, q) => p - q); return s[s.length >> 1]; };
 
 // 正面と背面を左右に並べた1枚のテクスチャ（透明＝穴）
-function atlas(F: Layer, B: Layer | null) {
-  const W = 2048, H = 2048;
+function atlas(F: Layer, B: Layer | null, size = 2048) {
+  const W = size, H = size;
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
   const x = c.getContext('2d')!;
@@ -50,7 +50,7 @@ function atlas(F: Layer, B: Layer | null) {
 
 export type GarmentInfo = { sleeves: number; armpit: boolean };
 
-export function buildGarment(F: Layer, B: Layer | null, heightM: number, depth = 1): { group: THREE.Group; info: GarmentInfo } | null {
+export function buildGarment(F: Layer, B: Layer | null, heightM: number, depth = 1, texSize = 2048): { group: THREE.Group; info: GarmentInfo } | null {
   const fb = bbox(F);
   if (!fb) return null;
   const bb = B ? bbox(B) : null;
@@ -255,7 +255,7 @@ export function buildGarment(F: Layer, B: Layer | null, heightM: number, depth =
   const yMin = g.boundingBox!.min.y;
   g.translate(0, -yMin, 0);
 
-  const tex = atlas(F, B);
+  const tex = atlas(F, B, texSize);
   const outer = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: tex, alphaTest: 0.5, roughness: 0.88, side: THREE.FrontSide }));
   outer.name = 'garment';
   const inner = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: tex, color: 0x34302c, alphaTest: 0.5, roughness: 1, side: THREE.BackSide }));

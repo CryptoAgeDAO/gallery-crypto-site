@@ -4,6 +4,8 @@
 // 名前・価格・前／寄り（ディテール）・サイズ・購入ボタン・記録へのリンクがその下に出る。
 // ショップのトップ・商品ページ・レールのページ・ショールームで共通に使う。
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
+import type { Rail3DState } from './Rail3D';
 import { useLang } from '../Lang';
 import { sfx } from '@/lib/sfx';
 import BuyButton from '../BuyButton';
@@ -16,6 +18,7 @@ export type RailItem = {
 };
 
 const useIso = typeof window === 'undefined' ? useEffect : useLayoutEffect;
+const Rail3D = dynamic(() => import('./Rail3D'), { ssr: false });
 
 // 背景つきの絵（キャップ・アートの見本）は、四隅の色を抜いて切り抜きにする
 const keyed = new Map<string, Promise<string>>();
@@ -45,23 +48,24 @@ function keyOut(src: string): Promise<string> {
   }
   return p;
 }
-function Pic({ it, onAsp, back = false }: { it: RailItem; onAsp: (r: number) => void; back?: boolean }) {
+function Pic({ it, onAsp, back = false, hide = false }: { it: RailItem; onAsp: (r: number) => void; back?: boolean; hide?: boolean }) {
   const cut = (it.kind || 'garment') !== 'garment' && !it.img;
   const want = back && it.back ? it.back : it.src;
   const [src, setSrc] = useState(cut ? '' : want);
   useEffect(() => { if (!cut) { setSrc(want); return; } let on = true; keyOut(want).then((u) => on && setSrc(u)); return () => { on = false; }; }, [want, cut]);
   if (!src) return <span className="hr-ph" />;
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={src} alt={it.title} draggable={false} className={it.img ? 'photo' : ''} onLoad={(e) => { const im = e.currentTarget; if (im.naturalWidth) onAsp(im.naturalHeight / im.naturalWidth); }} />;
+  return <img src={src} alt={it.title} draggable={false} className={`${it.img ? 'photo' : ''} ${hide ? 'ghost' : ''}`} onLoad={(e) => { const im = e.currentTarget; if (im.naturalWidth) onAsp(im.naturalHeight / im.naturalWidth); }} />;
 }
 
-export default function HangRail({ items, focusId, onFocus, mode = 'page', renderBuy, dark = false }: {
+export default function HangRail({ items, focusId, onFocus, mode = 'page', renderBuy, dark = false, solid = false }: {
   items: RailItem[];
   focusId: string | null;
   onFocus: (id: string | null) => void;
   mode?: 'page' | 'section';
   renderBuy?: (it: RailItem) => React.ReactNode;
   dark?: boolean;
+  solid?: boolean; // 服を立体（3D）で描く（スマートスキャンと同じしくみ）
 }) {
   const { t } = useLang();
   const host = useRef<HTMLDivElement>(null);
@@ -72,6 +76,11 @@ export default function HangRail({ items, focusId, onFocus, mode = 'page', rende
   const [asp, setAsp] = useState<Record<string, number>>({}); // 絵の縦横比（高さ／幅）
   const k = focusId ? items.findIndex((i) => i.id === focusId) : -1;
   const n = items.length;
+  // 立体の層とやりとりする値
+  const pcEls = useRef<(HTMLDivElement | null)[]>([]);
+  const s3 = useRef<Rail3DState>({ k: -1, view: 'front', spin: 0, dragging: false });
+  const [solidOk, setSolidOk] = useState<Record<string, boolean>>({});
+  const onReady = useCallback((id: string, ok: boolean) => setSolidOk((o) => (o[id] === ok ? o : { ...o, [id]: ok })), []);
 
   useIso(() => {
     const el = host.current; if (!el) return;
@@ -79,7 +88,8 @@ export default function HangRail({ items, focusId, onFocus, mode = 'page', rende
     ro.observe(el); setBox({ w: el.clientWidth, h: el.clientHeight });
     return () => ro.disconnect();
   }, []);
-  useEffect(() => { setView('front'); }, [focusId]);
+  useEffect(() => { setView('front'); s3.current.spin = 0; }, [focusId]);
+  s3.current.k = k; s3.current.view = view;
 
   // ---- 大きさと位置 ----
   const { w: W, h: H } = box;
@@ -140,15 +150,22 @@ export default function HangRail({ items, focusId, onFocus, mode = 'page', rende
     addEventListener('keydown', key); return () => removeEventListener('keydown', key);
   }, [k, step, onFocus]);
   // 横にドラッグ：一覧ではレールを送る、商品ページでは前後の服へ
-  const drag = useRef<{ x: number; s: number; moved: boolean } | null>(null);
-  const down = (e: React.PointerEvent) => { drag.current = { x: e.clientX, s: shift, moved: false }; };
+  const drag = useRef<{ x: number; s: number; moved: boolean; spin: boolean; sp0: number } | null>(null);
+  const down = (e: React.PointerEvent) => {
+    // 立体の服を見ているときは、その服の上でドラッグすると回る（360°）
+    const onCur = solid && k >= 0 && items[k] && solidOk[items[k].id] && !!(e.target as HTMLElement).closest('.hr-slot.on');
+    drag.current = { x: e.clientX, s: shift, moved: false, spin: !!onCur, sp0: s3.current.spin };
+    if (onCur) { s3.current.dragging = true; try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch { /* 無視 */ } }
+  };
   const move = (e: React.PointerEvent) => {
     const d = drag.current; if (!d) return; const dx = e.clientX - d.x;
     if (Math.abs(dx) > 6) d.moved = true;
+    if (d.spin) { s3.current.spin = d.sp0 + dx * 0.012; return; }
     if (k < 0 && d.moved && maxShift > 0) { const s = Math.max(-maxShift, Math.min(maxShift, d.s + dx)); kickAll((s - shift) * 0.6); setShift(s); }
   };
   const up = (e: React.PointerEvent) => {
-    const d = drag.current; drag.current = null; if (!d) return;
+    const d = drag.current; drag.current = null; s3.current.dragging = false; if (!d) return;
+    if (d.spin) return;
     if (k >= 0 && d.moved) { const dx = e.clientX - d.x; if (Math.abs(dx) > 50) step(dx < 0 ? 1 : -1); }
   };
   const wheel = (e: React.WheelEvent) => {
@@ -162,9 +179,10 @@ export default function HangRail({ items, focusId, onFocus, mode = 'page', rende
   const infoTop = railY + (cur ? hOf(k) * S : 0) + (phone ? 6 : 14);
 
   return (
-    <div ref={host} className={`hr ${mode} ${dark ? 'dark' : ''} ${cur ? 'focus' : ''}`} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={() => { drag.current = null; }} onWheel={wheel}>
+    <div ref={host} className={`hr ${mode} ${dark ? 'dark' : ''} ${cur ? 'focus' : ''} ${solid ? 'solid' : ''}`} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={() => { drag.current = null; s3.current.dragging = false; }} onWheel={wheel}>
       {/* レール（クロームの丸棒と、両端の支柱） */}
       <div className="hr-rail" style={{ top: railY - 3 }}><i /><i /></div>
+      {solid && <Rail3D items={items} host={host} pcEls={pcEls} sway={sw} state={s3} onReady={onReady} />}
       {items.map((it, i) => {
         const p = place(i), kind = it.kind || 'garment';
         return (
@@ -178,8 +196,8 @@ export default function HangRail({ items, focusId, onFocus, mode = 'page', rende
               {kind === 'garment'
                 ? <img className="hr-hanger" src={HANGER_URL} alt="" draggable={false} /> // eslint-disable-line @next/next/no-img-element
                 : <span className="hr-clip" />}
-              <div className={`hr-pc ${i === k && view === 'detail' ? 'zoom' : ''}`}>
-                <Pic it={it} back={i === k && view === 'back'} onAsp={(r) => setAsp((a) => (a[it.id] === r ? a : { ...a, [it.id]: r }))} />
+              <div className={`hr-pc ${i === k && view === 'detail' ? 'zoom' : ''}`} ref={(e) => { pcEls.current[i] = e; }}>
+                <Pic it={it} hide={solid && !!solidOk[it.id] && (k < 0 || i === k) && !(i === k && view === 'detail')} back={i === k && view === 'back' && !(solid && solidOk[it.id])} onAsp={(r) => setAsp((a) => (a[it.id] === r ? a : { ...a, [it.id]: r }))} />
               </div>
               {/* 値札（紙のタグ） */}
               <span className="hr-tag"><b>{it.code}</b><em>{it.price}</em></span>
@@ -207,6 +225,7 @@ export default function HangRail({ items, focusId, onFocus, mode = 'page', rende
               </>
             )}
           </div>
+          {solid && solidOk[cur.id] && view !== 'detail' && <small className="hr-spin">{t('3D from the photos — drag the piece to turn it', '写真から立体に — 服をドラッグで回せます')}</small>}
           {cur.passport && <a className="hr-rec" href={cur.passport}>{t('See its record', 'この一着の記録を見る')} →</a>}
         </div>
       )}

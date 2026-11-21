@@ -317,7 +317,7 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
         <div className="sf-pdp hrp" role="dialog" aria-modal="true" aria-label={product.title}>
           {/* 上：一本のレール。開いた一着が真ん中に寄り、ほかは左右でぼける。左右の矢印・スワイプで隣の服へ */}
           <div className="sf-pstage">
-            <HangRail items={railFor} focusId={product.id} onFocus={(id) => nav(cat, id)} renderBuy={(it) => {
+            <HangRail solid items={railFor} focusId={product.id} onFocus={(id) => nav(cat, id)} renderBuy={(it) => {
               const p = all.find((x) => x.id === it.id)!;
               return (
                 <>

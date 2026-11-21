@@ -10,7 +10,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { tidy, type Layer } from './GhostMannequin';
+import { type Layer } from './GhostMannequin';
+import { segment } from './scanSegment';
 import { buildGarment } from './garment3d';
 import { autoLandmarks } from './lab/landmarks';
 import { calibrate, docToSVG, draft, pxMeasures, specFrom, type Spec } from './lab/draft';
@@ -54,56 +55,6 @@ async function framesFromImages(files: File[]): Promise<HTMLCanvasElement[]> {
   return out;
 }
 
-// 背景の切り抜き（スキャン向け）：四辺の色を背景とみなして外側から塗り広げるが、
-// 輪郭（明るさの段差）は越えない。服と背景の色が近くても、服の内側まで食い込みにくい。
-function segment(L: Layer, tol: number) {
-  const W = Math.min(420, L.w), k = W / L.w, H = Math.round(L.h * k);
-  const c = document.createElement('canvas'); c.width = W; c.height = H;
-  const g = c.getContext('2d', { willReadFrequently: true })!; g.filter = 'blur(1px)'; g.drawImage(L.img, 0, 0, W, H);
-  const d = g.getImageData(0, 0, W, H).data, n = W * H;
-  const lum = new Float32Array(n); for (let i = 0; i < n; i++) lum[i] = d[i * 4] * 0.299 + d[i * 4 + 1] * 0.587 + d[i * 4 + 2] * 0.114;
-  const edge = new Float32Array(n);
-  for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
-    const i = y * W + x;
-    const gx = lum[i - W + 1] + 2 * lum[i + 1] + lum[i + W + 1] - lum[i - W - 1] - 2 * lum[i - 1] - lum[i + W - 1];
-    const gy = lum[i + W - 1] + 2 * lum[i + W] + lum[i + W + 1] - lum[i - W - 1] - 2 * lum[i - W] - lum[i - W + 1];
-    edge[i] = Math.hypot(gx, gy);
-  }
-  // 背景色：四辺の中央値
-  const rs: number[] = [], gs: number[] = [], bs: number[] = [];
-  const at = (i: number) => { rs.push(d[i * 4]); gs.push(d[i * 4 + 1]); bs.push(d[i * 4 + 2]); };
-  for (let x = 0; x < W; x++) { at(x); at((H - 1) * W + x); } for (let y = 0; y < H; y++) { at(y * W); at(y * W + W - 1); }
-  const md = (a: number[]) => a.sort((p, q) => p - q)[a.length >> 1];
-  const br = md(rs), bg = md(gs), bb = md(bs);
-  const T = 10 + tol * 2.2, E = 26 + tol * 2.5;
-  const bgm = new Uint8Array(n), st: number[] = [];
-  const push = (i: number) => { if (bgm[i]) return; const dr = d[i * 4] - br, dg = d[i * 4 + 1] - bg, db = d[i * 4 + 2] - bb; if (Math.sqrt(dr * dr + dg * dg + db * db) < T && edge[i] < E) { bgm[i] = 1; st.push(i); } };
-  for (let x = 0; x < W; x++) { push(x); push((H - 1) * W + x); } for (let y = 0; y < H; y++) { push(y * W); push(y * W + W - 1); }
-  while (st.length) { const i = st.pop()!, x = i % W; if (x > 0) push(i - 1); if (x < W - 1) push(i + 1); if (i >= W) push(i - W); if (i < n - W) push(i + W); }
-  // 一番大きな塊だけ残し、中の穴は埋める
-  const lab = new Int32Array(n).fill(-1), sizes: number[] = []; let bestN = 0, id = 0;
-  for (let s0 = 0; s0 < n; s0++) {
-    if (bgm[s0] || lab[s0] >= 0) continue;
-    let cnt = 0; const q = [s0]; lab[s0] = id;
-    while (q.length) { const i = q.pop()!; cnt++; const x = i % W; for (const j of [x > 0 ? i - 1 : -1, x < W - 1 ? i + 1 : -1, i - W, i + W]) if (j >= 0 && j < n && !bgm[j] && lab[j] < 0) { lab[j] = id; q.push(j); } }
-    sizes.push(cnt); if (cnt > bestN) bestN = cnt; id++;
-  }
-  // 縫い目などで切れた袖も拾う：大きめの塊はすべて残し、すき間を閉じる
-  let keep: Uint8Array = new Uint8Array(n);
-  for (let i = 0; i < n; i++) if (lab[i] >= 0 && sizes[lab[i]] > bestN * 0.04) keep[i] = 1;
-  const morph = (m: Uint8Array, grow: boolean) => { const o = new Uint8Array(n); for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { let v = grow ? 0 : 1; for (let dy = -2; dy <= 2 && (grow ? !v : v); dy++) for (let dx = -2; dx <= 2; dx++) { const yy = y + dy, xx = x + dx; const b = yy >= 0 && yy < H && xx >= 0 && xx < W ? m[yy * W + xx] : 0; if (grow && b) { v = 1; break; } if (!grow && !b) { v = 0; break; } } o[y * W + x] = v; } return o; };
-  keep = morph(morph(keep, true), false);
-  const out = document.createElement('canvas'); out.width = W; out.height = H;
-  const og = out.getContext('2d')!, od = og.createImageData(W, H);
-  for (let i = 0; i < n; i++) od.data[i * 4 + 3] = keep[i] ? 255 : 0;
-  og.putImageData(od, 0, 0);
-  const big = document.createElement('canvas'); big.width = L.w; big.height = L.h;
-  const bgc = big.getContext('2d', { willReadFrequently: true })!; bgc.drawImage(out, 0, 0, L.w, L.h);
-  const a = bgc.getImageData(0, 0, L.w, L.h).data;
-  for (let i = 0; i < L.mask.length; i++) L.mask[i] = a[i * 4 + 3] > 127 ? 255 : 0;
-  tidy(L.mask, L.w, L.h);
-}
-
 // 切り抜きと目印の確認用（服以外は暗く、目印は点で）
 function cutPreview(L: Layer, lm: NonNullable<ReturnType<typeof autoLandmarks>>) {
   const c = document.createElement('canvas'); c.width = L.w; c.height = L.h;
@@ -129,7 +80,8 @@ export default function SmartScan() {
   const [busy, setBusy] = useState('');
   const [msg, setMsg] = useState('');
   const [got, setGot] = useState<boolean[]>(Array(N).fill(false));
-  const [made, setMade] = useState<{ L: Layer; B: Layer | null; spec: Spec; svg: string; doc: ReturnType<typeof draft>; cut: string } | null>(null);
+  const [made, setMade0] = useState<{ L: Layer; B: Layer | null; spec: Spec; svg: string; doc: ReturnType<typeof draft>; cut: string } | null>(null);
+  const setMade: typeof setMade0 = (v) => { setHung(''); setMade0(v); };
   const video = useRef<HTMLVideoElement>(null);
   const stream = useRef<MediaStream | null>(null);
   const shot = useRef<(HTMLCanvasElement | null)[]>([]);
@@ -261,6 +213,28 @@ export default function SmartScan() {
     save('gallery-crypto-scan.glb', new Blob([res as ArrayBuffer], { type: 'model/gltf-binary' }));
   };
 
+  // スキャンした服をレールに掛ける：切り抜いた正面・背面をこの端末に保存し、レールのページで立体にして見せる
+  const toPng = (L: Layer) => {
+    const k = Math.min(1, 640 / Math.max(L.w, L.h)), c = document.createElement('canvas'); c.width = Math.round(L.w * k); c.height = Math.round(L.h * k);
+    const t = document.createElement('canvas'); t.width = L.w; t.height = L.h; const tx = t.getContext('2d')!, d = tx.createImageData(L.w, L.h);
+    for (let i = 0; i < L.mask.length; i++) { d.data[i * 4] = L.data.data[i * 4]; d.data[i * 4 + 1] = L.data.data[i * 4 + 1]; d.data[i * 4 + 2] = L.data.data[i * 4 + 2]; d.data[i * 4 + 3] = L.mask[i]; }
+    tx.putImageData(d, 0, 0); c.getContext('2d')!.drawImage(t, 0, 0, c.width, c.height); return c.toDataURL('image/png');
+  };
+  const [hung, setHung] = useState('');
+  const hang = () => {
+    if (!made) return;
+    try {
+      const id = 'scan-' + Date.now().toString(36), n2 = (JSON.parse(localStorage.getItem('gc-shop-local') || '[]') as { id: string }[]);
+      const sp = made.spec;
+      const item = { id, code: 'SCAN-' + id.slice(-4).toUpperCase(), title: tt('Scanned piece', 'スキャンした服'), sub: tt('Smart scan · on this device', 'スマートスキャン · この端末'), price: '—', img: toPng(made.L), back: made.B ? toPng(made.B) : undefined, buy: 'local', desc: '',
+        facts: [['Size', `${tt('Length', '着丈')} ${Math.round(sp.length)} / ${tt('Chest', '身幅')} ${Math.round(sp.chest * 2)} cm`], [tt('Shoulder', '肩幅'), `${Math.round(sp.shoulderX * 2)} cm`], [tt('Sleeve', '袖丈'), `${Math.round(sp.sleeve)} cm`]], zone: 'vintage' };
+      // この端末の保存容量に収まるよう、スキャンは新しい6着まで
+      const rest = n2.filter((x) => !String(x.id).startsWith('scan-')).concat(n2.filter((x) => String(x.id).startsWith('scan-')).slice(0, 5));
+      localStorage.setItem('gc-shop-local', JSON.stringify([item, ...rest]));
+      setHung(id);
+    } catch { setMsg(tt('Could not save on this device (storage is full).', 'この端末に保存できませんでした（保存領域がいっぱいです）。')); }
+  };
+
   const spec = made?.spec;
   const rows = useMemo(() => spec ? [
     [tt('Body length', '着丈'), spec.length], [tt('Chest width', '身幅'), spec.chest * 2], [tt('Shoulder width', '肩幅'), spec.shoulderX * 2],
@@ -351,6 +325,9 @@ export default function SmartScan() {
                 <label className="ss-fields one">{tt('Thickness', '厚み')}<input type="range" min={0.4} max={2} step={0.1} value={depth} onChange={(e) => setDepth(+e.target.value)} /></label>
                 <div className="ss-row">
                   <button className="ss-btn" onClick={exportGLB}>{tt('Download 3D (GLB)', '3Dを保存（GLB）')}</button>
+                  {hung
+                    ? <a className="ss-btn" href={`/shop/rail#p=${hung}`}>{tt('See it on the rail →', 'レールで見る →')}</a>
+                    : <button className="ss-btn ghost" onClick={hang}>{tt('Hang it on the rail', 'レールに掛ける')}</button>}
                 </div>
                 <p className="ss-fine">{tt('Shaped from the front and back shots, not measured like a laser scan. Good for previews and the showroom.', '正面と背面の2枚から形を推定したものです。レーザー測量のような精密なスキャンではありません。プレビューやショールーム向けです。')}</p>
               </div>

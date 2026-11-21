@@ -3216,3 +3216,9 @@ img{image-rendering:auto}
 .photos .ph-set button[aria-pressed=true]{background:#111;color:#fff;border-color:#111}
 .ph-r.back .ph-set button[aria-pressed=true]{background:#b3261e;border-color:#b3261e}
 .ph-n{position:absolute;right:4px;bottom:28px;font-size:9px;color:#fff;text-shadow:0 0 3px #000}
+/* 立体のレール */
+.hr-3d{position:absolute;inset:0;z-index:350;pointer-events:none}
+.hr-3d canvas{display:block;width:100%!important;height:100%!important}
+.hr-pc img.ghost{opacity:0}
+.hr.solid .hr-slot .hr-tag{z-index:3}
+.hr-spin{font-size:10.5px;letter-spacing:.06em;color:#888}

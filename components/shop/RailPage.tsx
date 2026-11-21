@@ -48,7 +48,7 @@ export default function RailPage({ initial, saleOpen }: { initial: ShopItem[]; s
         <a className="rp-logo notranslate" href="/">GALLERY CRYPTO</a>
         <span className="rp-r"><a href="/shop/room">{t('Showroom', 'ショールーム')}</a><LangToggle /></span>
       </header>
-      <div className="rp-stage"><HangRail items={items} focusId={fid} onFocus={focus} /></div>
+      <div className="rp-stage"><HangRail solid items={items} focusId={fid} onFocus={focus} /></div>
     </div>
   );
 }
