@@ -396,6 +396,16 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
               );
             }} />
           </div>
+          {/* 下へ読み進めても、いつでもカートに入れられる帯 */}
+          <div className="sf-pbar">
+            <span className={`sf-pbimg ${product.img ? 'photo' : ''}`}>{/* eslint-disable-next-line @next/next/no-img-element */}<img src={product.src} alt="" /></span>
+            <span className="sf-pbt"><b>{product.title}</b><em>{product.price}{product.color ? ` · ${product.color}` : ''}</em></span>
+            {product.buy === 'stripe' && <BuyButton itemId={product.id} />}
+            {product.buy !== 'sold' && <AddToCart line={lineOf(product)} />}
+            <button className="sf-pbcart" onClick={() => cartC.open()} aria-label={t('Open cart', 'カートを開く')}>
+              <svg viewBox="0 0 24 24" aria-hidden><path d="M5 8h14l-1.2 12H6.2z" /><path d="M9 8V6a3 3 0 0 1 6 0v2" /></svg>{cart.length > 0 && <i>{cart.length}</i>}
+            </button>
+          </div>
           <div className="sf-pinfo">
             <span className="sf-pcode">{product.code}{product.buy === 'demo' ? ` · ${t('Sample', '見本')}` : ''} · {product.sub}</span>
             {(product.buy === 'demo' || product.buy === 'local') && <p className="sf-fine">{t('Sample — not for sale. Sales open in 2027 (card / Apple Pay).', '見本のため購入はできません。販売は2027年から（カード／Apple Pay）。')}</p>}
