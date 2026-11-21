@@ -3222,3 +3222,4 @@ img{image-rendering:auto}
 .hr-pc img.ghost{opacity:0}
 .hr.solid .hr-slot .hr-tag{z-index:3}
 .hr-spin{font-size:10.5px;letter-spacing:.06em;color:#888}
+.gr-diag{position:absolute;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom));z-index:60;margin:0;max-height:30vh;overflow:auto;padding:8px 10px;border-radius:6px;background:rgba(160,20,20,.88);color:#fff;font:11px/1.4 ui-monospace,Menlo,monospace;white-space:pre-wrap;word-break:break-word;pointer-events:auto}

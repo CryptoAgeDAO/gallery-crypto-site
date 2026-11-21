@@ -57,6 +57,9 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
     renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0; renderer.outputColorSpace = THREE.SRGBColorSpace;
     if (!mobile) { renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; }
     el.appendChild(renderer.domElement);
+    // 診断：シェーダーが端末で動かないときは、その内容を画面の診断欄へ（原因を確かめるため）
+    const report = (m: string) => { try { dispatchEvent(new CustomEvent('gc-3d-error', { detail: m })); } catch { /* 無視 */ } };
+    renderer.debug.onShaderError = (gl, prog, vs, fs) => { report('shader: ' + (gl.getProgramInfoLog(prog) || '') + ' ' + (gl.getShaderInfoLog(fs) || gl.getShaderInfoLog(vs) || '')); };
     renderer.domElement.addEventListener('webglcontextlost', (e) => { e.preventDefault(); cb.current.onState({ room: 0, focus: null, moving: false, ready: true, lost: true }); });
 
     const scene = new THREE.Scene(); scene.background = new THREE.Color(0xe9e7e2);
@@ -341,7 +344,7 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
       if (!reduce) { spinners.forEach((s, i) => { s.rotation.y = Math.sin(t * 0.35 + i * 1.3) * 0.9; }); swayers.forEach((s) => { s.o.rotation.z = Math.sin(t * 1.1 + s.ph) * 0.02; s.o.rotation.y = Math.sin(t * 0.6 + s.ph) * 0.08; }); }
       if (cb.current.paused && !moving && !first) return;
       renderer.render(scene, camera);
-      if (first) { first = false; emit(true); }
+      if (first) { first = false; emit(true); const gl = renderer.getContext(); const e = gl.getError(); if (e) report('gl error ' + e); if (!renderer.info.render.calls) report('nothing drawn'); }
     };
     loop();
 

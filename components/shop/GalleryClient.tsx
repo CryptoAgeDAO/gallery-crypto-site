@@ -65,6 +65,19 @@ export default function GalleryClient({ initial }: { initial: ShopItem[] }) {
   const rooms: SRoom[] = useMemo(() => groups.map((g) => ({ key: g.key, dp: g.dp, pieces: g.list.map((i) => ({ id: i.id, title: i.title, code: i.code, kind: kindOf(i), tex: i.img || (i.pid ? cutout(i.pid) : ''), back: i.back })) })), [groups]);
   const api = useRef<GalleryApi | null>(null);
   const [st, setSt] = useState<GState>({ room: 0, focus: null, moving: false, ready: false });
+  // 診断：この画面で起きたエラーを画面の下に出す（iPhone で表示できない原因を確かめるため）
+  const [diag, setDiag] = useState<string[]>([]);
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    const add = (m: string) => setDiag((d) => (d.includes(m) || d.length > 5 ? d : [...d, m]));
+    const onErr = (e: ErrorEvent) => add('error: ' + (e.message || String(e.error)));
+    const onRej = (e: PromiseRejectionEvent) => add('promise: ' + String((e.reason && (e.reason.message || e.reason)) || ''));
+    const on3d = (e: Event) => add(String((e as CustomEvent).detail || '3d'));
+    addEventListener('error', onErr); addEventListener('unhandledrejection', onRej); addEventListener('gc-3d-error', on3d);
+    return () => { removeEventListener('error', onErr); removeEventListener('unhandledrejection', onRej); removeEventListener('gc-3d-error', on3d); };
+  }, []);
+  // 15秒たっても3Dが開かなければ、代わりの案内を出す
+  useEffect(() => { if (st.ready) return; const h = setTimeout(() => setSlow(true), 15000); return () => clearTimeout(h); }, [st.ready]);
   // ショップの「ショールームで見る」から来たときは、その作品の前まで歩いていく
   const handed = useRef(false);
   useEffect(() => {
@@ -90,7 +103,8 @@ export default function GalleryClient({ initial }: { initial: ShopItem[] }) {
       <Safe fallback={<Fallback />}>
         <Showroom3D paused={isG} rooms={rooms} apiRef={api} onState={setSt} onPick={(id) => { api.current?.focus(id); sfx('open'); }} />
       </Safe>
-      {st.lost && <Fallback />}
+      {(st.lost || (slow && !st.ready)) && <Fallback />}
+      {diag.length > 0 && <pre className="gr-diag">{diag.join('\n')}{'\n'}{typeof navigator !== 'undefined' ? navigator.userAgent : ''}</pre>}
       <div className={`gr-veil ${st.ready ? 'off' : ''}`}><em>Gallery Crypto</em><span>{t('Opening the showroom…', 'ショールームをひらいています…')}</span></div>
 
       <header className="gr-top">
