@@ -10,6 +10,7 @@ import { toShop } from './toShop';
 import { demoItems } from './demo';
 import { cutout, kindOf } from './pieceArt';
 import HangRail, { type RailItem } from './HangRail';
+import { withColors } from './withColors';
 
 export const toRail = (i: ShopItem): RailItem => ({ ...i, src: i.img || (i.pid ? cutout(i.pid) : ''), kind: kindOf(i) });
 
@@ -34,12 +35,12 @@ export default function RailPage({ initial, saleOpen }: { initial: ShopItem[]; s
   }, []);
   const focus = (id: string | null) => { if (id) location.hash = 'p=' + encodeURIComponent(id); else { history.replaceState(null, '', location.pathname + location.search); setFid(null); } };
   // 服を先に、キャップ・アートは後ろに
+  const pool = useMemo(() => [...local, ...real, ...(real.length ? [] : demoItems())].map(toRail).filter((i) => i.src), [local, real]);
   const items = useMemo(() => {
-    const all = [...local, ...real, ...(real.length ? [] : demoItems())].map(toRail).filter((i) => i.src);
-    // レールに掛けるのは服だけ（キャップ・アートはショールームの棚と壁に）
-    const g = all.filter((i) => i.kind === 'garment');
-    return (g.length >= 3 ? g : all).slice(0, 16);
-  }, [local, real]);
+    // レールに掛けるのは服だけ（キャップ・アートはショールームの棚と壁に）。開いている服の色違いは隣に
+    const g = pool.filter((i) => i.kind === 'garment');
+    return withColors((g.length >= 3 ? g : pool).slice(0, 16), pool, fid);
+  }, [pool, fid]);
 
   return (
     <div className="rp" translate="no">

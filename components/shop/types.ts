@@ -11,6 +11,7 @@ export type ShopItem = {
   tour?: boolean;
   line?: 'tops' | 'outer' | 'bottoms' | 'head' | 'acc'; // 見本ライン（約100点）の分類
   acc?: boolean; // 小物（ハンガーに掛けない）
+  group?: string; color?: string; hex?: string; // 色展開（同じ group は色違い）
   series?: 'paint' | 'record' | 'fade' | 'thrash' | 'objects'; // 見本ラインのシリーズ
   buy: 'stripe' | 'demo' | 'sold' | 'local';
   passport?: string;

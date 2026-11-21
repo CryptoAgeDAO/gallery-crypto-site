@@ -15,8 +15,11 @@ import { cutout } from './pieceArt';
 import HangRail, { type RailItem } from './HangRail';
 import { kindOf } from './pieceArt';
 import { SERIES } from '@/lib/catalog';
+import { useCart, AddToCart } from '../cart/Cart';
+import { lineOf } from '../cart/lineOf';
+import { withColors } from './withColors';
 
-const LKEY = 'gc-shop-local', CKEY = 'gc-shop-cart';
+const LKEY = 'gc-shop-local';
 type Cat = 'all' | 'new' | 's-paint' | 's-record' | 's-fade' | 's-thrash' | 's-objects' | 'line' | 'tour' | 'vintage' | 'used' | 'tops' | 'outer' | 'bottoms' | 'head' | 'acc' | 'caps' | 'art' | 'archive';
 type P = ShopItem & { src: string; cat: Cat[]; n: number; yen: number; lottery?: string };
 const CATS: { k: Cat; en: string; ja: string }[] = [
@@ -57,10 +60,9 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
   const J = lang === 'ja';
   const [real, setReal] = useState<ShopItem[]>(initial);
   const [local, setLocal] = useState<ShopItem[]>([]);
-  const [cart, setCart] = useState<string[]>([]);
+  const cartC = useCart(); const cart = cartC.lines.map((l) => l.id);
   const [menu, setMenu] = useState(false);
   const [search, setSearch] = useState<string | null>(null);
-  const [cartOpen, setCartOpen] = useState(false);
   const [cat, setCat] = useState<Cat | null>(null); // カテゴリ一覧ページ
   const [sort, setSort] = useState<'new' | 'low' | 'high'>('new');
   const [sub, setSub] = useState<Cat | null>(null); // シリーズの中の種類（トップス・パンツ…）
@@ -70,8 +72,7 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
   const [play, setPlay] = useState(true);
   const [ann, setAnn] = useState(0);
 
-  useEffect(() => { try { setLocal(JSON.parse(localStorage.getItem(LKEY) || '[]')); setCart(JSON.parse(localStorage.getItem(CKEY) || '[]')); } catch { /* 無視 */ } }, []);
-  useEffect(() => { try { localStorage.setItem(CKEY, JSON.stringify(cart)); } catch { /* 無視 */ } }, [cart]);
+  useEffect(() => { try { setLocal(JSON.parse(localStorage.getItem(LKEY) || '[]')); } catch { /* 無視 */ } }, []);
   useEffect(() => {
     const db = supabase();
     if (!db) return;
@@ -93,6 +94,9 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
     return [...local, ...real, ...(real.length ? [] : demoItems())].map((i, n) => ({ ...i, src: i.img || (i.pid ? cutout(i.pid) : ''), cat: ['all' as Cat, ...catsOf(i), ...(n < 6 ? ['new' as Cat] : [])], n, yen: num(i.price), lottery: lot.get(i.id) })).filter((i) => i.src);
   }, [local, real, J]);
   const byCat = (c: Cat) => all.filter((i) => i.cat.includes(c));
+  // 色違いは一覧では1枚のカードにまとめ、色の点で切り替える
+  const one = (xs: P[]) => { const seen = new Set<string>(); return xs.filter((x) => !x.group || (seen.has(x.group) ? false : (seen.add(x.group), true))); };
+  const [pick, setPick] = useState<Record<string, string>>({});
   const product = all.find((i) => i.id === pid) || null;
   const rail = (i: P): RailItem => ({ ...i, kind: kindOf(i) });
   const railAll = useMemo(() => all.filter((i) => kindOf(i) === 'garment').slice(0, 14).map(rail), [all]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -104,9 +108,8 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
     const same = product.tour ? all.filter((x) => x.tour) : all.filter((x) => x.id === product.id || (kindOf(x) === kd && (cat && cat !== 'all' && cat !== 'new' ? x.cat.includes(cat) : true)));
     const list = (same.length > 2 ? same : all).slice(0, 12);
     if (!list.some((x) => x.id === product.id)) list.unshift(product);
-    return list.map(rail);
+    return withColors(list, all, product.id).map(rail);
   }, [product, all, cat]); // eslint-disable-line react-hooks/exhaustive-deps
-  const inCart = all.filter((i) => cart.includes(i.id));
 
   // 告知バーとスライドショーの自動送り
   const ANN = [t('Drop 01 — sales open 2027', 'DROP 01 — 販売開始は2027年'), t('Every piece comes with a digital record', 'すべての商品にデジタル記録付き'), t('Card & Apple Pay checkout', 'カード・Apple Pay で決済')];
@@ -122,12 +125,12 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
   }, [all, t]);
   useEffect(() => { if (!play || !hero.length) return; const h = setInterval(() => setSlide((s) => (s + 1) % hero.length), 5200); return () => clearInterval(h); }, [play, hero.length]);
   // 商品ページを開いている間は後ろをスクロールさせない
-  useEffect(() => { document.body.style.overflow = product || menu || cartOpen ? 'hidden' : ''; return () => { document.body.style.overflow = ''; }; }, [product, menu, cartOpen]);
+  useEffect(() => { document.body.style.overflow = product || menu ? 'hidden' : ''; return () => { document.body.style.overflow = ''; }; }, [product, menu]);
 
-  const add = (id: string) => { setCart((c) => (c.includes(id) ? c : [...c, id])); sfx('coin'); setCartOpen(true); };
+  const add = (id: string) => { const p = all.find((x) => x.id === id); if (p) cartC.add(lineOf(p)); };
   const catName = (c: Cat) => { const x = CATS.find((y) => y.k === c); return x ? (J ? x.ja : x.en) : t('All', 'すべて'); };
 
-  const Card = ({ p }: { p: P }) => (
+  const Card = ({ p: p0 }: { p: P }) => { const p = (p0.group && pick[p0.group] && all.find((x) => x.id === pick[p0.group!])) || p0; return (
     <a className="sf-card" href={`#${cat ? `c=${cat}&` : ''}p=${encodeURIComponent(p.id)}`} onClick={() => sfx('open')}>
       <span className={`sf-cimg ${p.img ? 'photo' : ''}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -146,18 +149,25 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
       </span>
       {p.series && <span className="sf-cser" style={{ ['--sc' as string]: SERIES.find((x) => x.key === p.series)?.accent }}>{SERIES.find((x) => x.key === p.series)?.name}</span>}
       <b>{p.title}</b>
+      {p.group && (() => { const sib = all.filter((x) => x.group === p.group); return sib.length > 1 ? (
+        <span className="sf-cdots" aria-label={t(`${sib.length} colours`, `${sib.length}色`)}>
+          {sib.map((x) => <i key={x.id} role="button" aria-current={x.id === p.id} title={x.color} style={{ background: x.hex }} onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPick((m) => ({ ...m, [p.group!]: x.id })); }} onMouseEnter={() => setPick((m) => ({ ...m, [p.group!]: x.id }))} />)}
+          <small>{sib.length} {t('colours', '色')}</small>
+        </span>
+      ) : null; })()}
       <span className="sf-csub">{p.sub}</span>
       <span className="sf-cprice">{p.price}</span>
+ 
     </a>
-  );
+  ); };
   const Row = ({ title, c, items }: { title: string; c: Cat; items: P[] }) => items.length ? (
     <section className="sf-sec">
       <div className="sf-h"><h2>{title}</h2><a href={`#c=${c}`}>{t('View all', 'すべて見る')} →</a></div>
-      <div className="sf-row">{items.slice(0, 10).map((p) => <Card key={p.id} p={p} />)}</div>
+      <div className="sf-row">{one(items).slice(0, 10).map((p) => <Card key={p.id} p={p} />)}</div>
     </section>
   ) : null;
 
-  const list = cat ? [...byCat(cat)].filter((i) => !sub || i.cat.includes(sub)).sort((a, b) => (sort === 'low' ? a.yen - b.yen : sort === 'high' ? b.yen - a.yen : a.n - b.n)) : [];
+  const list = cat ? one([...byCat(cat)].filter((i) => !sub || i.cat.includes(sub))).sort((a, b) => (sort === 'low' ? a.yen - b.yen : sort === 'high' ? b.yen - a.yen : a.n - b.n)) : [];
   const found = search !== null && search.trim() ? all.filter((i) => (i.title + ' ' + i.sub + ' ' + i.code).toLowerCase().includes(search.trim().toLowerCase())) : [];
 
   return (
@@ -171,7 +181,7 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
         <a className="sf-logo" href="/shop" onClick={() => nav(null)}>GALLERY CRYPTO</a>
         <span className="sf-tools">
           <button onClick={() => setSearch('')} aria-label={t('Search', '検索')}><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5 21 21" /></svg></button>
-          <button className="sf-cartb" onClick={() => setCartOpen(true)} aria-label={t('Cart', 'カート')}><svg viewBox="0 0 24 24"><path d="M5 8h14l-1.2 12H6.2z" /><path d="M9 8V6a3 3 0 0 1 6 0v2" /></svg>{cart.length > 0 && <i>{cart.length}</i>}</button>
+          <button className="sf-cartb" onClick={() => cartC.open()} aria-label={t('Cart', 'カート')}><svg viewBox="0 0 24 24"><path d="M5 8h14l-1.2 12H6.2z" /><path d="M9 8V6a3 3 0 0 1 6 0v2" /></svg>{cart.length > 0 && <i>{cart.length}</i>}</button>
         </span>
         <nav className="sf-cats">{CATS.map((c) => <a key={c.k} href={`#c=${c.k}`} aria-current={cat === c.k}>{J ? c.ja : c.en}</a>)}<a href="/#events">{t('Lottery', '抽選')}</a></nav>
       </header>
@@ -380,7 +390,7 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
                 <>
                   {p.buy === 'stripe' && <BuyButton itemId={p.id} />}
                   {p.buy === 'sold' && <span className="hr-btn off">{t('Sold', '売約済み')}</span>}
-                  {(p.buy === 'demo' || p.buy === 'local') && <button className="hr-btn" onClick={() => add(p.id)}>{cart.includes(p.id) ? t('In your cart ✓', 'カートに入っています ✓') : t('Add to cart', 'カートに入れる')}</button>}
+                  {p.buy !== 'sold' && <AddToCart line={lineOf(p)} />}
                   {p.lottery && <a className="hr-btn ghost" href="/#events">{t('Enter the lottery', '抽選に申し込む')}</a>}
                 </>
               );
@@ -398,22 +408,6 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
         </div>
       )}
 
-      {/* カート（右から） */}
-      {cartOpen && <div className="sf-dim" onClick={() => setCartOpen(false)} />}
-      <aside className={`sf-cart cxp ${cartOpen ? 'on' : ''}`} aria-hidden={!cartOpen}>
-        <div className="sf-ch"><b>{t('Cart', 'カート')} ({cart.length})</b><button onClick={() => setCartOpen(false)} aria-label={t('Close', '閉じる')}>×</button></div>
-        {!inCart.length && <p className="sf-fine">{t('Your cart is empty.', 'カートは空です。')}</p>}
-        {inCart.map((p) => (
-          <div key={p.id} className="sf-line">
-            <span className={`sf-limg ${p.img ? 'photo' : ''}`}>{/* eslint-disable-next-line @next/next/no-img-element */}<img src={p.src} alt="" /></span>
-            <span><b>{p.title}</b><small>{p.sub}</small><em>{p.price}</em></span>
-            <button onClick={() => setCart((c) => c.filter((x) => x !== p.id))}>{t('Remove', '削除')}</button>
-          </div>
-        ))}
-        {inCart.length > 0 && <div className="sf-sum"><span>{t('Subtotal', '小計')}</span><b>¥{inCart.reduce((a, p) => a + p.yen, 0).toLocaleString('ja-JP')}</b></div>}
-        {inCart.filter((p) => p.buy === 'stripe').map((p) => <BuyButton key={p.id} itemId={p.id} label={t(`Checkout — ${p.title}`, `${p.title} を購入`)} />)}
-        {inCart.some((p) => p.buy !== 'stripe') && <p className="sf-fine">{t('Samples cannot be bought. Checkout opens with sales in 2027.', '見本は購入できません。決済は2027年の販売開始とともに始まります。')}</p>}
-      </aside>
     </div>
   );
 }

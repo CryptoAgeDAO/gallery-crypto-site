@@ -10,11 +10,14 @@ import { useLang } from '../Lang';
 import { sfx } from '@/lib/sfx';
 import BuyButton from '../BuyButton';
 import { HANGER_URL } from './garmentArt';
+import { AddToCart } from '../cart/Cart';
+import { lineOf } from '../cart/lineOf';
 
 export type RailItem = {
   id: string; code: string; title: string; sub: string; price: string;
   src: string; back?: string; img?: string; facts: [string, string][];
   buy: 'stripe' | 'demo' | 'sold' | 'local'; passport?: string; kind?: 'garment' | 'cap' | 'art'; line?: string;
+  group?: string; color?: string; hex?: string;
 };
 
 const useIso = typeof window === 'undefined' ? useEffect : useLayoutEffect;
@@ -215,13 +218,20 @@ export default function HangRail({ items, focusId, onFocus, mode = 'page', rende
             {cur.back && <button aria-pressed={view === 'back'} onClick={() => setView('back')}>{t('Back', '背中')}</button>}
             <button aria-pressed={view === 'detail'} onClick={() => setView('detail')}>{t('Detail', '寄り')}</button>
           </div>
+          {/* 色展開：同じ型の色違い */}
+          {(() => { const sib = cur.group ? items.filter((x) => x.group === cur.group) : []; return sib.length > 1 ? (
+            <div className="gc-swatches" role="radiogroup" aria-label={t('Colour', 'カラー')}>
+              {sib.map((x) => <button key={x.id} role="radio" aria-checked={x.id === cur.id} aria-current={x.id === cur.id} title={x.color} style={{ background: x.hex }} onClick={() => onFocus(x.id)} />)}
+              <small>{cur.color} · {sib.length} {t('colours', '色')}</small>
+            </div>
+          ) : null; })()}
           <div className="hr-sizes">{sizes(cur).map((s) => <span key={s} className="on">{s}</span>)}<small>{cur.line ? t('Sample line', '見本ライン') : t('One of one', '一点もの')}</small></div>
           <div className="hr-buy">
             {renderBuy ? renderBuy(cur) : (
               <>
                 {cur.buy === 'stripe' && <BuyButton itemId={cur.id} />}
                 {cur.buy === 'sold' && <span className="hr-btn off">{t('Sold', '売約済み')}</span>}
-                {(cur.buy === 'demo' || cur.buy === 'local') && <span className="hr-btn off">{t('Sales open in 2027', '販売は2027年から')}</span>}
+                {cur.buy !== 'sold' && <AddToCart line={lineOf(cur)} />}
               </>
             )}
           </div>

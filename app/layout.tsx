@@ -6,6 +6,7 @@ import '@fontsource/dela-gothic-one/400.css';
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
 import { LangProvider } from '@/components/Lang';
+import { CartProvider } from '@/components/cart/Cart';
 import { getLang } from '@/lib/lang';
 
 export const metadata: Metadata = {
@@ -35,7 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        <LangProvider lang={lang}>{children}</LangProvider>
+        <LangProvider lang={lang}><CartProvider>{children}</CartProvider></LangProvider>
       </body>
     </html>
   );

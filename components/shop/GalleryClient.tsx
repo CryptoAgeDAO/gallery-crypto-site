@@ -11,6 +11,9 @@ import { cutout, kindOf } from './pieceArt';
 import type { GalleryApi, GState } from './Gallery3D';
 import type { DP, SRoom } from './Showroom3D';
 import HangRail, { type RailItem } from './HangRail';
+import { withColors } from './withColors';
+import { AddToCart } from '../cart/Cart';
+import { lineOf } from '../cart/lineOf';
 import { isPhone } from '@/lib/device';
 
 const Showroom3D = dynamic(() => import('./Showroom3D'), { ssr: false });
@@ -98,7 +101,7 @@ export default function GalleryClient({ initial }: { initial: ShopItem[] }) {
   const k = cur ? inRoom.findIndex((i) => i.id === cur.id) : -1;
   // 服を押したら、ラックから外して手に取る：その売り場の服が一本のレールに並び、押した一着が真ん中に寄る
   const isG = !!cur && kindOf(cur) === 'garment';
-  const railItems: RailItem[] = useMemo(() => (isG ? inRoom.filter((i) => kindOf(i) === 'garment').map((i) => ({ ...i, src: i.img || (i.pid ? cutout(i.pid) : ''), kind: 'garment' as const })) : []), [isG, inRoom]);
+  const railItems: RailItem[] = useMemo(() => { if (!isG) return []; const r = (i: ShopItem): RailItem => ({ ...i, src: i.img || (i.pid ? cutout(i.pid) : ''), kind: 'garment' as const }); return withColors(inRoom.filter((i) => kindOf(i) === 'garment').map(r), items.filter((i) => kindOf(i) === 'garment').map(r), cur?.id || null); }, [isG, inRoom, items, cur?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const go = (i: number) => { if (i < 0 || i >= groups.length) return; api.current?.goRoom(i); sfx('tick'); };
   const step = (d: number) => { const n = inRoom[(k + d + inRoom.length) % inRoom.length]; if (n) { api.current?.focus(n.id); sfx('tick'); } };
   const two = (n: number) => String(n).padStart(2, '0');
@@ -151,6 +154,14 @@ export default function GalleryClient({ initial }: { initial: ShopItem[] }) {
             {cur.facts.length > 0 && <dl>{cur.facts.slice(0, 6).map(([a, b]) => <div key={a}><dt>{a}</dt><dd>{b}</dd></div>)}</dl>}
             <div className="gr-buy">
               {cur.buy === 'stripe' && <BuyButton itemId={cur.id} />}
+              {cur.buy !== 'sold' && <AddToCart line={lineOf({ ...cur, src: cur.img || (cur.pid ? cutout(cur.pid) : '') })} />}
+              {/* 色展開 */}
+              {cur.group && items.filter((x) => x.group === cur.group).length > 1 && (
+                <div className="gc-swatches" style={{ justifyContent: 'flex-start' }}>
+                  {items.filter((x) => x.group === cur.group).map((x) => <a key={x.id} href={`/shop#p=${encodeURIComponent(x.id)}`} aria-current={x.id === cur.id} title={x.color} style={{ background: x.hex }} />)}
+                  <small>{cur.color}</small>
+                </div>
+              )}
               {cur.buy === 'sold' && <span className="gr-fine">{t('Sold', '売約済み')}</span>}
               <a className="gr-btn" href={`/shop#p=${encodeURIComponent(cur.id)}`}>{t('View in the shop →', 'ショップで見る →')}</a>
               {(cur.buy === 'demo' || cur.buy === 'local') && <p className="gr-fine">{t('Sample — not for sale. Sales open in 2027 (card / Apple Pay).', '見本のため購入はできません。販売は2027年から（カード／Apple Pay）。')}</p>}

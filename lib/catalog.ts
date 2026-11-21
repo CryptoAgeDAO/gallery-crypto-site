@@ -18,6 +18,7 @@ export const SERIES: Series[] = [
 ];
 export type LineItem = {
   id: string; code: string; title: string; sub: string; price: number; cat: LineCat; series: SeriesKey;
+  group?: string; color?: string; hex?: string; // 色展開：同じ group の商品は色違い
   draw?: NonNullable<Project['draw']>; acc?: Acc; facts: [string, string][]; story: string;
 };
 
@@ -77,17 +78,18 @@ function build(): LineItem[] {
     thrash: { pal: [['Washed black', '#2a2a2d', '#e8e3d6'], ['Heather grey', '#8f8c86', '#1a1a1a'], ['Oxblood', '#5b1a22', '#e8dcc2'], ['Charcoal', '#3a3a3e', '#d23a2a']], prints: ['stamp', 'back', 'word', 'chest'], treat: 'distress', word: 'Thrash', finish: 'Distressed by hand' },
   };
   const order: Exclude<SeriesKey, 'objects'>[] = ['paint', 'record', 'fade', 'thrash'];
-  let gi = 0; const per: Record<string, number> = {};
+  let gi = 0; const per: Record<string, number> = {}; const gcount: Record<string, number> = {}; const gprice: Record<string, number> = {};
   for (const g of GARMENTS) for (let i = 0; i < g.n; i++) {
     const sk = order[gi++ % order.length], sp = SP[sk], sr = SERIES.find((x) => x.key === sk)!;
-    const si = (per[sk] = (per[sk] ?? -1) + 1);
-    const pal = sp.pal[si % sp.pal.length], pr = g.kind === 'pants' || g.kind === 'shorts' || g.kind === 'sweatpants' ? (sk === 'paint' ? 'splat' : sk === 'record' ? 'side' : 'chest') : sp.prints[i % sp.prints.length];
+    const si = (per[sk] = (per[sk] ?? -1) + 1); void si;
+    const gkey = `${sk}:${g.code}`, gn = (gcount[gkey] = (gcount[gkey] ?? -1) + 1);
+    const pal = sp.pal[gn % sp.pal.length], pr = g.kind === 'pants' || g.kind === 'shorts' || g.kind === 'sweatpants' ? (sk === 'paint' ? 'splat' : sk === 'record' ? 'side' : 'chest') : sp.prints[g.code.charCodeAt(0) % sp.prints.length]; // 色違いは同じ図柄
     const treat = sk === 'thrash' && i % 2 ? 'bleach' : sp.treat;
     const type = g.names[0].split(' ').slice(-1)[0]; // Tee / Hoodie / Flare …
     const size = SIZES[(i + g.n) % SIZES.length];
     out.push({
       id: `l-${g.code.toLowerCase()}${i + 1}`, code: `GC-${sr.code}-${g.code}-${String(i + 1).padStart(2, '0')}`, title: `${sp.word} ${type} — ${pal[0]}`, sub: `${sr.name} · ${pal[0].toLowerCase()} · ${size}`,
-      price: round(g.price[0] + (g.price[1] - g.price[0]) * rnd()), cat: g.cat, series: sk,
+      price: (gprice[gkey] ??= round(g.price[0] + (g.price[1] - g.price[0]) * rnd())), cat: g.cat, series: sk, group: gkey, color: pal[0], hex: pal[1],
       draw: { kind: g.kind, color: pal[1], accent: pal[2], print: pr, treat },
       facts: [['Size', size], ['Series', sr.name], ['Material', g.material], ['Finish', sp.finish], ['Grade', 'New — sample line']],
       story: sr.en,
@@ -97,7 +99,8 @@ function build(): LineItem[] {
     const pal = PAL[(i * 3 + a.code.charCodeAt(1)) % PAL.length], name = a.names[i % a.names.length];
     out.push({
       id: `l-${a.code.toLowerCase()}${i + 1}`, code: `GC-OB-${a.code}-${String(i + 1).padStart(2, '0')}`, title: a.kind === 'sticker' ? name : `${name} — ${pal[0]}`, sub: `OBJECTS · ${a.kind}`,
-      price: round(a.price[0] + (a.price[1] - a.price[0]) * rnd()), cat: a.cat, series: a.cat === 'head' ? order[i % order.length] : 'objects',
+      price: (gprice[a.code] ??= round(a.price[0] + (a.price[1] - a.price[0]) * rnd())), cat: a.cat, series: a.cat === 'head' ? order[i % order.length] : 'objects',
+      ...(a.kind === 'sticker' ? {} : { group: `${a.code}:${i % a.names.length}`, color: pal[0], hex: pal[1] }),
       acc: { kind: a.kind, color: pal[1], accent: pal[2], v: i },
       facts: [['Size', a.kind === 'sticker' ? '10 cm' : 'One size'], ['Material', a.material], ['Grade', 'New — sample line']],
       story: a.cat === 'head' ? SERIES.find((x) => x.key === order[i % order.length])!.en : SERIES[4].en,
