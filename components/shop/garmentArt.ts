@@ -110,6 +110,37 @@ ${rows.map(([c, e], i) => `<text x="94" y="${90 + i * 9}" font-family="${CON}" f
   return `<defs>${wear}</defs><g mask="url(#${id}pw)" opacity="${d.tour === 'c' ? 0.86 : 0.94}">${g}</g>`;
 }
 
+// 加工（シリーズごとの差）：日焼けの色あせ・ダメージ（穴とほつれ）・ブリーチの斑点・ペンキの垂れ
+function treatment(d: D, side: 'front' | 'back', seed: number, b: { l: number; r: number; b: number }): string {
+  if (!d.treat) return '';
+  let s = seed * 7919 + (side === 'back' ? 13 : 0); const r = () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
+  const X = () => b.l + 6 + r() * (b.r - b.l - 12), Y = (y0 = 36) => y0 + r() * (b.b - y0 - 8);
+  const id = `t${seed}${side[0]}`;
+  if (d.treat === 'fade') {
+    // 肩と縫い目のまわりが日に焼けて白っぽく、ところどころムラ
+    return `<defs><linearGradient id="${id}f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".42"/><stop offset=".45" stop-color="#fff" stop-opacity=".12"/><stop offset="1" stop-color="#fff" stop-opacity=".22"/></linearGradient>
+<filter id="${id}m" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".018" numOctaves="3" seed="${seed}"/><feColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 1.6 -.75"/></filter></defs>
+<rect width="240" height="220" fill="url(#${id}f)"/><rect width="240" height="220" filter="url(#${id}m)" opacity=".55"/>
+<path d="M${b.l} 40 V${b.b} M${b.r} 40 V${b.b}" stroke="#fff" stroke-opacity=".3" stroke-width="5"/>`;
+  }
+  if (d.treat === 'bleach') {
+    return Array.from({ length: 14 }, () => { const x = X(), y = Y(), rr = 1.5 + r() * r() * 9; return `<ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="${rr.toFixed(1)}" ry="${(rr * (0.6 + r() * 0.6)).toFixed(1)}" fill="${r() < 0.5 ? '#d8b49a' : '#efe3d4'}" opacity="${(0.55 + r() * 0.35).toFixed(2)}"/><ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="${(rr * 1.6).toFixed(1)}" ry="${(rr * 1.2).toFixed(1)}" fill="#c99a7a" opacity=".18"/>`; }).join('');
+  }
+  if (d.treat === 'paint') {
+    // ペンキの垂れ：上から下へ流れた太い線と溜まり
+    const cs = ['#efe9dc', '#d23a2a', '#2a5bd2', '#e8c33a', '#111'];
+    return Array.from({ length: 9 }, () => {
+      const x = X(), y = Y(40), c = cs[Math.floor(r() * cs.length)], w = 0.8 + r() * 1.6, l = 10 + r() * 46;
+      const blob = Array.from({ length: 4 }, () => `<circle cx="${(x + (r() - 0.5) * w * 4).toFixed(1)}" cy="${(y + (r() - 0.5) * w * 3).toFixed(1)}" r="${(w * (0.6 + r())).toFixed(1)}" fill="${c}"/>`).join('');
+      return `${blob}<path d="M${x.toFixed(1)} ${y.toFixed(1)} q${((r() - 0.5) * 3).toFixed(1)} ${(l / 2).toFixed(1)} ${((r() - 0.5) * 2).toFixed(1)} ${l.toFixed(1)}" stroke="${c}" stroke-width="${(w * 0.7).toFixed(1)}" stroke-linecap="round" fill="none"/><circle cx="${x.toFixed(1)}" cy="${(y + l).toFixed(1)}" r="${(w * 0.75).toFixed(1)}" fill="${c}"/>`;
+    }).join('');
+  }
+  // distress：小さな穴（裏の生地が暗く見える）と、ほつれた白い糸。裾と袖口はぎざぎざにすり切れ
+  const holes = Array.from({ length: 7 }, () => { const x = X(), y = Y(60), w = 3 + r() * 7, h = 1.6 + r() * 3.4; return `<ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="${w.toFixed(1)}" ry="${h.toFixed(1)}" fill="#0b0b0b" opacity=".85"/>${Array.from({ length: 4 }, (_, k) => `<path d="M${(x - w + k * w / 2).toFixed(1)} ${(y - h).toFixed(1)} v${(h * 2).toFixed(1)}" stroke="#e8e2d4" stroke-opacity=".7" stroke-width=".5"/>`).join('')}`; }).join('');
+  const fray = `<path d="${Array.from({ length: Math.floor((b.r - b.l) / 3) }, (_, k) => `M${b.l + k * 3} ${b.b - 1} v${(-1 - r() * 4).toFixed(1)}`).join(' ')}" stroke="#e8e2d4" stroke-opacity=".55" stroke-width=".6"/>`;
+  return holes + fray + `<rect width="240" height="220" fill="#000" opacity=".06"/>`;
+}
+
 export function realGarment(d: D, seed = 1, side: 'front' | 'back' = 'front'): string {
   const p = BODY[d.kind], b = BOX[d.kind];
   const dark = lum(d.color) < 0.35;
@@ -198,6 +229,7 @@ ${d.kind === 'tee' && dark && !d.tour && !d.print && side === 'front' ? `<circle
   ${d.kind === 'tee' && dark && !d.tour && !d.print && side === 'front' ? `<circle cx="120" cy="104" r="26" fill="none" stroke="${d.accent}" stroke-width="5" opacity=".85"/>` : ''}
   ${tourPrint(d, side, id + side[0])}
   ${linePrint(d, side, id + side[0] + 'l')}
+  ${treatment(d, side, seed, b)}
   <g style="mix-blend-mode:multiply">
     <g filter="url(#${id}L)">${heightMap}</g>
   </g>

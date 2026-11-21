@@ -14,12 +14,14 @@ import { demoItems } from './demo';
 import { cutout } from './pieceArt';
 import HangRail, { type RailItem } from './HangRail';
 import { kindOf } from './pieceArt';
+import { SERIES } from '@/lib/catalog';
 
 const LKEY = 'gc-shop-local', CKEY = 'gc-shop-cart';
-type Cat = 'all' | 'new' | 'line' | 'tour' | 'vintage' | 'used' | 'tops' | 'outer' | 'bottoms' | 'head' | 'acc' | 'caps' | 'art' | 'archive';
+type Cat = 'all' | 'new' | 's-paint' | 's-record' | 's-fade' | 's-thrash' | 's-objects' | 'line' | 'tour' | 'vintage' | 'used' | 'tops' | 'outer' | 'bottoms' | 'head' | 'acc' | 'caps' | 'art' | 'archive';
 type P = ShopItem & { src: string; cat: Cat[]; n: number; yen: number; lottery?: string };
 const CATS: { k: Cat; en: string; ja: string }[] = [
   { k: 'new', en: 'New arrivals', ja: '新着' },
+  ...SERIES.map((x) => ({ k: `s-${x.key}` as Cat, en: x.name, ja: x.name })),
   { k: 'line', en: 'Sample line', ja: '見本ライン' },
   { k: 'tour', en: 'Tour merch', ja: 'ツアーマーチ' },
   { k: 'vintage', en: 'Vintage', ja: 'ヴィンテージ' },
@@ -38,7 +40,7 @@ const num = (s: string) => Number(s.replace(/[^\d]/g, '')) || 0;
 function catsOf(i: ShopItem): Cat[] {
   const p = PROJECTS.find((x) => x.id === i.pid);
   const c: Cat[] = [];
-  if (i.line) { c.push('line', i.line); return c; }
+  if (i.line) { c.push('line', i.line); if (i.series) c.push(`s-${i.series}` as Cat); return c; }
   if (i.zone === 'rwa') c.push('caps');
   if (i.zone === 'art') c.push('art');
   if (i.zone === 'archive') c.push('archive', 'tops');
@@ -61,6 +63,8 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
   const [cartOpen, setCartOpen] = useState(false);
   const [cat, setCat] = useState<Cat | null>(null); // カテゴリ一覧ページ
   const [sort, setSort] = useState<'new' | 'low' | 'high'>('new');
+  const [sub, setSub] = useState<Cat | null>(null); // シリーズの中の種類（トップス・パンツ…）
+  const [dense, setDense] = useState(false); // 一覧の列数（大きく／小さく）
   const [pid, setPid] = useState<string | null>(null); // 商品ページ
   const [slide, setSlide] = useState(0);
   const [play, setPlay] = useState(true);
@@ -79,7 +83,7 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
   }, [saleOpen]);
   // URL の #c=… / #p=… で一覧・商品ページを開く（戻るボタンでも戻れる）
   useEffect(() => {
-    const read = () => { const h = new URLSearchParams(location.hash.slice(1)); setCat((h.get('c') as Cat) || null); setPid(h.get('p')); };
+    const read = () => { const h = new URLSearchParams(location.hash.slice(1)); setCat((h.get('c') as Cat) || null); setPid(h.get('p')); setSub(null); if (!h.get('p')) scrollTo({ top: 0 }); };
     read(); addEventListener('hashchange', read); return () => removeEventListener('hashchange', read);
   }, []);
   const nav = (c: Cat | null, p: string | null = null) => { const q = new URLSearchParams(); if (c) q.set('c', c); if (p) q.set('p', p); location.hash = q.toString(); setMenu(false); setSearch(null); if (!p) scrollTo({ top: 0 }); };
@@ -128,6 +132,8 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
       <span className={`sf-cimg ${p.img ? 'photo' : ''}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={p.src} alt="" loading="lazy" />
+        {/* 指すと背中に切り替わる */}
+        {p.back && <img className="sf-cback" src={p.back} alt="" loading="lazy" />}
         {p.buy === 'demo' && <em className="sf-tag">{t('Sample', '見本')}</em>}
         {p.lottery && <em className="sf-tag lot">{t('Lottery', '抽選')}</em>}
         {p.buy === 'sold' && <em className="sf-tag sold">{t('Sold', '売約済み')}</em>}
@@ -138,6 +144,7 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
           </span>
         ) : <span className="sf-quick">{t('Quick view', 'くわしく見る')}</span>}
       </span>
+      {p.series && <span className="sf-cser" style={{ ['--sc' as string]: SERIES.find((x) => x.key === p.series)?.accent }}>{SERIES.find((x) => x.key === p.series)?.name}</span>}
       <b>{p.title}</b>
       <span className="sf-csub">{p.sub}</span>
       <span className="sf-cprice">{p.price}</span>
@@ -150,7 +157,7 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
     </section>
   ) : null;
 
-  const list = cat ? [...byCat(cat)].sort((a, b) => (sort === 'low' ? a.yen - b.yen : sort === 'high' ? b.yen - a.yen : a.n - b.n)) : [];
+  const list = cat ? [...byCat(cat)].filter((i) => !sub || i.cat.includes(sub)).sort((a, b) => (sort === 'low' ? a.yen - b.yen : sort === 'high' ? b.yen - a.yen : a.n - b.n)) : [];
   const found = search !== null && search.trim() ? all.filter((i) => (i.title + ' ' + i.sub + ' ' + i.code).toLowerCase().includes(search.trim().toLowerCase())) : [];
 
   return (
@@ -181,6 +188,23 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
               </a>
             ))}
             <div className="sf-dots">{hero.map((s, i) => <button key={s.k} aria-label={s.k} aria-pressed={i === slide} onClick={() => setSlide(i)} />)}</div>
+          </section>
+
+          {/* シリーズ：ブランドの中の5つの系統。大きな名前と、その代表の3点 */}
+          <section className="sf-series">
+            <div className="sf-h"><h2>{t('The series', 'シリーズ')}</h2><span className="sf-fine">{t('Five lines inside Gallery Crypto — samples', 'Gallery Crypto の中の5つの系統 — 見本')}</span></div>
+            <div className="sf-sergrid">
+              {SERIES.map((x) => {
+                const its = byCat(`s-${x.key}` as Cat);
+                return its.length ? (
+                  <a key={x.key} href={`#c=s-${x.key}`} className={`sf-ser ${x.key}`} style={{ background: x.bg, color: x.fg, ['--sa' as string]: x.accent }} onClick={() => sfx('open')}>
+                    <span className="sf-sern">{x.name.split(' ').map((w) => <b key={w}>{w}</b>)}</span>
+                    <span className="sf-serimgs">{its.slice(0, 3).map((it, k) => (/* eslint-disable-next-line @next/next/no-img-element */ <img key={it.id} src={it.src} alt="" loading="lazy" style={{ ['--k' as string]: k }} />))}</span>
+                    <span className="sf-sert"><em>{J ? x.ja : x.en}</em><i>{its.length} {t('pieces', '点')} →</i></span>
+                  </a>
+                ) : null;
+              })}
+            </div>
           </section>
 
           {/* 一本のレール：押すと商品ページ（同じレールで、その一着が真ん中に寄る） */}
@@ -272,7 +296,14 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
           </section>
         </main>
       ) : (
-        <main className="sf-list">
+        <main className={`sf-list ${dense ? 'dense' : ''} ${cat.startsWith('s-') ? 'has-band' : ''}`}>
+          {cat.startsWith('s-') && (() => { const x = SERIES.find((y) => `s-${y.key}` === cat); return x ? (
+            <section className={`sf-band ${x.key}`} style={{ background: x.bg, color: x.fg, ['--sa' as string]: x.accent }}>
+              <span className="sf-bandn">{x.name}</span>
+              <span className="sf-bandt">{J ? x.ja : x.en}</span>
+              <span className="sf-bandimgs">{byCat(cat as Cat).slice(0, 5).map((it, k) => (/* eslint-disable-next-line @next/next/no-img-element */ <img key={it.id} src={it.src} alt="" style={{ ['--k' as string]: k }} />))}</span>
+            </section>
+          ) : null; })()}
           <div className="sf-crumb"><a href="#" onClick={(e) => { e.preventDefault(); nav(null); }}>{t('Shop', 'ショップ')}</a> / {catName(cat)}</div>
           <div className="sf-lh">
             <h1>{catName(cat)}</h1>
@@ -283,8 +314,20 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
               <option value="high">{t('Price: high to low', '価格の高い順')}</option>
             </select>
           </div>
-          <div className="sf-chips">{CATS.map((c) => <a key={c.k} href={`#c=${c.k}`} aria-current={cat === c.k}>{J ? c.ja : c.en}</a>)}</div>
-          <div className="sf-grid">{list.map((p) => <Card key={p.id} p={p} />)}</div>
+          <div className="sf-bar">
+            {/* シリーズ */}
+            <div className="sf-chips ser">{SERIES.map((x) => <a key={x.key} href={`#c=s-${x.key}`} aria-current={cat === `s-${x.key}`} style={{ ['--sa' as string]: x.accent }}><i />{x.name}</a>)}</div>
+            {/* 種類で絞る */}
+            <div className="sf-chips">
+              {(['tops', 'outer', 'bottoms', 'head', 'acc'] as Cat[]).filter((c) => byCat(cat).some((i) => i.cat.includes(c))).length > 1 && <>
+                <button aria-pressed={!sub} onClick={() => setSub(null)}>{t('All', 'すべて')}</button>
+                {(['tops', 'outer', 'bottoms', 'head', 'acc'] as Cat[]).filter((c) => byCat(cat).some((i) => i.cat.includes(c))).map((c) => <button key={c} aria-pressed={sub === c} onClick={() => setSub(c)}>{catName(c)}</button>)}
+              </>}
+              <span className="sf-dens"><button aria-pressed={!dense} onClick={() => setDense(false)} aria-label={t('Large', '大きく')}>▢</button><button aria-pressed={dense} onClick={() => setDense(true)} aria-label={t('Small', '小さく')}>▦</button></span>
+            </div>
+          </div>
+          <div className="sf-chips more">{CATS.filter((c) => !c.k.startsWith('s-')).map((c) => <a key={c.k} href={`#c=${c.k}`} aria-current={cat === c.k}>{J ? c.ja : c.en}</a>)}</div>
+          <div className="sf-grid big">{list.map((p) => <Card key={p.id} p={p} />)}</div>
           {!list.length && <p className="sf-fine">{t('Nothing here yet.', 'まだありません。')}</p>}
         </main>
       )}

@@ -14,7 +14,7 @@ export function demoItems(): ShopItem[] {
     size: p.id === 'a1' ? 1.4 : p.id === 'a2' ? 1.1 : 1,
   })).concat(LINE.map((l): ShopItem => ({
     id: 'demo-' + l.id, code: l.code, title: l.title, sub: `${l.sub} · 2027`, price: yen(l.price), pid: l.id, back: l.draw ? cutout(l.id, 'back') : undefined,
-    line: l.cat, acc: !l.draw, buy: 'demo' as const, desc: l.story, facts: l.facts, zone: 'vintage' as const, display: 'hang' as const,
+    line: l.cat, series: l.series, acc: !l.draw, buy: 'demo' as const, desc: l.story, facts: l.facts, zone: 'vintage' as const, display: 'hang' as const,
   })));
 }
 

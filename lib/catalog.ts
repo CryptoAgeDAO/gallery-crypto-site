@@ -6,8 +6,18 @@ import type { Acc, AccKind } from '@/components/shop/accArt';
 type GK = NonNullable<Project['draw']>['kind'];
 type PR = NonNullable<NonNullable<Project['draw']>['print']>;
 export type LineCat = 'tops' | 'outer' | 'bottoms' | 'head' | 'acc';
+// シリーズ：ブランドの中で、色・加工・図柄の性格を分ける
+export type SeriesKey = 'paint' | 'record' | 'fade' | 'thrash' | 'objects';
+export type Series = { key: SeriesKey; name: string; code: string; en: string; ja: string; bg: string; fg: string; accent: string };
+export const SERIES: Series[] = [
+  { key: 'paint', name: 'STUDIO PAINT', code: 'SP', en: 'Hand-painted in the studio — no two splatters alike.', ja: 'スタジオで手塗り。飛び散りは一着ずつ違う。', bg: '#efe9dc', fg: '#141414', accent: '#d23a2a' },
+  { key: 'record', name: 'ON RECORD', code: 'OR', en: 'Archive typography — verified, stamped, numbered.', ja: 'アーカイブの文字。検証のスタンプと番号入り。', bg: '#0f0f10', fg: '#f1ece2', accent: '#c9a45c' },
+  { key: 'fade', name: 'SUN FADE', code: 'SF', en: 'Garment-dyed and sun-faded, cracked prints.', ja: '製品染めと日焼けの色あせ。ひび割れたプリント。', bg: '#c9b48e', fg: '#2a2017', accent: '#8f1d22' },
+  { key: 'thrash', name: 'THRASHED', code: 'TH', en: 'Worn through — holes, fray, bleach.', ja: '着込んだ先の姿。穴・ほつれ・ブリーチ。', bg: '#2a2a2d', fg: '#e8e3d6', accent: '#d8b49a' },
+  { key: 'objects', name: 'OBJECTS', code: 'OB', en: 'Small things from the studio — stickers, keys, totes.', ja: 'スタジオの小物。ステッカー、キー、トート。', bg: '#d7e0e8', fg: '#141414', accent: '#2a5bd2' },
+];
 export type LineItem = {
-  id: string; code: string; title: string; sub: string; price: number; cat: LineCat;
+  id: string; code: string; title: string; sub: string; price: number; cat: LineCat; series: SeriesKey;
   draw?: NonNullable<Project['draw']>; acc?: Acc; facts: [string, string][]; story: string;
 };
 
@@ -59,25 +69,38 @@ function build(): LineItem[] {
   const out: LineItem[] = []; let s = 7;
   const rnd = () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
   const round = (v: number) => Math.round(v / 100) * 100;
+  // シリーズごとの色・図柄・加工
+  const SP: Record<Exclude<SeriesKey, 'objects'>, { pal: [string, string, string][]; prints: PR[]; treat?: 'fade' | 'distress' | 'bleach' | 'paint'; word: string; finish: string }> = {
+    paint: { pal: [['Bone', '#e8e3d6', '#141414'], ['Black', '#141416', '#efe9dc'], ['Cream', '#efe8d6', '#d23a2a'], ['Navy', '#1d2740', '#e8c33a'], ['Army', '#4b5236', '#efe7d2']], prints: ['splat', 'splat', 'chest', 'splat'], treat: 'paint', word: 'Paint', finish: 'Hand-painted splatter' },
+    record: { pal: [['Black', '#141416', '#c9a45c'], ['Bone', '#e8e3d6', '#141414'], ['Charcoal', '#3a3a3e', '#e8e3d6'], ['White', '#f4f3ef', '#8f1d22']], prints: ['word', 'stamp', 'emblem', 'back', 'chest'], word: 'Record', finish: 'Screen print' },
+    fade: { pal: [['Slate blue', '#4e6583', '#f1ece2'], ['Pink', '#d7a2a8', '#2a2017'], ['Sand', '#c8b896', '#2a2a2a'], ['Army', '#5d6446', '#efe7d2'], ['Brown', '#6a5442', '#e8dcc2']], prints: ['word', 'chest', 'emblem'], treat: 'fade', word: 'Fade', finish: 'Garment-dyed, sun-faded' },
+    thrash: { pal: [['Washed black', '#2a2a2d', '#e8e3d6'], ['Heather grey', '#8f8c86', '#1a1a1a'], ['Oxblood', '#5b1a22', '#e8dcc2'], ['Charcoal', '#3a3a3e', '#d23a2a']], prints: ['stamp', 'back', 'word', 'chest'], treat: 'distress', word: 'Thrash', finish: 'Distressed by hand' },
+  };
+  const order: Exclude<SeriesKey, 'objects'>[] = ['paint', 'record', 'fade', 'thrash'];
+  let gi = 0; const per: Record<string, number> = {};
   for (const g of GARMENTS) for (let i = 0; i < g.n; i++) {
-    const pal = PAL[(i * 5 + g.code.charCodeAt(0)) % PAL.length], name = g.names[i % g.names.length], pr = g.prints[i % g.prints.length];
+    const sk = order[gi++ % order.length], sp = SP[sk], sr = SERIES.find((x) => x.key === sk)!;
+    const si = (per[sk] = (per[sk] ?? -1) + 1);
+    const pal = sp.pal[si % sp.pal.length], pr = g.kind === 'pants' || g.kind === 'shorts' || g.kind === 'sweatpants' ? (sk === 'paint' ? 'splat' : sk === 'record' ? 'side' : 'chest') : sp.prints[i % sp.prints.length];
+    const treat = sk === 'thrash' && i % 2 ? 'bleach' : sp.treat;
+    const type = g.names[0].split(' ').slice(-1)[0]; // Tee / Hoodie / Flare …
     const size = SIZES[(i + g.n) % SIZES.length];
     out.push({
-      id: `l-${g.code.toLowerCase()}${i + 1}`, code: `GC-${g.code}-${String(i + 1).padStart(3, '0')}`, title: `${name} — ${pal[0]}`, sub: `Sample line · ${pal[0].toLowerCase()} · ${size}`,
-      price: round(g.price[0] + (g.price[1] - g.price[0]) * rnd()), cat: g.cat,
-      draw: { kind: g.kind, color: pal[1], accent: pal[2], print: pr },
-      facts: [['Size', size], ['Material', g.material], ['Print', pr === 'splat' ? 'Hand-painted splatter' : pr === 'side' ? 'Side print' : 'Screen print'], ['Grade', 'New — sample line']],
-      story: STORY[g.cat][0],
+      id: `l-${g.code.toLowerCase()}${i + 1}`, code: `GC-${sr.code}-${g.code}-${String(i + 1).padStart(2, '0')}`, title: `${sp.word} ${type} — ${pal[0]}`, sub: `${sr.name} · ${pal[0].toLowerCase()} · ${size}`,
+      price: round(g.price[0] + (g.price[1] - g.price[0]) * rnd()), cat: g.cat, series: sk,
+      draw: { kind: g.kind, color: pal[1], accent: pal[2], print: pr, treat },
+      facts: [['Size', size], ['Series', sr.name], ['Material', g.material], ['Finish', sp.finish], ['Grade', 'New — sample line']],
+      story: sr.en,
     });
   }
   for (const a of ACCS) for (let i = 0; i < a.n; i++) {
     const pal = PAL[(i * 3 + a.code.charCodeAt(1)) % PAL.length], name = a.names[i % a.names.length];
     out.push({
-      id: `l-${a.code.toLowerCase()}${i + 1}`, code: `GC-${a.code}-${String(i + 1).padStart(3, '0')}`, title: a.kind === 'sticker' ? name : `${name} — ${pal[0]}`, sub: `Sample line · ${a.kind}`,
-      price: round(a.price[0] + (a.price[1] - a.price[0]) * rnd()), cat: a.cat,
+      id: `l-${a.code.toLowerCase()}${i + 1}`, code: `GC-OB-${a.code}-${String(i + 1).padStart(2, '0')}`, title: a.kind === 'sticker' ? name : `${name} — ${pal[0]}`, sub: `OBJECTS · ${a.kind}`,
+      price: round(a.price[0] + (a.price[1] - a.price[0]) * rnd()), cat: a.cat, series: a.cat === 'head' ? order[i % order.length] : 'objects',
       acc: { kind: a.kind, color: pal[1], accent: pal[2], v: i },
       facts: [['Size', a.kind === 'sticker' ? '10 cm' : 'One size'], ['Material', a.material], ['Grade', 'New — sample line']],
-      story: STORY[a.cat][0],
+      story: a.cat === 'head' ? SERIES.find((x) => x.key === order[i % order.length])!.en : SERIES[4].en,
     });
   }
   return out;

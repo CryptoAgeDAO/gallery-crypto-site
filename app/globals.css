@@ -3223,3 +3223,59 @@ img{image-rendering:auto}
 .hr.solid .hr-slot .hr-tag{z-index:3}
 .hr-spin{font-size:10.5px;letter-spacing:.06em;color:#888}
 .gr-diag{position:absolute;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom));z-index:60;margin:0;max-height:30vh;overflow:auto;padding:8px 10px;border-radius:6px;background:rgba(160,20,20,.88);color:#fff;font:11px/1.4 ui-monospace,Menlo,monospace;white-space:pre-wrap;word-break:break-word;pointer-events:auto}
+
+/* ===== シリーズ（ショップ） ===== */
+.sf-series{padding:34px 20px 10px;max-width:1500px;margin:0 auto}
+.sf-sergrid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.sf-ser{position:relative;display:flex;flex-direction:column;justify-content:space-between;min-height:clamp(340px,34vw,480px);padding:18px 18px 16px;overflow:hidden;text-decoration:none;border-radius:2px;isolation:isolate;transition:transform .5s cubic-bezier(.2,.8,.2,1)}
+.sf-ser:hover{transform:translateY(-4px)}
+.sf-sern{display:flex;flex-direction:column;font-family:"Anton","Oswald","Archivo",Impact,sans-serif;font-size:clamp(34px,4.2vw,64px);line-height:.86;letter-spacing:-.01em;text-transform:uppercase;z-index:2}
+.sf-sern b{font-weight:400}
+.sf-ser.record .sf-sern{font-family:"Cormorant Garamond","Times New Roman",serif;font-style:italic;text-transform:none;letter-spacing:0;line-height:.9}
+.sf-ser.fade .sf-sern{opacity:.85;filter:blur(.2px)}
+.sf-ser.thrash .sf-sern b{text-decoration:line-through;text-decoration-color:var(--sa);text-decoration-thickness:3px}
+.sf-ser.paint::before{content:"";position:absolute;inset:0;z-index:0;background:radial-gradient(circle at 20% 70%,var(--sa) 0 6px,transparent 7px),radial-gradient(circle at 76% 22%,#2a5bd2 0 4px,transparent 5px),radial-gradient(circle at 60% 82%,#e8c33a 0 9px,transparent 10px),radial-gradient(circle at 88% 64%,#111 0 3px,transparent 4px);opacity:.8}
+.sf-serimgs{position:absolute;inset:22% 0 18% 0;z-index:1;pointer-events:none}
+.sf-serimgs img{position:absolute;left:50%;top:50%;width:62%;transform:translate(calc(-50% + (var(--k) - 1) * 34%),calc(-50% + (var(--k) - 1) * -4%)) rotate(calc((var(--k) - 1) * 7deg));filter:drop-shadow(0 14px 18px rgba(0,0,0,.25));transition:transform .6s cubic-bezier(.2,.8,.2,1)}
+.sf-serimgs img:nth-child(2){z-index:2;width:70%}
+.sf-ser:hover .sf-serimgs img{transform:translate(calc(-50% + (var(--k) - 1) * 42%),calc(-50% + (var(--k) - 1) * -6%)) rotate(calc((var(--k) - 1) * 10deg))}
+.sf-sert{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;z-index:2;font-size:12px;line-height:1.45}
+.sf-sert em{font-style:normal;max-width:70%;opacity:.85}
+.sf-sert i{font-style:normal;font-weight:700;letter-spacing:.08em;white-space:nowrap;border-bottom:2px solid var(--sa)}
+@media (max-width:1100px){.sf-sergrid{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:minmax(260px,72vw);overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:6px;scrollbar-width:none}.sf-ser{scroll-snap-align:start}}
+
+/* シリーズの一覧ページ：大きな帯 */
+.sf-band{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);align-items:center;gap:20px;min-height:clamp(260px,30vw,400px);margin:0 -20px 18px;padding:28px clamp(20px,4vw,56px);overflow:hidden}
+.sf-bandn{font-family:"Anton","Oswald","Archivo",Impact,sans-serif;font-size:clamp(56px,9vw,150px);line-height:.85;text-transform:uppercase;letter-spacing:-.01em;grid-row:1/3}
+.sf-band.record .sf-bandn{font-family:"Cormorant Garamond","Times New Roman",serif;font-style:italic;text-transform:none}
+.sf-band.thrash .sf-bandn{text-decoration:line-through;text-decoration-color:var(--sa);text-decoration-thickness:6px}
+.sf-bandt{align-self:end;font-size:14px;max-width:360px;opacity:.85;line-height:1.6;border-left:3px solid var(--sa);padding-left:12px}
+.sf-bandimgs{position:relative;height:100%;min-height:220px;grid-column:2;grid-row:1}
+.sf-bandimgs img{position:absolute;top:50%;left:50%;width:min(34%,220px);transform:translate(calc(-50% + (var(--k) - 2) * 62%),-50%) rotate(calc((var(--k) - 2) * 4deg));filter:drop-shadow(0 16px 20px rgba(0,0,0,.28))}
+@media (max-width:760px){.sf-band{grid-template-columns:1fr;margin:0 -20px 14px}.sf-bandimgs{grid-column:1;grid-row:auto;min-height:160px}.sf-bandimgs img{width:34%}.sf-bandn{grid-row:auto}}
+
+/* 一覧の道具帯（シリーズ・種類・列数） */
+.sf-bar{position:relative;z-index:2;background:rgba(255,255,255,.94);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);margin:0 -20px;padding:10px 20px 0;border-bottom:1px solid var(--line)}
+.sf-chips.ser a{display:inline-flex;align-items:center;gap:6px;font-weight:700;letter-spacing:.06em}
+.sf-chips.ser a i{width:8px;height:8px;border-radius:50%;background:var(--sa)}
+.sf-chips button{white-space:nowrap;border:1px solid var(--line);padding:7px 12px;font-size:12px;background:none;cursor:pointer;color:inherit}
+.sf-chips button[aria-pressed=true]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.sf-dens{margin-left:auto;display:flex;gap:4px}
+.sf-dens button{padding:5px 9px}
+.sf-chips.more{padding-top:12px;opacity:.75}
+/* 大きな一覧：明るい灰色の台に大きく。指すと背中に切り替わる */
+.sf-grid.big{grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:34px 14px}
+.sf-list.dense .sf-grid.big{grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:22px 10px}
+@media (max-width:760px){.sf-grid.big{grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 8px}.sf-list.dense .sf-grid.big{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.sf-grid.big .sf-cimg{aspect-ratio:4/5;background:#f0efec}
+.sf-cimg{position:relative}
+.sf-cimg .sf-cback{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:0;transition:opacity .35s ease}
+.sf-card:hover .sf-cimg .sf-cback{opacity:1}
+.sf-card:hover .sf-cimg img:first-child{opacity:0}
+.sf-cimg img:first-child{transition:opacity .35s ease,transform .6s cubic-bezier(.2,.8,.2,1)}
+.sf-cser{display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-size:10px;font-weight:800;letter-spacing:.14em}
+.sf-cser::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--sc,#111)}
+.sf-grid.big .sf-card b{text-transform:uppercase;letter-spacing:.03em;font-size:13px}
+.sf-list.has-band .sf-crumb,.sf-list.has-band .sf-lh h1{display:none}
+.sf-list.has-band .sf-lh{display:flex;align-items:center;gap:12px;justify-content:space-between}
+.sf-list.has-band .sf-lh select{width:auto;max-width:220px}
