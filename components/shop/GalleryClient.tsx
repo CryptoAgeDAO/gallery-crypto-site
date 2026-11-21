@@ -11,6 +11,7 @@ import { cutout, kindOf } from './pieceArt';
 import type { GalleryApi, GState } from './Gallery3D';
 import type { DP, SRoom } from './Showroom3D';
 import HangRail, { type RailItem } from './HangRail';
+import { isPhone } from '@/lib/device';
 
 const Showroom3D = dynamic(() => import('./Showroom3D'), { ssr: false });
 
@@ -51,6 +52,9 @@ export default function GalleryClient({ initial }: { initial: ShopItem[] }) {
   const [local, setLocal] = useState<ShopItem[]>([]);
   useEffect(() => { try { setLocal(JSON.parse(localStorage.getItem('gc-shop-local') || '[]')); } catch { /* 無視 */ } }, []);
   const items = useMemo(() => [...local, ...initial, ...(initial.length ? [] : demoItems())], [local, initial]);
+  // スマホは売り場ごとの点数を減らす（メモリ対策）
+  const [phone, setPhone] = useState<boolean | null>(null); // 端末を確かめるまでは3Dを開かない
+  useEffect(() => { setPhone(isPhone()); }, []);
   const groups = useMemo(() => {
     // 同じ商品を二つの売り場に置かない。ひとつの売り場ごとに、種類をばらして選ぶ
     const used = new Set<string>();
@@ -58,10 +62,11 @@ export default function GalleryClient({ initial }: { initial: ShopItem[] }) {
       const cand = items.filter((i) => !used.has(i.id) && r.pick(i) && (i.img || i.pid));
       const seen = new Map<string, number>(), list: ShopItem[] = [];
       for (const i of cand) { const t = i.title.split(' —')[0]; if ((seen.get(t) || 0) >= (r.dp === 'table' ? 2 : 1) && cand.length > r.max) continue; seen.set(t, (seen.get(t) || 0) + 1); list.push(i); if (list.length >= r.max) break; }
+      if (phone && list.length > 4) list.length = 4;
       list.forEach((i) => used.add(i.id));
       return { ...r, z: r.key, list };
     }).filter((r) => r.list.length);
-  }, [items]);
+  }, [items, phone]);
   const rooms: SRoom[] = useMemo(() => groups.map((g) => ({ key: g.key, dp: g.dp, pieces: g.list.map((i) => ({ id: i.id, title: i.title, code: i.code, kind: kindOf(i), tex: i.img || (i.pid ? cutout(i.pid) : ''), back: i.back })) })), [groups]);
   const api = useRef<GalleryApi | null>(null);
   const [st, setSt] = useState<GState>({ room: 0, focus: null, moving: false, ready: false });
@@ -101,7 +106,7 @@ export default function GalleryClient({ initial }: { initial: ShopItem[] }) {
   return (
     <div className={`gr ${cur && !isG ? 'has-panel' : ''} ${isG ? 'taking' : ''}`} translate="no">
       <Safe fallback={<Fallback />}>
-        <Showroom3D paused={isG} rooms={rooms} apiRef={api} onState={setSt} onPick={(id) => { api.current?.focus(id); sfx('open'); }} />
+        {phone !== null && <Showroom3D paused={isG} rooms={rooms} apiRef={api} onState={setSt} onPick={(id) => { api.current?.focus(id); sfx('open'); }} />}
       </Safe>
       {(st.lost || (slow && !st.ready)) && <Fallback />}
       {diag.length > 0 && <pre className="gr-diag">{diag.join('\n')}{'\n'}{typeof navigator !== 'undefined' ? navigator.userAgent : ''}</pre>}

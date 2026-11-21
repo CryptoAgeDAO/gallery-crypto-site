@@ -10,6 +10,7 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import { buildGarment } from '../garment3d';
 import { layerOf, bboxOf } from './garmentLayer';
 import { isPhone } from '@/lib/device';
+import { loadImage } from '@/lib/imgQueue';
 import type { GalleryApi, GState } from './Gallery3D';
 
 export type DP = 'forms' | 'wall' | 'table' | 'rack' | 'back' | 'caps' | 'case' | 'art';
@@ -26,18 +27,15 @@ function canvasTex(w: number, h: number, draw: (g: CanvasRenderingContext2D, w: 
   return t;
 }
 // 絵を読み込んで貼る。スマホでは小さな画像に描き直してから使う（端末のメモリを節約）
-const loadTex = (src: string) => new Promise<THREE.Texture | null>((res) => {
-  const im = new Image(); im.crossOrigin = 'anonymous';
-  im.onload = () => {
-    try {
-      const max = isPhone() ? 320 : 768, k = Math.min(1, max / Math.max(im.naturalWidth || max, im.naturalHeight || max));
-      const c = document.createElement('canvas'); c.width = Math.max(2, Math.round((im.naturalWidth || max) * k)); c.height = Math.max(2, Math.round((im.naturalHeight || max) * k));
-      c.getContext('2d')!.drawImage(im, 0, 0, c.width, c.height);
-      const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; res(t);
-    } catch { res(null); }
-  };
-  im.onerror = () => res(null); im.src = src;
-});
+const loadTex = async (src: string): Promise<THREE.Texture | null> => {
+  const im = await loadImage(src); if (!im) return null;
+  try {
+    const max = isPhone() ? 256 : 768, k = Math.min(1, max / Math.max(im.naturalWidth || max, im.naturalHeight || max));
+    const c = document.createElement('canvas'); c.width = Math.max(2, Math.round((im.naturalWidth || max) * k)); c.height = Math.max(2, Math.round((im.naturalHeight || max) * k));
+    c.getContext('2d')!.drawImage(im, 0, 0, c.width, c.height);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+  } catch { return null; }
+};
 
 export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = false }: {
   rooms: SRoom[]; apiRef: React.MutableRefObject<GalleryApi | null>; onState: (s: GState) => void; onPick: (id: string) => void; paused?: boolean;
@@ -115,7 +113,7 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
     const spinners: THREE.Object3D[] = [];
     const swayers: { o: THREE.Object3D; ph: number }[] = [];
     const queue: (() => Promise<void>)[] = [];
-    let built3D = 0; const MAX3D = mobile ? 6 : 40;
+    let built3D = 0; const MAX3D = mobile ? 4 : 40;
 
     // 服：まず平らな絵を出し、順番に立体に置き換える。親の原点が肩の上の中央、高さ h（m）
     const garment = (parent: THREE.Object3D, p: SPiece, h: number, ri: number, face: THREE.Vector3, dist: number, hanger = true) => {

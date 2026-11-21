@@ -3,10 +3,9 @@ import { segment } from '../scanSegment';
 import type { Layer } from '../GhostMannequin';
 
 import { isPhone } from '@/lib/device';
+import { loadImage } from '@/lib/imgQueue';
 const MAXPX = typeof window !== 'undefined' && isPhone() ? 420 : 640;
-function load(src: string): Promise<HTMLImageElement | null> {
-  return new Promise((res) => { const im = new Image(); im.crossOrigin = 'anonymous'; im.onload = () => res(im); im.onerror = () => res(null); im.src = src; });
-}
+const load = loadImage;
 // 画像 → 服の切り抜き（透明のある絵はその透明を、写真は背景を抜く）
 export async function layerOf(src: string): Promise<Layer | null> {
   const im = await load(src); if (!im || !im.naturalWidth) return null;
