@@ -1,6 +1,9 @@
 'use client';
 // Gallery Crypto デモ版トップ：❶ RWA ❷ 古着 ❸ アート・その他 ❹ イベント・抽選。
 // 見本はすべて架空。抽選・編集はこの端末のブラウザだけに保存（サーバーには送らない）。
+import { AddToCart, QuickAdd } from './cart/Cart';
+import { lineOf } from './cart/lineOf';
+import { cutout as hubCut } from './shop/pieceArt';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import { LangToggle, useLang } from './Lang';
@@ -66,6 +69,7 @@ function Detail({ p, onClose, evs, goEvent }: { p: Project; onClose: () => void;
           <h3>{p.title}</h3>
           <p className="hb-sub">{p.sub} · {p.year}</p>
           {p.price && <p className="hb-price">{yen(p.price)}</p>}
+          {p.price && <div className="hb-cart"><AddToCart line={lineOf({ id: 'demo-' + p.id, title: p.title, price: yen(p.price), code: p.code, buy: 'demo', facts: p.facts, src: p.img || hubCut(p.id), img: p.img })} /></div>}
           <p>{lang === 'ja' ? p.story[1] : p.story[0]}</p>
           <Meters p={p} big />
           <dl className="hb-facts">{p.facts.map(([k, v]) => <div key={k}><dt>{lang === 'ja' ? FACT_JA[k] || k : k}</dt><dd>{v}</dd></div>)}</dl>
@@ -94,7 +98,7 @@ function Grid({ ps, open, evs }: { ps: Project[]; open: (p: Project) => void; ev
         const ev = evs.find((e) => e.items.some((i) => i.id === p.id));
         return (
           <button key={p.id} className="hb-card" data-rv onClick={() => { sfx('open'); open(p); }}>
-            <span className="hb-cpic"><ProjectPic p={p} />{ev && <em>{ev.kind === 'sale' ? t('Lottery sale', '抽選販売') : t('Event', 'イベント')}</em>}</span>
+            <span className="hb-cpic"><ProjectPic p={p} />{p.price ? <QuickAdd className="hb-qa" line={lineOf({ id: 'demo-' + p.id, title: p.title, price: yen(p.price), code: p.code, buy: 'demo', facts: p.facts, src: p.img || hubCut(p.id), img: p.img })} /> : null}{ev && <em>{ev.kind === 'sale' ? t('Lottery sale', '抽選販売') : t('Event', 'イベント')}</em>}</span>
             <span className="hb-ccode">{p.code}</span>
             <b>{p.title}</b>
             <span className="hb-csub">{p.sub}</span>

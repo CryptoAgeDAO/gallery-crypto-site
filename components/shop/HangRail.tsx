@@ -10,7 +10,7 @@ import { useLang } from '../Lang';
 import { sfx } from '@/lib/sfx';
 import BuyButton from '../BuyButton';
 import { HANGER_URL } from './garmentArt';
-import { AddToCart } from '../cart/Cart';
+import { AddToCart, QuickAdd } from '../cart/Cart';
 import { lineOf } from '../cart/lineOf';
 
 export type RailItem = {
@@ -205,6 +205,8 @@ export default function HangRail({ items, focusId, onFocus, mode = 'page', rende
               {/* 値札（紙のタグ） */}
               <span className="hr-tag"><b>{it.code}</b><em>{it.price}</em></span>
             </div>
+            {/* レールに掛かったまま、その場でカートに */}
+            {k < 0 && <QuickAdd line={lineOf(it)} className="hr-qa" />}
           </div>
         );
       })}

@@ -127,7 +127,7 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
   // 商品ページを開いている間は後ろをスクロールさせない
   useEffect(() => { document.body.style.overflow = product || menu ? 'hidden' : ''; return () => { document.body.style.overflow = ''; }; }, [product, menu]);
 
-  const add = (id: string) => { const p = all.find((x) => x.id === id); if (p) cartC.add(lineOf(p)); };
+  const add = (id: string) => { const p = all.find((x) => x.id === id); if (p) cartC.add(lineOf(p), true); };
   const catName = (c: Cat) => { const x = CATS.find((y) => y.k === c); return x ? (J ? x.ja : x.en) : t('All', 'すべて'); };
 
   const Card = ({ p: p0 }: { p: P }) => { const p = (p0.group && pick[p0.group] && all.find((x) => x.id === pick[p0.group!])) || p0; return (
