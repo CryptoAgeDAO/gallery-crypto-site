@@ -8,10 +8,11 @@ import BuyButton from '../BuyButton';
 import type { ShopItem } from './types';
 import { demoItems } from './demo';
 import { cutout, kindOf } from './pieceArt';
-import type { GalleryApi, GRoom, GState } from './Gallery3D';
+import type { GalleryApi, GState } from './Gallery3D';
+import type { DP, SRoom } from './Showroom3D';
 import HangRail, { type RailItem } from './HangRail';
 
-const Gallery3D = dynamic(() => import('./Gallery3D'), { ssr: false });
+const Showroom3D = dynamic(() => import('./Showroom3D'), { ssr: false });
 
 // 3D が描けなかったとき（古い端末・メモリ不足など）に、画面全体をエラーにしないための受け皿
 class Safe extends Component<{ children: React.ReactNode; fallback: React.ReactNode }, { bad: boolean }> {
@@ -20,13 +21,19 @@ class Safe extends Component<{ children: React.ReactNode; fallback: React.ReactN
   render() { return this.state.bad ? this.props.fallback : this.props.children; }
 }
 
-const ROOMS: { z: ShopItem['zone']; en: string; ja: string; den: string; dja: string }[] = [
-  { z: 'rwa', en: 'RWA — vintage & collab', ja: 'RWA — 証明つきヴィンテージとコラボ', den: 'Left wall. One-of-one pieces on a steel shelf rack, each with its signed record.', dja: '左の壁。鉄の棚に並べた一点もの。来歴は署名して記録に残しています。' },
-  { z: 'vintage', en: 'Vintage & used', ja: 'ヴィンテージ・古着', den: 'The rack at the back. Each piece hangs face-out, with folded stock on the shelves below.', dja: '奥のハンガーラック。一着ずつ正面を向けて掛け、下の棚にはたたんだ服。' },
-  { z: 'art', en: 'Art & projects', ja: 'アート・プロジェクト', den: 'Right wall. Prints, sound and objects beyond fashion.', dja: '右の壁。版画・音・オブジェなど、ファッションの外の企画。' },
-  { z: 'archive', en: 'Archive', ja: 'アーカイブ', den: 'Back wall, under the mural. Pieces kept for the record.', dja: '奥の壁、壁画の下。記録として残す作品。' },
+// 売り場（陳列の仕方ごと）。商品の種類で振り分ける
+type RoomDef = { key: string; dp: DP; max: number; en: string; ja: string; den: string; dja: string; pick: (i: ShopItem) => boolean };
+const isLine = (i: ShopItem) => !!i.line;
+const ROOMS: RoomDef[] = [
+  { key: 'forms', dp: 'forms', max: 3, en: 'At the door — on the forms', ja: '入口 — トルソー', den: 'Three pieces worn on forms, turning slowly on white plinths.', dja: '白い回転台の上で、ゆっくり回るトルソーに着せた3点。', pick: (i) => isLine(i) && /hoodie|jacket|crew/i.test(i.title) },
+  { key: 'wall', dp: 'wall', max: 10, en: 'Tops wall', ja: 'トップスの壁', den: 'Two rows face-out on the left wall, folded stock on the shelves.', dja: '左の壁に二段のフェイスアウト。棚には、たたんだ在庫。', pick: (i) => i.line === 'tops' && !/ tee /i.test(` ${i.title} `) && !/Tee —/.test(i.title) },
+  { key: 'table', dp: 'table', max: 10, en: 'The table — tees', ja: 'テーブル — Tシャツ', den: 'Folded tees stacked on the oak table, print side up.', dja: 'オークのテーブルに、柄を上にしてたたんだTシャツ。', pick: (i) => i.line === 'tops' && /Tee —/.test(i.title) },
+  { key: 'rack', dp: 'rack', max: 8, en: 'Pants rack', ja: 'パンツのラック', den: 'Flares, sweatpants and shorts hung on a free-standing rack.', dja: '自立式のラックに、フレア・スウェットパンツ・ショーツ。', pick: (i) => i.line === 'bottoms' },
+  { key: 'back', dp: 'back', max: 10, en: 'Back wall — vintage & tour', ja: '奥の壁 — ヴィンテージ・ツアー', den: 'One-of-one vintage and tour merch on the long rail.', dja: '長いレールに、一点もののヴィンテージとツアーマーチ。', pick: (i) => !isLine(i) && kindOf(i) === 'garment' },
+  { key: 'caps', dp: 'caps', max: 10, en: 'Headwear wall', ja: '帽子の棚', den: 'Caps and beanies, one to a shelf.', dja: 'キャップとニット帽を、ひとつずつ棚に。', pick: (i) => i.line === 'head' || (!isLine(i) && kindOf(i) === 'cap') },
+  { key: 'case', dp: 'case', max: 8, en: 'The case — small things', ja: 'ショーケース — 小物', den: 'Stickers, pins, keychains and more under glass.', dja: 'ガラスの中に、ステッカー・ピン・キーホルダーなど。', pick: (i) => i.line === 'acc' },
+  { key: 'art', dp: 'art', max: 3, en: 'Art', ja: 'アート', den: 'Framed pieces on the front wall.', dja: '手前の壁に、額装の作品。', pick: (i) => !isLine(i) && kindOf(i) === 'art' },
 ];
-const PER_ROOM = 6;
 
 function Fallback() {
   const { t } = useLang();
@@ -44,8 +51,18 @@ export default function GalleryClient({ initial }: { initial: ShopItem[] }) {
   const [local, setLocal] = useState<ShopItem[]>([]);
   useEffect(() => { try { setLocal(JSON.parse(localStorage.getItem('gc-shop-local') || '[]')); } catch { /* 無視 */ } }, []);
   const items = useMemo(() => [...local, ...initial, ...(initial.length ? [] : demoItems())], [local, initial]);
-  const groups = useMemo(() => ROOMS.map((r) => ({ ...r, list: items.filter((i) => i.zone === r.z).slice(0, PER_ROOM) })).filter((r) => r.list.length), [items]);
-  const rooms: GRoom[] = useMemo(() => groups.map((g) => ({ key: g.z, pieces: g.list.map((i) => ({ id: i.id, title: i.title, code: i.code, kind: i.img && kindOf(i) !== 'cap' ? 'art' as const : kindOf(i), tex: i.img || (i.pid ? cutout(i.pid) : '') })) })), [groups]);
+  const groups = useMemo(() => {
+    // 同じ商品を二つの売り場に置かない。ひとつの売り場ごとに、種類をばらして選ぶ
+    const used = new Set<string>();
+    return ROOMS.map((r) => {
+      const cand = items.filter((i) => !used.has(i.id) && r.pick(i) && (i.img || i.pid));
+      const seen = new Map<string, number>(), list: ShopItem[] = [];
+      for (const i of cand) { const t = i.title.split(' —')[0]; if ((seen.get(t) || 0) >= (r.dp === 'table' ? 2 : 1) && cand.length > r.max) continue; seen.set(t, (seen.get(t) || 0) + 1); list.push(i); if (list.length >= r.max) break; }
+      list.forEach((i) => used.add(i.id));
+      return { ...r, z: r.key, list };
+    }).filter((r) => r.list.length);
+  }, [items]);
+  const rooms: SRoom[] = useMemo(() => groups.map((g) => ({ key: g.key, dp: g.dp, pieces: g.list.map((i) => ({ id: i.id, title: i.title, code: i.code, kind: kindOf(i), tex: i.img || (i.pid ? cutout(i.pid) : ''), back: i.back })) })), [groups]);
   const api = useRef<GalleryApi | null>(null);
   const [st, setSt] = useState<GState>({ room: 0, focus: null, moving: false, ready: false });
   // ショップの「ショールームで見る」から来たときは、その作品の前まで歩いていく
@@ -71,7 +88,7 @@ export default function GalleryClient({ initial }: { initial: ShopItem[] }) {
   return (
     <div className={`gr ${cur && !isG ? 'has-panel' : ''} ${isG ? 'taking' : ''}`} translate="no">
       <Safe fallback={<Fallback />}>
-        <Gallery3D paused={isG} rooms={rooms} apiRef={api} onState={setSt} onPick={(id) => { api.current?.focus(id); sfx('open'); }} />
+        <Showroom3D paused={isG} rooms={rooms} apiRef={api} onState={setSt} onPick={(id) => { api.current?.focus(id); sfx('open'); }} />
       </Safe>
       {st.lost && <Fallback />}
       <div className={`gr-veil ${st.ready ? 'off' : ''}`}><em>Gallery Crypto</em><span>{t('Opening the showroom…', 'ショールームをひらいています…')}</span></div>
@@ -87,7 +104,7 @@ export default function GalleryClient({ initial }: { initial: ShopItem[] }) {
           <em>{t('Area', 'エリア')} {two(label + 1)} / {two(groups.length)}</em>
           <b>{lang === 'ja' ? g.ja : g.en}</b>
           <p>{lang === 'ja' ? g.dja : g.den}</p>
-          <small>{t('Walk the store: tap the floor or use W A S D / the stick · drag to look around · tap a circle or a piece for details', '店内を歩けます：床をタップ、または W A S D／左下のスティック · ドラッグで見回す · 丸か作品を押すと詳細')}</small>
+          <small>{t('‹ › to move between areas · drag to look around · pinch or scroll to get closer · tap a piece for details', '‹ › で売り場を移動 · ドラッグで見回す · ピンチ／スクロールで寄る · 商品を押すと詳細')}</small>
         </div>
       )}
 

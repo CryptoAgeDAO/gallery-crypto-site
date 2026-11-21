@@ -261,7 +261,7 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
             <div className="sf-h"><h2>{t('Visit the showroom', 'ショールームへ')}</h2></div>
             <div className="sf-ways">
               <a href="/shop/rail" className="sf-way rail"><b>{t('The rail', 'レール')}</b><span>{t('Pieces hang on a real rack and swing like cloth; hover to pull one out', 'ラックに掛かった服が布のように揺れる。指すと一着が手前に回る')}</span></a>
-              <a href="/shop/room" className="sf-way room"><b>{t('The showroom', 'ショールーム')}</b><span>{t('Walk a warehouse-size store in 3D: face-out racks, big art on the walls, a lowrider, a custom BMX and an artist object', '倉庫のように広い3Dの店を歩く：フェイスアウトのラック、壁の大きなアート、ローライダーとカスタムBMX、アーティストのオブジェ')}</span></a>
+              <a href="/shop/room" className="sf-way room"><b>{t('The showroom', 'ショールーム')}</b><span>{t('A simple white showroom in 3D: forms, a face-out wall, a folded-tee table, a pants rack, caps and a glass case', 'シンプルな白い3Dのショールーム：トルソー、フェイスアウトの壁、たたみのテーブル、パンツのラック、帽子の棚、ショーケース')}</span></a>
             </div>
           </section>
 

@@ -8,7 +8,7 @@ import { toShop } from '@/components/shop/toShop';
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = {
   title: 'The Showroom — Gallery Crypto',
-  description: 'Walk a raw pop-up store in 3D: white brick, a pressed-tin ceiling, a dirt bike in the middle, pieces framed on the walls and laid flat on a long table.',
+  description: 'A simple white showroom in 3D: pieces on turning forms, a face-out tops wall, folded tees on an oak table, a pants rack, a headwear wall and a glass case of small things.',
 };
 
 // 公開中の商品を読み、ショールームの壁とテーブルに並べる

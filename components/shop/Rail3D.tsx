@@ -6,36 +6,11 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { buildGarment } from '../garment3d';
-import { segment } from '../scanSegment';
-import type { Layer } from '../GhostMannequin';
+import { layerOf, bboxOf } from './garmentLayer';
 import { isPhone } from '@/lib/device';
 import type { RailItem } from './HangRail';
 
 export type Rail3DState = { k: number; view: 'front' | 'back' | 'detail'; spin: number; dragging: boolean };
-
-const MAXPX = 640;
-function load(src: string): Promise<HTMLImageElement | null> {
-  return new Promise((res) => { const im = new Image(); im.crossOrigin = 'anonymous'; im.onload = () => res(im); im.onerror = () => res(null); im.src = src; });
-}
-// 画像 → 服の切り抜き（透明のある絵はその透明を、写真は背景を抜く）
-async function layerOf(src: string): Promise<Layer | null> {
-  const im = await load(src); if (!im || !im.naturalWidth) return null;
-  const k = Math.min(1, MAXPX / Math.max(im.naturalWidth, im.naturalHeight));
-  const w = Math.max(2, Math.round(im.naturalWidth * k)), h = Math.max(2, Math.round(im.naturalHeight * k));
-  const c = document.createElement('canvas'); c.width = w; c.height = h;
-  const g = c.getContext('2d', { willReadFrequently: true })!; g.drawImage(im, 0, 0, w, h);
-  let data: ImageData; try { data = g.getImageData(0, 0, w, h); } catch { return null; }
-  const L: Layer = { img: c, data, mask: new Uint8ClampedArray(w * h), w, h };
-  const a = data.data, corners = [0, w - 1, (h - 1) * w, h * w - 1].reduce((s, i) => s + a[i * 4 + 3], 0) / 4;
-  if (corners < 20) { for (let i = 0; i < w * h; i++) L.mask[i] = a[i * 4 + 3] > 110 ? 255 : 0; }
-  else { L.mask.fill(255); segment(L, 9); }
-  return L;
-}
-function bboxOf(L: Layer) {
-  let x0 = L.w, y0 = L.h, x1 = 0, y1 = 0;
-  for (let y = 0; y < L.h; y++) for (let x = 0; x < L.w; x++) if (L.mask[y * L.w + x] > 127) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
-  return x1 < x0 ? null : { fx: x0 / L.w, fy: y0 / L.h, fw: (x1 - x0 + 1) / L.w };
-}
 
 type Built = { id: string; pivot: THREE.Group; mats: THREE.Material[]; widthM: number; fx: number; fy: number; fw: number; yaw: number };
 
