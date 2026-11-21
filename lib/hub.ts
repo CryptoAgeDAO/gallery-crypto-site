@@ -11,7 +11,7 @@ export type Project = {
   year: string;
   price: number | null; // 円。null は価格未定
   img?: string; // 写真（RWA の見本はキャップの写真）
-  draw?: { kind: 'tee' | 'sweat' | 'jacket' | 'shirt' | 'denim'; color: string; accent: string; tour?: 'a' | 'b' | 'c' }; // 古着の見本は図で描く（tour：ツアーマーチの胸と背中のプリント）
+  draw?: { kind: 'tee' | 'sweat' | 'jacket' | 'shirt' | 'denim' | 'tank' | 'ls' | 'hoodie' | 'vest' | 'pants' | 'sweatpants' | 'shorts'; color: string; accent: string; tour?: 'a' | 'b' | 'c'; print?: 'word' | 'chest' | 'splat' | 'stamp' | 'emblem' | 'back' | 'side'; ink?: string }; // 古着の見本は図で描く（tour：ツアーマーチの胸と背中のプリント）
   tour?: boolean; // Gallery Crypto オリジナルのツアーマーチ（見本）
   art?: { seed: number; palette: string[]; form: 'rings' | 'grid' | 'wave' }; // アートの見本は図で描く
   facts: [string, string][]; // 情報（英, 日 は UI 側で切り替えない固有値）

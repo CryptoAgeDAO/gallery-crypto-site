@@ -9,6 +9,8 @@ export type ShopItem = {
   pid?: string; // 見本のとき PROJECTS の id（図を描く）
   back?: string; // 背中の絵（ツアーマーチの見本など）
   tour?: boolean;
+  line?: 'tops' | 'outer' | 'bottoms' | 'head' | 'acc'; // 見本ライン（約100点）の分類
+  acc?: boolean; // 小物（ハンガーに掛けない）
   buy: 'stripe' | 'demo' | 'sold' | 'local';
   passport?: string;
   desc: string;

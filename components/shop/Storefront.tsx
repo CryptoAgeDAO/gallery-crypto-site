@@ -16,15 +16,19 @@ import HangRail, { type RailItem } from './HangRail';
 import { kindOf } from './pieceArt';
 
 const LKEY = 'gc-shop-local', CKEY = 'gc-shop-cart';
-type Cat = 'all' | 'new' | 'tour' | 'vintage' | 'used' | 'tops' | 'outer' | 'caps' | 'art' | 'archive';
+type Cat = 'all' | 'new' | 'line' | 'tour' | 'vintage' | 'used' | 'tops' | 'outer' | 'bottoms' | 'head' | 'acc' | 'caps' | 'art' | 'archive';
 type P = ShopItem & { src: string; cat: Cat[]; n: number; yen: number; lottery?: string };
 const CATS: { k: Cat; en: string; ja: string }[] = [
   { k: 'new', en: 'New arrivals', ja: '新着' },
+  { k: 'line', en: 'Sample line', ja: '見本ライン' },
   { k: 'tour', en: 'Tour merch', ja: 'ツアーマーチ' },
   { k: 'vintage', en: 'Vintage', ja: 'ヴィンテージ' },
   { k: 'used', en: 'Used', ja: '古着' },
   { k: 'tops', en: 'Tops', ja: 'トップス' },
   { k: 'outer', en: 'Outerwear', ja: 'アウター' },
+  { k: 'bottoms', en: 'Pants & shorts', ja: 'パンツ・ショーツ' },
+  { k: 'head', en: 'Headwear', ja: '帽子' },
+  { k: 'acc', en: 'Accessories & stickers', ja: '小物・ステッカー' },
   { k: 'caps', en: 'Caps & collabs', ja: 'キャップ・コラボ' },
   { k: 'art', en: 'Art & objects', ja: 'アート・オブジェ' },
   { k: 'archive', en: 'Archive', ja: 'アーカイブ' },
@@ -34,6 +38,7 @@ const num = (s: string) => Number(s.replace(/[^\d]/g, '')) || 0;
 function catsOf(i: ShopItem): Cat[] {
   const p = PROJECTS.find((x) => x.id === i.pid);
   const c: Cat[] = [];
+  if (i.line) { c.push('line', i.line); return c; }
   if (i.zone === 'rwa') c.push('caps');
   if (i.zone === 'art') c.push('art');
   if (i.zone === 'archive') c.push('archive', 'tops');
@@ -185,6 +190,12 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
           <div className="sf-railsec"><HangRail mode="section" items={railAll} focusId={null} onFocus={(id) => id && nav(cat, id)} /></div>
 
           <Row title={t('This just in', '新着')} c="new" items={byCat('new')} />
+          {byCat('line').length > 0 && (
+            <section className="sf-promo line">
+              <span><em>{t('Sample line', '見本ライン')}</em><b>{t(`${byCat('line').length} original pieces — tees to stickers`, `オリジナル${byCat('line').length}点 — Tシャツからステッカーまで`)}</b><small>{t('Samples of the Gallery Crypto line. Not for sale — sales open in 2027.', 'Gallery Crypto のラインの見本です。購入はできません（販売は2027年から）。')}</small></span>
+              <a href="#c=line">{t('See all', 'すべて見る')} →</a>
+            </section>
+          )}
 
           {/* 特集：ツアーマーチ（黒地・太い文字・暗いレール） */}
           {byCat('tour').length > 0 && (
@@ -232,6 +243,7 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
 
           <Row title={t('Tops', 'トップス')} c="tops" items={byCat('tops')} />
           <Row title={t('Outerwear', 'アウター')} c="outer" items={byCat('outer')} />
+          <Row title={t('Pants & shorts', 'パンツ・ショーツ')} c="bottoms" items={byCat('bottoms')} />
 
           {/* 抽選販売の告知 */}
           <section className="sf-promo">
@@ -240,6 +252,8 @@ export default function Storefront({ initial, saleOpen }: { initial: ShopItem[];
           </section>
 
           <Row title={t('Caps & collabs', 'キャップ・コラボ')} c="caps" items={byCat('caps')} />
+          <Row title={t('Headwear', '帽子')} c="head" items={byCat('head')} />
+          <Row title={t('Accessories & stickers', '小物・ステッカー')} c="acc" items={byCat('acc')} />
           <Row title={t('Art & objects', 'アート・オブジェ')} c="art" items={byCat('art')} />
 
           {/* 別の見せ方への入口 */}

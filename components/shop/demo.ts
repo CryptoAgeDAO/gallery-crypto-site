@@ -2,16 +2,20 @@
 import { PROJECTS } from '@/lib/hub';
 import type { ShopItem } from './types';
 import { cutout } from './pieceArt';
+import { LINE } from '@/lib/catalog';
 
 const yen = (n: number | null) => (n ? '¥' + n.toLocaleString('ja-JP') : 'Price on request');
 
 export function demoItems(): ShopItem[] {
-  return PROJECTS.map((p) => ({
+  return PROJECTS.map((p): ShopItem => ({
     id: 'demo-' + p.id, code: p.code, title: p.title, sub: `${p.sub} · ${p.year}`, price: yen(p.price), img: p.img, pid: p.id, back: p.draw?.tour ? cutout(p.id, 'back') : undefined, tour: p.tour,
     buy: 'demo', passport: p.passport, desc: p.story[0], facts: p.facts, zone: p.pillar,
     display: p.pillar === 'rwa' ? 'case' : p.pillar === 'vintage' ? 'hang' : p.id === 'a3' ? 'plinth' : 'frame',
     size: p.id === 'a1' ? 1.4 : p.id === 'a2' ? 1.1 : 1,
-  }));
+  })).concat(LINE.map((l): ShopItem => ({
+    id: 'demo-' + l.id, code: l.code, title: l.title, sub: `${l.sub} · 2027`, price: yen(l.price), pid: l.id, back: l.draw ? cutout(l.id, 'back') : undefined,
+    line: l.cat, acc: !l.draw, buy: 'demo' as const, desc: l.story, facts: l.facts, zone: 'vintage' as const, display: 'hang' as const,
+  })));
 }
 
 // 入荷で選んだ写真を、軽い JPEG にしてこの端末に置く

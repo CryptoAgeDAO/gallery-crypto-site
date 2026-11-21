@@ -10,6 +10,13 @@ export const BODY: Record<D['kind'], string> = {
   jacket: 'M72 38 Q88 30 104 26 L120 46 L136 26 Q152 30 168 38 Q192 92 204 150 Q195 157 184 158 Q172 120 163 86 Q161 140 162 198 Q120 201 78 198 Q79 140 77 86 Q68 120 56 158 Q45 157 36 150 Q48 92 72 38 Z',
   shirt: 'M74 38 Q90 30 104 26 L120 40 L136 26 Q150 30 166 38 Q188 90 200 146 Q191 153 180 154 Q170 118 161 86 Q159 140 160 198 Q120 202 80 198 Q81 140 79 86 Q70 118 60 154 Q49 153 40 146 Q52 90 74 38 Z',
   denim: 'M72 40 Q88 31 104 26 L120 44 L136 26 Q152 31 168 40 Q190 92 202 148 Q193 155 182 156 Q171 120 163 86 Q162 130 162 178 Q120 181 78 178 Q78 130 77 86 Q69 120 58 156 Q47 155 38 148 Q50 92 72 40 Z',
+  tank: 'M90 30 Q98 27 104 29 Q120 56 136 29 Q142 27 150 30 L152 58 Q162 72 164 84 Q162 140 165 196 Q120 200 75 196 Q78 140 76 84 Q78 72 88 58 Z',
+  ls: 'M72 40 Q88 32 102 28 Q120 43 138 28 Q152 32 168 40 Q192 92 204 150 Q195 157 184 158 Q172 118 163 84 Q160 140 162 196 Q120 200 78 196 Q80 140 77 84 Q68 118 56 158 Q45 157 36 150 Q48 92 72 40 Z',
+  hoodie: 'M72 40 Q84 32 96 28 Q98 10 120 8 Q142 10 144 28 Q156 32 168 40 Q192 92 206 148 Q197 156 186 158 Q172 118 163 84 Q160 140 162 196 Q120 200 78 196 Q80 140 77 84 Q68 118 54 158 Q43 156 34 148 Q48 92 72 40 Z',
+  vest: 'M82 38 Q94 30 104 26 L120 46 L136 26 Q146 30 158 38 L160 68 Q164 78 163 86 Q161 140 162 198 Q120 201 78 198 Q79 140 77 86 Q76 78 80 68 Z',
+  pants: 'M84 28 L156 28 L158 58 Q162 120 176 210 L127 212 Q124 136 120 86 Q116 136 113 212 L64 210 Q78 120 82 58 Z',
+  sweatpants: 'M82 28 L158 28 L160 60 Q162 132 154 204 L126 206 Q124 132 120 88 Q116 132 114 206 L86 204 Q78 132 80 60 Z',
+  shorts: 'M80 30 L160 30 L164 60 L174 128 L127 134 L120 94 L113 134 L66 128 L76 60 Z',
 };
 // 身頃の左右の端・裾の高さ（陰影と縫い目の位置）
 const BOX: Record<D['kind'], { l: number; r: number; b: number; sl: [number, number, number, number] }> = {
@@ -18,7 +25,43 @@ const BOX: Record<D['kind'], { l: number; r: number; b: number; sl: [number, num
   jacket: { l: 78, r: 162, b: 198, sl: [36, 150, 56, 158] },
   shirt: { l: 80, r: 160, b: 198, sl: [40, 146, 60, 154] },
   denim: { l: 78, r: 162, b: 178, sl: [38, 148, 58, 156] },
+  tank: { l: 76, r: 164, b: 196, sl: [88, 60, 90, 66] },
+  ls: { l: 78, r: 162, b: 196, sl: [36, 150, 56, 158] },
+  hoodie: { l: 78, r: 162, b: 196, sl: [34, 150, 54, 158] },
+  vest: { l: 78, r: 162, b: 198, sl: [80, 70, 80, 72] },
+  pants: { l: 84, r: 156, b: 210, sl: [96, 80, 100, 200] },
+  sweatpants: { l: 82, r: 158, b: 205, sl: [96, 80, 100, 200] },
+  shorts: { l: 76, r: 164, b: 132, sl: [90, 70, 92, 120] },
 };
+
+// オリジナルのプリント（Gallery Crypto の見本ライン）：文字・胸の小さな文字・ペンキの飛び散り・スタンプ・紋章・背中の大きな文字・脚の横の文字
+function linePrint(d: D, side: 'front' | 'back', id: string): string {
+  if (!d.print) return '';
+  const dark = lum(d.color) < 0.4, ink = d.ink || (dark ? '#efe9dc' : '#151515'), acc = d.accent;
+  const SER = "'Times New Roman',Georgia,serif", SANS = "'Arial Black','Helvetica Neue',Arial,sans-serif";
+  const bottoms = d.kind === 'pants' || d.kind === 'sweatpants' || d.kind === 'shorts';
+  const cy = bottoms ? 70 : 96;
+  let sd = id.length * 31 + d.color.charCodeAt(2) * 7; const rr = () => { sd = (sd * 16807) % 2147483647; return (sd - 1) / 2147483646; };
+  const splat = (n: number) => Array.from({ length: n }, () => {
+    const x = 70 + rr() * 100, y = 30 + rr() * (bottoms ? 170 : 160), r = 0.6 + rr() * rr() * 5, c = [acc, ink, '#d23a2a', '#2a5bd2', '#e8c33a', '#2f9e5a'][Math.floor(rr() * 6)];
+    const drip = rr() < 0.25 ? `<path d="M${x.toFixed(1)} ${y.toFixed(1)} v${(4 + rr() * 14).toFixed(1)}" stroke="${c}" stroke-width="${(r * 0.5).toFixed(2)}" stroke-linecap="round"/>` : '';
+    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(2)}" fill="${c}"/>${drip}`;
+  }).join('');
+  let g = '';
+  const p = d.print;
+  if (side === 'back') {
+    if (p === 'back' || p === 'word') g = `<text x="120" y="${cy}" font-family="${SANS}" font-size="13" fill="${ink}" text-anchor="middle" textLength="74" lengthAdjust="spacingAndGlyphs">ONE OF ONE</text><text x="120" y="${cy + 10}" font-family="${SER}" font-style="italic" font-size="7" fill="${acc}" text-anchor="middle" textLength="44" lengthAdjust="spacingAndGlyphs">Gallery Crypto</text>`;
+    else if (p === 'splat') g = splat(60);
+  } else if (p === 'word') g = `<text x="120" y="${cy - 4}" font-family="${SANS}" font-size="12" fill="${ink}" text-anchor="middle" textLength="${bottoms ? 60 : 78}" lengthAdjust="spacingAndGlyphs">GALLERY</text><text x="120" y="${cy + 9}" font-family="${SANS}" font-size="12" fill="${acc}" text-anchor="middle" textLength="${bottoms ? 60 : 78}" lengthAdjust="spacingAndGlyphs">CRYPTO</text>`;
+  else if (p === 'chest') g = `<text x="${bottoms ? 142 : 140}" y="${bottoms ? 50 : 72}" font-family="${SER}" font-style="italic" font-weight="700" font-size="7" fill="${ink}" text-anchor="middle" textLength="32" lengthAdjust="spacingAndGlyphs">Gallery Crypto</text>`;
+  else if (p === 'splat') g = splat(bottoms ? 110 : 80);
+  else if (p === 'stamp') g = `<g transform="translate(120 ${cy}) rotate(-8)"><rect x="-28" y="-15" width="56" height="30" rx="2" fill="none" stroke="${acc}" stroke-width="2"/><text y="-2" font-family="${SANS}" font-size="7" fill="${acc}" text-anchor="middle" textLength="44" lengthAdjust="spacingAndGlyphs">VERIFIED</text><text y="9" font-family="${SANS}" font-size="5.4" fill="${acc}" text-anchor="middle" textLength="40" lengthAdjust="spacingAndGlyphs">No. ${String(Math.floor(rr() * 900) + 100)}</text></g>`;
+  else if (p === 'emblem') g = `<g transform="translate(120 ${cy})" fill="none" stroke="${ink}" stroke-width="1.6"><circle r="17" stroke="${acc}" stroke-dasharray="2 1.5"/><path d="M-7 -11 H7 L0 0 L7 11 H-7 L0 0 Z" fill="${ink}" fill-opacity=".15"/><path d="M-9 -12 H9 M-9 12 H9"/></g><text x="120" y="${cy + 30}" font-family="${SANS}" font-size="6" fill="${ink}" text-anchor="middle" textLength="54" lengthAdjust="spacingAndGlyphs">GALLERY CRYPTO</text>`;
+  else if (p === 'side') g = bottoms ? `<text transform="translate(${d.kind === 'shorts' ? 158 : 150} 44) rotate(${d.kind === 'shorts' ? 80 : 84})" font-family="${SANS}" font-size="7" fill="${acc}" textLength="${d.kind === 'shorts' ? 70 : 140}" lengthAdjust="spacingAndGlyphs">GALLERY CRYPTO · ONE OF ONE</text>` : `<path d="M${BOX[d.kind].l + 2} 40 V${BOX[d.kind].b}" stroke="${acc}" stroke-width="3"/>`;
+  if (p === 'splat' && side === 'front' && !bottoms) g += `<text x="120" y="${cy + 4}" font-family="${SER}" font-style="italic" font-weight="700" font-size="10" fill="${ink}" text-anchor="middle" textLength="62" lengthAdjust="spacingAndGlyphs">Gallery Crypto</text>`;
+  if (!g) return '';
+  return `<defs><filter id="${id}lw" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".7" numOctaves="2" seed="${id.length}"/><feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -5 2.3"/></filter><mask id="${id}lm" maskUnits="userSpaceOnUse" x="0" y="0" width="240" height="220"><rect width="240" height="220" fill="#fff"/><rect width="240" height="220" filter="url(#${id}lw)"/></mask></defs><g mask="url(#${id}lm)" opacity=".93">${g}</g>`;
+}
 
 function lum(hex: string) { const n = parseInt(hex.slice(1), 16); return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255; }
 
@@ -74,8 +117,9 @@ export function realGarment(d: D, seed = 1, side: 'front' | 'back' = 'front'): s
   let s0 = seed * 9301 + 49297; const rnd = () => { s0 = (s0 * 9301 + 49297) % 233280; return s0 / 233280; };
   const j = (v: number, a: number) => +(v + (rnd() - 0.5) * a).toFixed(1);
   const cx = 120, sl = b.sl;
-  const front = side === 'front' && (d.kind === 'jacket' || d.kind === 'denim' || d.kind === 'shirt');
-  const neck = d.kind === 'tee' || d.kind === 'sweat';
+  const front = side === 'front' && (d.kind === 'jacket' || d.kind === 'denim' || d.kind === 'shirt' || d.kind === 'vest');
+  const neck = d.kind === 'tee' || d.kind === 'sweat' || d.kind === 'ls';
+  const bottoms = d.kind === 'pants' || d.kind === 'sweatpants' || d.kind === 'shorts';
   // ドレープ：肩（ハンガーの先）から裾へ落ちる谷と山。左右で少しずつ違う
   const valleys = [
     `M${j(b.l + 12, 4)} 44 C${j(b.l + 4, 6)} 90 ${j(b.l + 16, 6)} 140 ${j(b.l + 10, 4)} ${b.b}`,
@@ -95,14 +139,14 @@ export function realGarment(d: D, seed = 1, side: 'front' | 'back' = 'front'): s
     const sx = (sl[0] + b.l) / 2, sy = (sl[1] + 60) / 2;
     return `M${m(b.l - 4)} ${j(70, 6)} Q${m(sx)} ${j(sy - 8, 8)} ${m(sl[2] + 4)} ${j(sl[3] - 10, 6)} M${m(b.l - 2)} ${j(90, 6)} Q${m(sx + 6)} ${j(sy + 10, 8)} ${m(sl[0] + 8)} ${j(sl[1] - 6, 6)}`;
   });
-  const weave = d.kind === 'denim' ? '1.9 0.42' : d.kind === 'sweat' ? '0.85' : d.kind === 'shirt' ? '1.4' : '1.15';
+  const weave = d.kind === 'denim' || d.kind === 'pants' ? '1.9 0.42' : d.kind === 'sweat' || d.kind === 'hoodie' || d.kind === 'sweatpants' ? '0.85' : d.kind === 'shirt' ? '1.4' : '1.15';
   const sheen = dark ? 0.18 : 0.12;
   // 生地の柄
   const plaid = d.kind === 'shirt'
     ? Array.from({ length: 16 }, (_, i) => `<rect x="${18 + i * 13}" y="10" width="${i % 3 === 0 ? 5 : 2.4}" height="210" fill="${i % 3 === 0 ? d.accent : '#111'}" opacity="${i % 3 === 0 ? 0.5 : 0.28}"/>`).join('') +
       Array.from({ length: 15 }, (_, i) => `<rect x="10" y="${24 + i * 13}" width="220" height="${i % 3 === 0 ? 5 : 2.4}" fill="${i % 3 === 0 ? d.accent : '#111'}" opacity="${i % 3 === 0 ? 0.44 : 0.24}"/>`).join('')
     : '';
-  const twill = d.kind === 'denim' ? `<path d="${Array.from({ length: 90 }, (_, i) => `M${-40 + i * 3.4} 0 l60 220`).join(' ')}" stroke="#fff" stroke-opacity=".07" stroke-width="1.1"/>` : '';
+  const twill = d.kind === 'denim' || d.kind === 'pants' ? `<path d="${Array.from({ length: 90 }, (_, i) => `M${-40 + i * 3.4} 0 l60 220`).join(' ')}" stroke="#fff" stroke-opacity=".07" stroke-width="1.1"/>` : '';
   const heightMap = `
 <rect x="-10" y="-10" width="260" height="240" fill="#000"/>
 <path d="${p}" fill="#8a8a8a"/>
@@ -113,9 +157,12 @@ ${sleeveCreases.map((v) => `<path d="${v}" fill="none" stroke="#000" stroke-opac
 <path d="M${sl[0]} ${sl[1]} L${sl[2]} ${sl[3]} M${240 - sl[0]} ${sl[1]} L${240 - sl[2]} ${sl[3]}" stroke="#fff" stroke-opacity=".55" stroke-width="7"/>
 ${neck ? `<path d="M100 30 Q120 ${side === 'back' ? 36 : d.kind === 'sweat' ? 46 : 48} 140 30" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"/>` : ''}
 ${front ? `<path d="M104 26 L120 ${d.kind === 'shirt' ? 40 : 46} L136 26" fill="none" stroke="#fff" stroke-width="6"/><path d="M120 ${d.kind === 'shirt' ? 42 : 48} V${b.b}" stroke="#000" stroke-width="2.4"/>` : ''}
-${d.kind === 'sweat' ? `<rect x="${b.l}" y="${b.b - 12}" width="${b.r - b.l}" height="12" fill="#b0b0b0"/>` : ''}
+${d.kind === 'sweat' || d.kind === 'hoodie' ? `<rect x="${b.l}" y="${b.b - 12}" width="${b.r - b.l}" height="12" fill="#b0b0b0"/>` : ''}
+${d.kind === 'hoodie' && side === 'front' ? `<ellipse cx="120" cy="30" rx="17" ry="13" fill="#000"/><path d="M92 26 Q120 50 148 26" fill="none" stroke="#fff" stroke-width="5"/><path d="M90 150 Q92 128 102 124 H138 Q148 128 150 150 V172 H90 Z" fill="#a8a8a8" stroke="#000" stroke-opacity=".6" stroke-width="2"/><path d="M114 40 v26 M126 40 v26" stroke="#fff" stroke-width="2"/>` : ''}
+${d.kind === 'hoodie' && side === 'back' ? `<path d="M98 26 Q120 6 142 26 Q130 40 120 40 Q110 40 98 26 Z" fill="#a0a0a0" stroke="#000" stroke-opacity=".5" stroke-width="2"/>` : ''}
+${bottoms ? `<rect x="${b.l - 2}" y="28" width="${b.r - b.l + 4}" height="11" fill="#b4b4b4" stroke="#000" stroke-opacity=".5" stroke-width="1.6"/>${side === 'front' ? `<path d="M120 39 V${d.kind === 'shorts' ? 92 : 84}" stroke="#000" stroke-opacity=".7" stroke-width="2"/><path d="M${b.l + 4} 44 Q${b.l + 16} 58 ${b.l + 26} 46 M${b.r - 4} 44 Q${b.r - 16} 58 ${b.r - 26} 46" fill="none" stroke="#000" stroke-opacity=".55" stroke-width="1.8"/>` : ''}${d.kind === 'sweatpants' ? `<rect x="86" y="196" width="28" height="9" fill="#b0b0b0"/><rect x="126" y="196" width="28" height="9" fill="#b0b0b0"/><path d="M110 39 q-3 10 -7 14 M130 39 q3 10 7 14" stroke="#fff" stroke-width="1.6"/>` : ''}` : ''}
 ${d.kind === 'denim' ? `<path d="M86 96 h26 v18 h-26 Z M128 96 h26 v18 h-26 Z" fill="#a5a5a5" stroke="#000" stroke-opacity=".6" stroke-width="1.6"/><path d="M78 150 H162" stroke="#000" stroke-opacity=".6" stroke-width="2"/>` : ''}
-${d.kind === 'tee' && dark && !d.tour && side === 'front' ? `<circle cx="120" cy="104" r="26" fill="none" stroke="#b5b5b5" stroke-width="5"/>` : ''}`;
+${d.kind === 'tee' && dark && !d.tour && !d.print && side === 'front' ? `<circle cx="120" cy="104" r="26" fill="none" stroke="#b5b5b5" stroke-width="5"/>` : ''}`;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1320" viewBox="0 0 240 220">
 <defs>
 <filter id="${id}r" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="1.8"/><feComponentTransfer><feFuncA type="linear" slope="6" intercept="-2.6"/></feComponentTransfer></filter>
@@ -148,8 +195,9 @@ ${d.kind === 'tee' && dark && !d.tour && side === 'front' ? `<circle cx="120" cy
   ${plaid}${twill}
   <rect width="240" height="220" filter="url(#${id}F)"/>
   ${d.kind === 'sweat' ? `<rect x="${b.l}" y="${b.b - 12}" width="${b.r - b.l}" height="12" fill="${d.accent}" opacity=".5"/>` : ''}
-  ${d.kind === 'tee' && dark && !d.tour && side === 'front' ? `<circle cx="120" cy="104" r="26" fill="none" stroke="${d.accent}" stroke-width="5" opacity=".85"/>` : ''}
+  ${d.kind === 'tee' && dark && !d.tour && !d.print && side === 'front' ? `<circle cx="120" cy="104" r="26" fill="none" stroke="${d.accent}" stroke-width="5" opacity=".85"/>` : ''}
   ${tourPrint(d, side, id + side[0])}
+  ${linePrint(d, side, id + side[0] + 'l')}
   <g style="mix-blend-mode:multiply">
     <g filter="url(#${id}L)">${heightMap}</g>
   </g>
@@ -164,7 +212,7 @@ ${d.kind === 'tee' && dark && !d.tour && side === 'front' ? `<circle cx="120" cy
 ${front ? `<path d="M117.6 ${d.kind === 'shirt' ? 42 : 48} V${b.b - 1}" stroke="${d.accent}" stroke-width=".8" stroke-dasharray="1.8 1.3" opacity=".9"/>${Array.from({ length: d.kind === 'denim' ? 5 : 6 }, (_, i) => `<circle cx="122.6" cy="${60 + i * ((b.b - 70) / (d.kind === 'denim' ? 5 : 6))}" r="2.1" fill="${d.kind === 'denim' ? '#b88d45' : '#ece7da'}" stroke="#000" stroke-opacity=".45" stroke-width=".5"/><circle cx="122.1" cy="${59.5 + i * ((b.b - 70) / (d.kind === 'denim' ? 5 : 6))}" r=".7" fill="#fff" opacity=".6"/>`).join('')}` : ''}
 ${d.kind === 'denim' ? `<path d="M86 96 h26 v18 h-26 Z M128 96 h26 v18 h-26 Z M78 150 H162" fill="none" stroke="${d.accent}" stroke-width=".8" stroke-dasharray="1.8 1.2"/>` : ''}
 ${neck ? `<path d="M103 33 Q120 ${side === 'back' ? 38 : 50} 137 33" fill="none" stroke="${dark ? '#fff' : '#000'}" stroke-opacity=".25" stroke-width=".6" stroke-dasharray="1.6 1.2"/>` : ''}
-${d.kind === 'tee' && !dark && !d.tour && side === 'front' ? `<rect x="136" y="70" width="16" height="18" fill="none" stroke="#000" stroke-opacity=".22" stroke-width=".7" stroke-dasharray="1.6 1.2"/>` : ''}
+${d.kind === 'tee' && !dark && !d.tour && !d.print && side === 'front' ? `<rect x="136" y="70" width="16" height="18" fill="none" stroke="#000" stroke-opacity=".22" stroke-width=".7" stroke-dasharray="1.6 1.2"/>` : ''}
 </g>
 </svg>`;
 }

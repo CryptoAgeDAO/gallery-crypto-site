@@ -14,7 +14,7 @@ import { HANGER_URL } from './garmentArt';
 export type RailItem = {
   id: string; code: string; title: string; sub: string; price: string;
   src: string; back?: string; img?: string; facts: [string, string][];
-  buy: 'stripe' | 'demo' | 'sold' | 'local'; passport?: string; kind?: 'garment' | 'cap' | 'art';
+  buy: 'stripe' | 'demo' | 'sold' | 'local'; passport?: string; kind?: 'garment' | 'cap' | 'art'; line?: string;
 };
 
 const useIso = typeof window === 'undefined' ? useEffect : useLayoutEffect;
@@ -215,7 +215,7 @@ export default function HangRail({ items, focusId, onFocus, mode = 'page', rende
             {cur.back && <button aria-pressed={view === 'back'} onClick={() => setView('back')}>{t('Back', '背中')}</button>}
             <button aria-pressed={view === 'detail'} onClick={() => setView('detail')}>{t('Detail', '寄り')}</button>
           </div>
-          <div className="hr-sizes">{sizes(cur).map((s) => <span key={s} className="on">{s}</span>)}<small>{t('One of one', '一点もの')}</small></div>
+          <div className="hr-sizes">{sizes(cur).map((s) => <span key={s} className="on">{s}</span>)}<small>{cur.line ? t('Sample line', '見本ライン') : t('One of one', '一点もの')}</small></div>
           <div className="hr-buy">
             {renderBuy ? renderBuy(cur) : (
               <>
