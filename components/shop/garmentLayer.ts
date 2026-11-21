@@ -2,7 +2,8 @@
 import { segment } from '../scanSegment';
 import type { Layer } from '../GhostMannequin';
 
-const MAXPX = 640;
+import { isPhone } from '@/lib/device';
+const MAXPX = typeof window !== 'undefined' && isPhone() ? 420 : 640;
 function load(src: string): Promise<HTMLImageElement | null> {
   return new Promise((res) => { const im = new Image(); im.crossOrigin = 'anonymous'; im.onload = () => res(im); im.onerror = () => res(null); im.src = src; });
 }

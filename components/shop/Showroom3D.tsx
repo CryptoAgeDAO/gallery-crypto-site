@@ -25,8 +25,18 @@ function canvasTex(w: number, h: number, draw: (g: CanvasRenderingContext2D, w: 
   if (rep) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rep[0], rep[1]); }
   return t;
 }
+// 絵を読み込んで貼る。スマホでは小さな画像に描き直してから使う（端末のメモリを節約）
 const loadTex = (src: string) => new Promise<THREE.Texture | null>((res) => {
-  new THREE.TextureLoader().load(src, (t) => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; res(t); }, undefined, () => res(null));
+  const im = new Image(); im.crossOrigin = 'anonymous';
+  im.onload = () => {
+    try {
+      const max = isPhone() ? 320 : 768, k = Math.min(1, max / Math.max(im.naturalWidth || max, im.naturalHeight || max));
+      const c = document.createElement('canvas'); c.width = Math.max(2, Math.round((im.naturalWidth || max) * k)); c.height = Math.max(2, Math.round((im.naturalHeight || max) * k));
+      c.getContext('2d')!.drawImage(im, 0, 0, c.width, c.height);
+      const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; res(t);
+    } catch { res(null); }
+  };
+  im.onerror = () => res(null); im.src = src;
 });
 
 export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = false }: {
@@ -43,7 +53,7 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
     let renderer: THREE.WebGLRenderer;
     try { renderer = new THREE.WebGLRenderer({ antialias: !mobile, powerPreference: mobile ? 'default' : 'high-performance' }); }
     catch { cb.current.onState({ room: 0, focus: null, moving: false, ready: true, lost: true }); return; }
-    renderer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.3 : 2));
+    renderer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.2 : 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0; renderer.outputColorSpace = THREE.SRGBColorSpace;
     if (!mobile) { renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; }
     el.appendChild(renderer.domElement);
@@ -102,7 +112,7 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
     const spinners: THREE.Object3D[] = [];
     const swayers: { o: THREE.Object3D; ph: number }[] = [];
     const queue: (() => Promise<void>)[] = [];
-    let built3D = 0; const MAX3D = mobile ? 16 : 40;
+    let built3D = 0; const MAX3D = mobile ? 6 : 40;
 
     // 服：まず平らな絵を出し、順番に立体に置き換える。親の原点が肩の上の中央、高さ h（m）
     const garment = (parent: THREE.Object3D, p: SPiece, h: number, ri: number, face: THREE.Vector3, dist: number, hanger = true) => {

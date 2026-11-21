@@ -108,5 +108,5 @@ ${Array.from({ length: 14 }, (_, i) => { const x = 66 + (i % 5) * 27 + (Math.flo
 <text x="120" y="60" font-family="${SANS}" font-size="7" fill="${ink}" text-anchor="middle" textLength="80" lengthAdjust="spacingAndGlyphs">GALLERY CRYPTO</text>`;
       break;
   }
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="960" height="880" viewBox="0 0 240 220"><defs>${grad}</defs>${body}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="550" viewBox="0 0 240 220"><defs>${grad}</defs>${body}</svg>`;
 }

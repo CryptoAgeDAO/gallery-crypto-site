@@ -22,7 +22,7 @@ export function cutout(pid: string, side: 'front' | 'back' = 'front') {
   if (!p) return '';
   // 服は布の陰影つきの絵に、それ以外は元の図
   if (side === 'back' && !p.draw?.tour) return '';
-  const m = p.draw ? realGarment(p.draw, PROJECTS.indexOf(p) + 3, side) : renderToStaticMarkup(<ProjectPic p={p} />).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1320" ');
+  const m = p.draw ? realGarment(p.draw, PROJECTS.indexOf(p) + 3, side) : renderToStaticMarkup(<ProjectPic p={p} />).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="550" ');
   return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(m);
 }
 

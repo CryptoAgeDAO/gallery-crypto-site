@@ -87,8 +87,10 @@ export default function Rail3D({ items, host, pcEls, sway, state, onReady }: {
     let alive = true;
     const mobile = isPhone();
     (async () => {
+      let made = 0;
       for (const it of items) {
         if (!alive) return;
+        if (mobile && made >= 8) { onReady(it.id, false); continue; } // スマホは8着まで立体に（残りは絵のまま）
         if ((it.kind || 'garment') !== 'garment' || built.current.has(it.id) || !it.src) continue;
         await new Promise((r) => setTimeout(r, 16));
         try {
@@ -102,7 +104,7 @@ export default function Rail3D({ items, host, pcEls, sway, state, onReady }: {
           const pivot = new THREE.Group(); pivot.add(g.group);
           const mats: THREE.Material[] = []; g.group.traverse((o) => { const m = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined; if (m && !Array.isArray(m)) { if (m.side === THREE.BackSide) m.color.setHex(0x8d877e); mats.push(m); } });
           const b: Built = { id: it.id, pivot, mats, widthM: s.x, fx: bb.fx, fy: bb.fy, fw: bb.fw, yaw: -0.22 };
-          built.current.set(it.id, b); api.current?.add(b); onReady(it.id, true);
+          built.current.set(it.id, b); api.current?.add(b); onReady(it.id, true); made++;
         } catch { onReady(it.id, false); }
       }
     })();

@@ -163,7 +163,7 @@ ${d.kind === 'hoodie' && side === 'back' ? `<path d="M98 26 Q120 6 142 26 Q130 4
 ${bottoms ? `<rect x="${b.l - 2}" y="28" width="${b.r - b.l + 4}" height="11" fill="#b4b4b4" stroke="#000" stroke-opacity=".5" stroke-width="1.6"/>${side === 'front' ? `<path d="M120 39 V${d.kind === 'shorts' ? 92 : 84}" stroke="#000" stroke-opacity=".7" stroke-width="2"/><path d="M${b.l + 4} 44 Q${b.l + 16} 58 ${b.l + 26} 46 M${b.r - 4} 44 Q${b.r - 16} 58 ${b.r - 26} 46" fill="none" stroke="#000" stroke-opacity=".55" stroke-width="1.8"/>` : ''}${d.kind === 'sweatpants' ? `<rect x="86" y="196" width="28" height="9" fill="#b0b0b0"/><rect x="126" y="196" width="28" height="9" fill="#b0b0b0"/><path d="M110 39 q-3 10 -7 14 M130 39 q3 10 7 14" stroke="#fff" stroke-width="1.6"/>` : ''}` : ''}
 ${d.kind === 'denim' ? `<path d="M86 96 h26 v18 h-26 Z M128 96 h26 v18 h-26 Z" fill="#a5a5a5" stroke="#000" stroke-opacity=".6" stroke-width="1.6"/><path d="M78 150 H162" stroke="#000" stroke-opacity=".6" stroke-width="2"/>` : ''}
 ${d.kind === 'tee' && dark && !d.tour && !d.print && side === 'front' ? `<circle cx="120" cy="104" r="26" fill="none" stroke="#b5b5b5" stroke-width="5"/>` : ''}`;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1320" viewBox="0 0 240 220">
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="550" viewBox="0 0 240 220">
 <defs>
 <filter id="${id}r" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="1.8"/><feComponentTransfer><feFuncA type="linear" slope="6" intercept="-2.6"/></feComponentTransfer></filter>
 <mask id="${id}c" maskUnits="userSpaceOnUse" x="0" y="0" width="240" height="220"><path d="${p}" fill="#fff" filter="url(#${id}r)"/></mask>
