@@ -14,7 +14,7 @@ import { loadImage } from '@/lib/imgQueue';
 import type { GalleryApi, GState } from './Gallery3D';
 
 export type DP = 'forms' | 'wall' | 'table' | 'rack' | 'back' | 'caps' | 'case' | 'art';
-export type SPiece = { id: string; title: string; code?: string; kind: 'garment' | 'cap' | 'art'; tex: string; back?: string };
+export type SPiece = { id: string; title: string; code?: string; kind: 'garment' | 'cap' | 'art'; tex: string; back?: string; heightM?: number };
 export type SRoom = { key: string; dp: DP; pieces: SPiece[] };
 
 const W = 8, D = 10, H = 4.6; // 半幅・半奥行・天井
@@ -116,7 +116,9 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
     let built3D = 0; const MAX3D = mobile ? 4 : 40;
 
     // 服：まず平らな絵を出し、順番に立体に置き換える。親の原点が肩の上の中央、高さ h（m）
-    const garment = (parent: THREE.Object3D, p: SPiece, h: number, ri: number, face: THREE.Vector3, dist: number, hanger = true) => {
+    const garment = (parent: THREE.Object3D, p: SPiece, h0: number, ri: number, face: THREE.Vector3, dist: number, hanger = true) => {
+      // 採寸した服は、その実物の高さで（パンツが床に着かないよう上限あり）
+      const h = p.heightM ? Math.min(1.25, Math.max(0.2, p.heightM)) : h0;
       const g = new THREE.Group(); parent.add(g);
       if (hanger) { const hb = new THREE.Mesh(new THREE.TorusGeometry(h * 0.33, 0.012, 6, 24, Math.PI * 0.55), oak); hb.rotation.z = Math.PI / 2 - Math.PI * 0.275; hb.position.y = -h * 0.28; hb.scale.y = 0.55; g.add(hb); const hk = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.005, 6, 16, Math.PI * 1.3), chrome); hk.position.y = 0.05; g.add(hk); }
       const flat = new THREE.Mesh(new THREE.PlaneGeometry(h * 1.09, h), new THREE.MeshStandardMaterial({ transparent: true, alphaTest: 0.4, roughness: 0.9, side: THREE.DoubleSide }));

@@ -76,7 +76,7 @@ function CartUI() {
   const path = usePathname() || '';
   useEffect(() => { if (!isOpen) return; const k = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); }; addEventListener('keydown', k); return () => removeEventListener('keydown', k); }, [isOpen, close]);
   // 管理画面では出さない
-  if (path.startsWith('/admin')) return null;
+  if (path.startsWith('/admin') || path.startsWith('/studio')) return null;
   const total = lines.reduce((a, l) => a + l.yen, 0);
   const buyable = lines.filter((l) => l.buy === 'stripe');
   return (

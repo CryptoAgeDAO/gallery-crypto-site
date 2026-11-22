@@ -1,6 +1,6 @@
 'use client';
 // 試作アプリ：写真から3D／ゴーストマネキン。ログイン不要・写真はこの端末の中だけで処理（どこにも送らない）。
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import GhostMannequin from '@/components/GhostMannequin';
 import { LangToggle, tt, useLang } from '@/components/Lang';
@@ -10,13 +10,16 @@ const GraphicStudio = dynamic(() => import('@/components/GraphicStudio'), { ssr:
 const PhotoStudio = dynamic(() => import('@/components/PhotoStudio'), { ssr: false, loading: () => <p className="status">…</p> });
 const AIImport = dynamic(() => import('@/components/AIImport'), { ssr: false, loading: () => <p className="status">…</p> });
 const SmartScan = dynamic(() => import('@/components/SmartScan'), { ssr: false, loading: () => <p className="status">…</p> });
+const MockupStudio = dynamic(() => import('@/components/MockupStudio'), { ssr: false, loading: () => <p className="status">…</p> });
 const PhotoTo3D = dynamic(() => import('@/components/PhotoTo3D'), { ssr: false, loading: () => <p className="status">…</p> });
 
-type Mode = 'scan' | 'pattern' | 'graphic' | 'photo' | 'ai' | '3d' | 'ghost';
+type Mode = 'mock' | 'scan' | 'pattern' | 'graphic' | 'photo' | 'ai' | '3d' | 'ghost';
 
 export default function Studio() {
   useLang();
   const [mode, setMode] = useState<Mode>('scan');
+  // #mock で開くとモックアップ（スマートスキャンの「モックアップで編集」から）
+  useEffect(() => { const h = () => { if (location.hash === '#mock') setMode('mock'); }; h(); addEventListener('hashchange', h); return () => removeEventListener('hashchange', h); }, []);
   return (
     <main className="adm studio">
       <header className="studio-hd">
@@ -29,6 +32,7 @@ export default function Studio() {
       )}</p>
       <div className="adm-tabs">
         <button aria-pressed={mode === 'scan'} onClick={() => setMode('scan')}>{tt('Smart scan', 'スマートスキャン')}</button>
+        <button aria-pressed={mode === 'mock'} onClick={() => setMode('mock')}>{tt('Mockup', 'モックアップ')}</button>
         <button aria-pressed={mode === 'pattern'} onClick={() => setMode('pattern')}>{tt('Pattern maker', 'パターン')}</button>
         <button aria-pressed={mode === 'graphic'} onClick={() => setMode('graphic')}>{tt('Graphic studio', 'グラフィック')}</button>
         <button aria-pressed={mode === 'photo'} onClick={() => setMode('photo')}>{tt('Photo studio', 'フォトスタジオ')}</button>
@@ -36,7 +40,9 @@ export default function Studio() {
         <button aria-pressed={mode === '3d'} onClick={() => setMode('3d')}>{tt('Photo to 3D', '写真から3D')}</button>
         <button aria-pressed={mode === 'ghost'} onClick={() => setMode('ghost')}>{tt('Ghost mannequin', 'ゴーストマネキン')}</button>
       </div>
-      {mode === 'scan' ? (
+      {mode === 'mock' ? (
+        <MockupStudio />
+      ) : mode === 'scan' ? (
         <SmartScan />
       ) : mode === 'pattern' ? (
         <div className="sec">

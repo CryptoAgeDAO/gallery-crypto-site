@@ -70,7 +70,7 @@ export default function GalleryClient({ initial }: { initial: ShopItem[] }) {
       return { ...r, z: r.key, list };
     }).filter((r) => r.list.length);
   }, [items, phone]);
-  const rooms: SRoom[] = useMemo(() => groups.map((g) => ({ key: g.key, dp: g.dp, pieces: g.list.map((i) => ({ id: i.id, title: i.title, code: i.code, kind: kindOf(i), tex: i.img || (i.pid ? cutout(i.pid) : ''), back: i.back })) })), [groups]);
+  const rooms: SRoom[] = useMemo(() => groups.map((g) => ({ key: g.key, dp: g.dp, pieces: g.list.map((i) => ({ id: i.id, title: i.title, code: i.code, kind: kindOf(i), tex: i.img || (i.pid ? cutout(i.pid) : ''), back: i.back, heightM: i.heightM })) })), [groups]);
   const api = useRef<GalleryApi | null>(null);
   const [st, setSt] = useState<GState>({ room: 0, focus: null, moving: false, ready: false });
   // 診断：この画面で起きたエラーを画面の下に出す（iPhone で表示できない原因を確かめるため）

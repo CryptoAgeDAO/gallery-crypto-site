@@ -235,7 +235,7 @@ export function buildGarment(F: Layer, B: Layer | null, heightM: number, depth =
           const o = half * (n + 1);
           for (let s = 0; s < n; s++) {
             const a = last + o + s, b = a + 1, c = base + o + s, d = c + 1;
-            idx.push(a, c, b, b, c, d);
+            idx.push(a, b, c, b, d, c); // 胴と同じ巻き方向（逆だと袖の内側＝暗い裏地が見えていた）
           }
         }
       }

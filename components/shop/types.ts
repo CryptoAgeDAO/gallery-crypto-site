@@ -20,5 +20,6 @@ export type ShopItem = {
   zone: 'rwa' | 'vintage' | 'art' | 'archive';
   display?: 'frame' | 'hang' | 'plinth' | 'case';
   size?: number;
+  heightM?: number; // 実物の高さ（m）：モックアップ・スキャンで測った大きさのまま3Dにする
   glbKey?: string; // この端末に保存した立体（.glb）
 };

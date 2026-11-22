@@ -221,13 +221,19 @@ export default function SmartScan() {
     tx.putImageData(d, 0, 0); c.getContext('2d')!.drawImage(t, 0, 0, c.width, c.height); return c.toDataURL('image/png');
   };
   const [hung, setHung] = useState('');
+  // モックアップへ：切り抜いた正面・背面と測った寸法を渡す
+  const toMock = () => {
+    if (!made) return;
+    try { localStorage.setItem('gc-mock-src', JSON.stringify({ front: toPng(made.L), back: made.B ? toPng(made.B) : undefined, length: Math.round(made.spec.length * 2) / 2, chest: Math.round(made.spec.chest * 4) / 2 })); location.hash = 'mock'; dispatchEvent(new HashChangeEvent('hashchange')); }
+    catch { setMsg(tt('Could not hand over to the mockup (storage is full).', 'モックアップに渡せませんでした（保存領域がいっぱいです）。')); }
+  };
   const hang = () => {
     if (!made) return;
     try {
       const id = 'scan-' + Date.now().toString(36), n2 = (JSON.parse(localStorage.getItem('gc-shop-local') || '[]') as { id: string }[]);
       const sp = made.spec;
       const item = { id, code: 'SCAN-' + id.slice(-4).toUpperCase(), title: tt('Scanned piece', 'スキャンした服'), sub: tt('Smart scan · on this device', 'スマートスキャン · この端末'), price: '—', img: toPng(made.L), back: made.B ? toPng(made.B) : undefined, buy: 'local', desc: '',
-        facts: [['Size', `${tt('Length', '着丈')} ${Math.round(sp.length)} / ${tt('Chest', '身幅')} ${Math.round(sp.chest * 2)} cm`], [tt('Shoulder', '肩幅'), `${Math.round(sp.shoulderX * 2)} cm`], [tt('Sleeve', '袖丈'), `${Math.round(sp.sleeve)} cm`]], zone: 'vintage' };
+        facts: [['Size', `${tt('Length', '着丈')} ${Math.round(sp.length)} / ${tt('Chest', '身幅')} ${Math.round(sp.chest * 2)} cm`], [tt('Shoulder', '肩幅'), `${Math.round(sp.shoulderX * 2)} cm`], [tt('Sleeve', '袖丈'), `${Math.round(sp.sleeve)} cm`]], zone: 'vintage', heightM: Math.round(sp.length + 3) / 100 };
       // この端末の保存容量に収まるよう、スキャンは新しい6着まで
       const rest = n2.filter((x) => !String(x.id).startsWith('scan-')).concat(n2.filter((x) => String(x.id).startsWith('scan-')).slice(0, 5));
       localStorage.setItem('gc-shop-local', JSON.stringify([item, ...rest]));
@@ -328,6 +334,7 @@ export default function SmartScan() {
                   {hung
                     ? <a className="ss-btn" href={`/shop/rail#p=${hung}`}>{tt('See it on the rail →', 'レールで見る →')}</a>
                     : <button className="ss-btn ghost" onClick={hang}>{tt('Hang it on the rail', 'レールに掛ける')}</button>}
+                  <button className="ss-btn ghost" onClick={toMock}>{tt('Edit as mockup →', 'モックアップで編集 →')}</button>
                 </div>
                 <p className="ss-fine">{tt('Shaped from the front and back shots, not measured like a laser scan. Good for previews and the showroom.', '正面と背面の2枚から形を推定したものです。レーザー測量のような精密なスキャンではありません。プレビューやショールーム向けです。')}</p>
               </div>
