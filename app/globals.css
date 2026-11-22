@@ -3190,7 +3190,7 @@ img{image-rendering:auto}
 @media (max-width:700px){.rp-top{padding:12px 14px}.rp-r a{display:none}.rp-logo{font-size:11px;letter-spacing:.22em;white-space:nowrap}.rp-top>a:first-child{white-space:nowrap}}
 /* ショールーム：服を手に取る（3D の上に半透明のレール） */
 .gr-take{position:absolute;inset:56px 0 0;z-index:30;animation:sfFade .35s both}
-.gr-take .hr{background:linear-gradient(rgba(12,12,14,.78),rgba(12,12,14,.9))}
+.gr-take .hr{background:radial-gradient(120% 80% at 50% 10%,#2a2a2c 0%,#141415 70%)} /* 後ろのショールームが透けて重ならないよう不透明に */
 .gr.taking .gr-stick{display:none}
 .gr-take-shop{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:600;color:#ddd;font-size:11px;letter-spacing:.12em;text-transform:uppercase;text-decoration:underline;text-underline-offset:3px}
 .gr.taking .gr-room,.gr.taking .gr-nav{opacity:0;pointer-events:none}
@@ -3591,3 +3591,5 @@ html.gate .eg{display:flex}
 @media (max-width:760px){.ap-balloon,.hb .ap-balloon,.kh .ap-balloon{display:none!important}}
 /* 一着を見ているあいだは、右下のカートボタンを隠す（「カートに入れる」と重ならないように） */
 @media (max-width:760px){body:has(.hr.focus) .gc-fab{display:none}}
+
+.hr.focus .hr-slot.on .hr-tag{opacity:0}

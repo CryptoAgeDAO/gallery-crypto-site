@@ -162,7 +162,8 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
       const g0 = new THREE.Group(); parent.add(g0);
       const drop = hanger ? 0.1 : 0; // レールから服の上端まで
       const g = new THREE.Group(); g.position.y = -drop + (clip ? 0.035 : 0); g0.add(g); // パンツは布の帯に腰をかける
-      if (hanger) g0.add(hangerOf(clip ? Math.min(0.4, h * 0.36) : Math.max(0.34, Math.min(0.46, h * 0.56)), clip, drop));
+      const hw0 = clip ? Math.min(0.4, h * 0.36) : Math.max(0.34, Math.min(0.46, h * 0.56));
+      const hgr = hanger ? hangerOf(hw0, clip, drop) : null; if (hgr) g0.add(hgr);
       const flat = new THREE.Mesh(new THREE.PlaneGeometry(h * 1.09, h), new THREE.MeshStandardMaterial({ transparent: true, alphaTest: 0.4, roughness: 0.9, side: THREE.DoubleSide }));
       flat.position.y = -h * 0.5 - h * 0.02; flat.userData.id = p.id; g.add(flat); hits.push(flat);
       loadTex(p.tex).then((t) => {
@@ -173,6 +174,11 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
           const c = document.createElement('canvas'); c.width = W; c.height = H; const cg = c.getContext('2d', { willReadFrequently: true })!; cg.drawImage(im, 0, 0, W, H);
           const d = cg.getImageData(0, 0, W, H).data; let y0 = H, y1 = 0; for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (d[(y * W + x) * 4 + 3] > 100) { if (y < y0) y0 = y; if (y > y1) y1 = y; }
           if (y1 > y0) { const f0 = y0 / H, f1 = (y1 + 1) / H, PH = h / (f1 - f0), PW = PH * (im.width / im.height); flat.geometry.dispose(); flat.geometry = new THREE.PlaneGeometry(PW, PH); flat.position.y = f0 * PH - PH / 2; }
+          // ハンガーの幅を、服の肩幅に合わせる（タンクトップなど肩の細い服で、ハンガーがはみ出さないように）
+          if (y1 > y0 && hgr && !clip) {
+            const ry = Math.min(H - 1, Math.round(y0 + (y1 - y0) * 0.1)); let l = -1, r = -1; for (let x = 0; x < W; x++) if (d[(ry * W + x) * 4 + 3] > 100) { if (l < 0) l = x; r = x; }
+            if (r > l) { const shoulderM = ((r - l + 1) / (y1 - y0 + 1)) * h; hgr.scale.x = Math.max(0.45, Math.min(1, (shoulderM * 0.92) / (hw0 * 0.88))); }
+          }
         } catch { /* 無視 */ }
       });
       const look = new THREE.Vector3(); g.updateWorldMatrix(true, false);

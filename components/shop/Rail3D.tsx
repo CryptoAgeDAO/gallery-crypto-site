@@ -63,7 +63,7 @@ export default function Rail3D({ items, host, pcEls, sway, state, onReady }: {
         b.pivot.visible = rc.width > 2;
         // 画像の中の服の位置に合わせて置く（肩の線が HTML のハンガーの下に来る）
         const wpx = rc.width * b.fw, sc = wpx / b.widthM;
-        const cx = rc.left - hr.left + rc.width * (b.fx + b.fw / 2), top = rc.top - hr.top + rc.height * b.fy - rc.width * 0.05;
+        const cx = rc.left - hr.left + rc.width * (b.fx + b.fw / 2), top = rc.top - hr.top + rc.height * b.fy; // 服の上端を、HTMLの絵の服の上端にぴったり
         b.pivot.position.set(cx, -top, Number(slot?.style.zIndex || 100));
         b.pivot.scale.setScalar(sc);
         // 揺れ（HTML のばねと同じ値）と、向き：ふだんは少しだけ斜め、見ているときは指で回せる。背中を選ぶと裏返る

@@ -51,14 +51,24 @@ function keyOut(src: string): Promise<string> {
   }
   return p;
 }
-function Pic({ it, onAsp, back = false, hide = false }: { it: RailItem; onAsp: (r: number) => void; back?: boolean; hide?: boolean }) {
+// 服の肩幅（絵の幅に対する割合）：ハンガーの幅をこれに合わせる
+function shoulderOf(im: HTMLImageElement) {
+  try {
+    const W = 120, H = Math.max(8, Math.round(120 * im.naturalHeight / im.naturalWidth)), c = document.createElement('canvas'); c.width = W; c.height = H;
+    const g = c.getContext('2d', { willReadFrequently: true })!; g.drawImage(im, 0, 0, W, H); const d = g.getImageData(0, 0, W, H).data;
+    let y0 = -1, y1 = -1; for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (d[(y * W + x) * 4 + 3] > 100) { if (y0 < 0) y0 = y; y1 = y; }
+    if (y0 < 0) return null; const ry = Math.round(y0 + (y1 - y0) * 0.1); let l = -1, r = -1; for (let x = 0; x < W; x++) if (d[(ry * W + x) * 4 + 3] > 100) { if (l < 0) l = x; r = x; }
+    return r > l ? (r - l + 1) / W : null;
+  } catch { return null; }
+}
+function Pic({ it, onAsp, onShoulder, back = false, hide = false }: { it: RailItem; onAsp: (r: number) => void; onShoulder?: (f: number) => void; back?: boolean; hide?: boolean }) {
   const cut = (it.kind || 'garment') !== 'garment' && !it.img;
   const want = back && it.back ? it.back : it.src;
   const [src, setSrc] = useState(cut ? '' : want);
   useEffect(() => { if (!cut) { setSrc(want); return; } let on = true; keyOut(want).then((u) => on && setSrc(u)); return () => { on = false; }; }, [want, cut]);
   if (!src) return <span className="hr-ph" />;
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={src} alt={it.title} draggable={false} className={`${it.img ? 'photo' : ''} ${hide ? 'ghost' : ''}`} onLoad={(e) => { const im = e.currentTarget; if (im.naturalWidth) onAsp(im.naturalHeight / im.naturalWidth); }} />;
+  return <img src={src} alt={it.title} draggable={false} className={`${it.img ? 'photo' : ''} ${hide ? 'ghost' : ''}`} onLoad={(e) => { const im = e.currentTarget; if (im.naturalWidth) { onAsp(im.naturalHeight / im.naturalWidth); if (onShoulder && !it.img) { const f = shoulderOf(im); if (f) onShoulder(f); } } }} />;
 }
 
 export default function HangRail({ items, focusId, onFocus, mode = 'page', renderBuy, dark = false, solid = false }: {
@@ -77,6 +87,7 @@ export default function HangRail({ items, focusId, onFocus, mode = 'page', rende
   const [hov, setHov] = useState<number | null>(null);
   const [view, setView] = useState<'front' | 'back' | 'detail'>('front');
   const [asp, setAsp] = useState<Record<string, number>>({}); // 絵の縦横比（高さ／幅）
+  const [shw, setShw] = useState<Record<string, number>>({}); // 服の肩幅（絵の幅に対する割合）
   const k = focusId ? items.findIndex((i) => i.id === focusId) : -1;
   const n = items.length;
   // 立体の層とやりとりする値
@@ -197,10 +208,10 @@ export default function HangRail({ items, focusId, onFocus, mode = 'page', rende
             role="button" tabIndex={0} aria-label={it.title} onKeyDown={(e) => { if (e.key === 'Enter') pick(i); }}>
             <div className="hr-swing" ref={(e) => { swEls.current[i] = e; }}>
               {kind === 'garment'
-                ? <img className="hr-hanger" src={HANGER_URL} alt="" draggable={false} /> // eslint-disable-line @next/next/no-img-element
+                ? <img className="hr-hanger" src={HANGER_URL} alt="" draggable={false} style={shw[it.id] ? { transform: `translateX(-50%) scaleX(${Math.max(0.45, Math.min(1, (shw[it.id] * 1.02) / 0.5))})` } : undefined} /> // eslint-disable-line @next/next/no-img-element
                 : <span className="hr-clip" />}
               <div className={`hr-pc ${i === k && view === 'detail' ? 'zoom' : ''}`} ref={(e) => { pcEls.current[i] = e; }}>
-                <Pic it={it} hide={solid && !!solidOk[it.id] && (k < 0 || i === k) && !(i === k && view === 'detail')} back={i === k && view === 'back' && !(solid && solidOk[it.id])} onAsp={(r) => setAsp((a) => (a[it.id] === r ? a : { ...a, [it.id]: r }))} />
+                <Pic it={it} hide={solid && !!solidOk[it.id] && (k < 0 || i === k) && !(i === k && view === 'detail')} back={i === k && view === 'back' && !(solid && solidOk[it.id])} onAsp={(r) => setAsp((a) => (a[it.id] === r ? a : { ...a, [it.id]: r }))} onShoulder={(f) => setShw((a) => (a[it.id] === f ? a : { ...a, [it.id]: f }))} />
               </div>
               {/* 値札（紙のタグ） */}
               <span className="hr-tag"><b>{it.code}</b><em>{it.price}</em></span>
