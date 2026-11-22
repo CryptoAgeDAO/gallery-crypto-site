@@ -55,9 +55,10 @@ function mannequin(B: Body) {
   return g;
 }
 
-type Props = { doc: PatternDoc; body: Body; skin: Skin; density?: number; fabric?: FabricPhys; map?: MapMode; showBody?: boolean; onStats?: (s: SewStats | null) => void; onProgress?: (p: number) => void; apiRef?: React.MutableRefObject<SewApi | null> };
+type Props = { doc: PatternDoc; body: Body; skin: Skin; density?: number; fabric?: FabricPhys; map?: MapMode; showBody?: boolean; onStats?: (s: SewStats | null) => void; onProgress?: (p: number) => void; apiRef?: React.MutableRefObject<SewApi | null>; slow?: boolean };
 
-export default function SewView({ doc, body, skin, density = 2.5, fabric = FABRIC_PHYS[0], map = 'look', showBody = true, onStats, onProgress, apiRef }: Props) {
+export default function SewView({ doc, body, skin, density = 2.5, fabric = FABRIC_PHYS[0], map = 'look', showBody = true, onStats, onProgress, apiRef, slow = false }: Props) {
+  const slowR = useRef(slow); slowR.current = slow;
   const host = useRef<HTMLDivElement>(null);
   const api = useRef<{ restart: () => void; garment: THREE.Group; man: THREE.Group; floor: THREE.Object3D; renderer: THREE.WebGLRenderer; scene: THREE.Scene; cam: THREE.PerspectiveCamera; sim: () => Sim | null; paint: () => void } | null>(null);
   const skinR = useRef(skin); skinR.current = skin;
@@ -149,7 +150,7 @@ export default function SewView({ doc, body, skin, density = 2.5, fabric = FABRI
     const loop = () => {
       if (!alive) return;
       if (S && S.step < TOTAL) {
-        stepSim(S, fine ? 4 : 6, fine ? 22 : 18);
+        stepSim(S, slowR.current ? 1 : fine ? 4 : 6, fine ? 22 : 18); // スロー：縫い合わせる様子をゆっくり
         for (const m of meshes) { (m.g.attributes.position.array as Float32Array).set(S.pos.subarray(m.off * 3, (m.off + m.n) * 3)); m.g.attributes.position.needsUpdate = true; m.g.computeVertexNormals(); }
         const p = Math.min(1, S.step / TOTAL); setProg(p); progR.current?.(p);
         if (S.step >= TOTAL) {

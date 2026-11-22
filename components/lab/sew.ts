@@ -324,7 +324,7 @@ export function stepSim(S: Sim, steps: number, iters = 18) {
         pos[b] -= dx * f; pos[b + 1] -= dy * f; pos[b + 2] -= dz * f;
       }
       // 伸びの上限（ストレインリミット）：生地が伸びきったら、それ以上は伸びない
-      if (it >= iters - 4) for (let c = 0; c < cons.length; c += 4) {
+      if (it % 2 === 1 || it === iters - 1) for (let c = 0; c < cons.length; c += 4) {
         if (cons[c + 3] !== 1) continue;
         const a = cons[c] * 3, b = cons[c + 1] * 3, mx = cons[c + 2] * (1 + fab.limit);
         const dx = pos[b] - pos[a], dy = pos[b + 1] - pos[a + 1], dz = pos[b + 2] - pos[a + 2];

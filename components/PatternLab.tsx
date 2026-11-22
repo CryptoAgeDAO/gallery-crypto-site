@@ -68,6 +68,7 @@ export default function PatternLab() {
   const [usePhoto, setUsePhoto] = useState(true); // 写真から作った型紙は、写真の柄をそのまま貼れる
   const [map, setMap] = useState<MapMode>('look');
   const [showBody, setShowBody] = useState(true);
+  const [slow, setSlow] = useState(false);
   const [sewTab, setSewTab] = useState<'avatar' | 'fabric' | 'look' | 'fit' | 'save'>('fabric');
   const [stats, setStats] = useState<SewStats | null>(null);
   const [selP, setSelP] = useState<string | null>(null);
@@ -394,11 +395,12 @@ export default function PatternLab() {
       {step === 'sew' && (
         <div className="lab-main sew">
           <div className="lab-stage">
-            <SewView doc={doc} body={body} skin={skin} density={density} fabric={fab} map={map} showBody={showBody} onStats={setStats} apiRef={sewApi} />
+            <SewView doc={doc} body={body} skin={skin} density={density} fabric={fab} map={map} showBody={showBody} onStats={setStats} apiRef={sewApi} slow={slow} />
             <div className="lab-row">
               {([['look', tt('Look', '見た目')], ['strain', tt('Strain map', 'ひずみマップ')], ['fit', tt('Fit map', 'フィットマップ')]] as [MapMode, string][]).map(([k, l]) => <button key={k} type="button" className="chip" aria-pressed={map === k} onClick={() => setMap(k)}>{l}</button>)}
               <button type="button" className="chip" aria-pressed={showBody} onClick={() => setShowBody((v) => !v)}>{showBody ? tt('Avatar on', 'アバター表示') : tt('Avatar off', 'アバター非表示')}</button>
               <button type="button" className="chip" onClick={() => sewApi.current?.restart()}>{tt('Sew again', 'もう一度縫う')}</button>
+              <button type="button" className="chip" aria-pressed={slow} onClick={() => setSlow((v) => !v)}>{tt('Slow motion', 'スローで見る')}</button>
             </div>
           </div>
           <aside className="lab-side sew-side">
