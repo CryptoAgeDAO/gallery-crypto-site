@@ -7,7 +7,7 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { buildGarment } from '../garment3d';
+import { buildPillow as buildGarment } from '../pillow3d';
 import { layerOf, bboxOf } from './garmentLayer';
 import { isPhone } from '@/lib/device';
 import { loadImage } from '@/lib/imgQueue';

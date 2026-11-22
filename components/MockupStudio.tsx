@@ -8,10 +8,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { buildGarment } from './garment3d';
+import { buildPillow } from './pillow3d';
 import type { Layer } from './GhostMannequin';
 import { tt } from './Lang';
 import { isPhone } from '@/lib/device';
+import { TEMPLATES, GRADE_STEP, shapeOf, type BaseKind, type Handle, type Deco } from './mockup/templates';
 
 type Kind = 'tee' | 'ls' | 'hoodie' | 'crew' | 'pants' | 'shorts' | 'scan';
 type Fabric = 'jersey' | 'fleece' | 'denim' | 'canvas' | 'nylon' | 'corduroy' | 'image';
@@ -21,18 +22,11 @@ type M = Record<string, number>;
 
 const PX = 8; // 1cm = 8px（描画の解像度）
 const TOPS: Kind[] = ['tee', 'ls', 'hoodie', 'crew'];
-const DEF: Record<Exclude<Kind, 'scan'>, M> = {
-  tee: { length: 72, chest: 56, shoulder: 50, sleeve: 22, sleeveOpen: 19, hem: 56, neck: 19 },
-  ls: { length: 71, chest: 55, shoulder: 49, sleeve: 62, sleeveOpen: 10, hem: 55, neck: 18 },
-  hoodie: { length: 70, chest: 60, shoulder: 56, sleeve: 61, sleeveOpen: 11, hem: 54, neck: 20 },
-  crew: { length: 68, chest: 58, shoulder: 54, sleeve: 60, sleeveOpen: 11, hem: 52, neck: 19 },
-  pants: { waist: 40, hip: 54, rise: 32, inseam: 80, thigh: 31, hemW: 26 },
-  shorts: { waist: 41, hip: 56, rise: 31, inseam: 19, thigh: 33, hemW: 31 },
-};
-const LABEL: Record<string, [string, string]> = {
-  length: ['Length', '着丈'], chest: ['Chest (flat)', '身幅'], shoulder: ['Shoulder', '肩幅'], sleeve: ['Sleeve', '袖丈'], sleeveOpen: ['Sleeve opening', '袖口幅'], hem: ['Hem (flat)', '裾幅'], neck: ['Neck width', '襟ぐり幅'],
-  waist: ['Waist (flat)', 'ウエスト'], hip: ['Hip (flat)', 'ヒップ'], rise: ['Rise', '股上'], inseam: ['Inseam', '股下'], thigh: ['Thigh (flat)', 'わたり幅'], hemW: ['Leg opening', '裾幅'],
-};
+const DEF = Object.fromEntries(Object.entries(TEMPLATES).map(([k, v]) => [k, v.def])) as Record<Exclude<Kind, 'scan'>, M>;
+const LABEL: Record<string, [string, string]> = { length: ['Length', '着丈'], chest: ['Chest (flat)', '身幅'] };
+for (const t of Object.values(TEMPLATES)) for (const f of t.fields) LABEL[f.k] = [f.en, f.ja];
+const RANGE: Record<string, [number, number]> = {};
+for (const t of Object.values(TEMPLATES)) for (const f of t.fields) RANGE[f.k] = [f.min, f.max];
 const KINDS: [Kind, string, string][] = [['tee', 'T-shirt', 'Tシャツ'], ['ls', 'Longsleeve', '長袖'], ['hoodie', 'Hoodie', 'パーカー'], ['crew', 'Sweatshirt', 'スウェット'], ['pants', 'Pants', 'パンツ'], ['shorts', 'Shorts', 'ショーツ'], ['scan', 'From a scan', 'スキャンから']];
 const FABRICS: [Fabric, string, string][] = [['jersey', 'Cotton jersey', '綿ジャージー'], ['fleece', 'Fleece', 'フリース'], ['denim', 'Denim', 'デニム'], ['canvas', 'Canvas', 'キャンバス'], ['nylon', 'Nylon', 'ナイロン'], ['corduroy', 'Corduroy', 'コーデュロイ']];
 const COLORS = ['#141416', '#f4f3ef', '#e8e3d6', '#8f8c86', '#1d2740', '#2e3f66', '#4b5236', '#5b1a22', '#6a5442', '#c8b896', '#d7a2a8', '#4e6583'];
@@ -55,27 +49,9 @@ function fabricTile(f: Fabric, img?: HTMLImageElement | null): HTMLCanvasElement
   return c;
 }
 
-// ---- 採寸の数字 → 服の外形（cm、肩の一番高いところの中心が原点） ----
 type Pt = [number, number];
-function outline(kind: Kind, m: M, side: Side): { pts: Pt[]; neck?: { w: number; drop: number }; hood?: boolean } {
-  if (kind === 'pants' || kind === 'shorts') {
-    const { waist: W, hip: Hp, rise: R, inseam: I, hemW: Hw, thigh: T } = m;
-    const cx = Hp / 4 + (kind === 'pants' ? 1.5 : 1), hemY = R + I;
-    const thighOut = Math.max(Hp / 2, cx + T / 2);
-    const right: Pt[] = [[W / 2, 0], [Hp / 2, R * 0.62], [thighOut, R + 2], [cx + Hw / 2, hemY], [Math.max(0.8, cx - Hw / 2), hemY], [0.6, R + 1.5]];
-    const left = right.slice().reverse().map(([x, y]) => [-x, y] as Pt);
-    return { pts: [...right, [0, R], ...left] };
-  }
-  const { length: L, chest: C, shoulder: S, sleeve: Sl, sleeveOpen: So, hem: Hm, neck: N } = m;
-  const th = (kind === 'tee' ? 26 : 58) * Math.PI / 180;
-  const sp: Pt = [S / 2, 4.5], A = Math.max(18, C * 0.42);
-  const e1: Pt = [sp[0] + Sl * Math.cos(th), sp[1] + Sl * Math.sin(th)];
-  const e2: Pt = [e1[0] - So * Math.sin(th), e1[1] + So * Math.cos(th)];
-  const ua: Pt = [C / 2, A];
-  const right: Pt[] = [[N / 2, 0], sp, e1, e2, ua, [Hm / 2, L]];
-  const left = right.slice().reverse().map(([x, y]) => [-x, y] as Pt);
-  return { pts: [...right, ...left], neck: { w: N, drop: side === 'front' ? (kind === 'hoodie' ? 7 : 9) : 2.5 }, hood: kind === 'hoodie' };
-}
+// 多角形の向き（時計回りにそろえる：重ねて塗っても穴があかない）
+const cw = (p: Pt[]) => { let a = 0; for (let i = 0; i < p.length; i++) { const q = p[i], r = p[(i + 1) % p.length]; a += q[0] * r[1] - r[0] * q[1]; } return a < 0 ? p.slice().reverse() : p; };
 
 type Built = { canvas: HTMLCanvasElement; bounds: { x0: number; y0: number; w: number; h: number } };
 type Pair = { front: Built; back: Built; heightM: number };
@@ -97,28 +73,26 @@ function maskHeightM(L: Layer) { let a = -1, b = -1; for (let y = 0; y < L.h; y+
 
 async function drawSide(kind: Kind, m: M, side: Side, color: string, fabric: Fabric, texImg: HTMLImageElement | null, prints: Print[], scan: { front?: string; back?: string; length?: number; chest?: number } | null, tint = false): Promise<Built> {
   const pad = 6;
-  let pts: Pt[] = [], neck: { w: number; drop: number } | undefined, hood = false;
+  let pts: Pt[] = [], decos: Deco[] = [], topY = 0;
   let scanImg: HTMLImageElement | null = null;
   if (kind === 'scan') {
     scanImg = await getImg((side === 'back' ? scan?.back : scan?.front) || scan?.front || '');
     const bx = scanImg ? alphaBox(scanImg) : null;
     const L = m.length || 70, ar = bx ? bx.w / bx.h : 0.8, sx = scan?.chest ? (m.chest || scan.chest) / scan.chest : 1;
     const w = L * ar * sx; pts = [[-w / 2, 0], [w / 2, 0], [w / 2, L], [-w / 2, L]];
-  } else ({ pts, neck, hood = false } = outline(kind, m, side));
+  } else { const sh = shapeOf(kind as BaseKind, m, side); pts = sh.outline; decos = sh.decos; topY = sh.top; }
   const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
-  const y0 = Math.min(0, ...ys) - (hood ? 30 : 0) - pad, x0 = Math.min(...xs) - pad, x1 = Math.max(...xs) + pad, y1 = Math.max(...ys) + pad;
+  const y0 = Math.min(0, topY, ...ys) - pad, x0 = Math.min(...xs) - pad, x1 = Math.max(...xs) + pad, y1 = Math.max(...ys) + pad;
   const W = Math.ceil((x1 - x0) * PX), H = Math.ceil((y1 - y0) * PX);
   const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d')!;
   const P = (x: number, y: number): Pt => [(x - x0) * PX, (y - y0) * PX];
   const path = new Path2D();
   if (kind === 'scan') { const [a, b] = P(pts[0][0], 0); path.rect(a, b, (pts[1][0] - pts[0][0]) * PX, (pts[2][1]) * PX); }
   else {
-    pts.forEach(([x, y], i) => { const [a, b] = P(x, y); if (i) path.lineTo(a, b); else path.moveTo(a, b); });
-    if (neck) { const [a, b] = P(-neck.w / 2, 0); path.lineTo(a, b); const [cx, cy] = P(0, neck.drop * 1.9); const [ex, ey] = P(neck.w / 2, 0); path.quadraticCurveTo(cx, cy, ex, ey); }
-    path.closePath();
+    // 服の形＋（フードなど）地と同じ布の部分。向きをそろえて重ねる
+    for (const poly of [pts, ...decos.filter((d) => d.fill === '__base__' && d.poly).map((d) => d.poly!)]) { cw(poly).forEach(([x, y], i) => { const [a, b] = P(x, y); if (i) path.lineTo(a, b); else path.moveTo(a, b); }); path.closePath(); }
   }
-  // フード（後ろに大きく、前は首の後ろに見える）
-  if (hood) { const hp = new Path2D(); const pt = (x: number, y: number) => P(x, y); const [a, b] = pt(-14, 4); hp.moveTo(a, b); const [c1, d1] = pt(-17, -26); const [c2, d2] = pt(17, -26); const [e, f] = pt(14, 4); hp.bezierCurveTo(c1, d1, c2, d2, e, f); hp.closePath(); path.addPath(hp); }
+  const polyPath = (poly: Pt[], close = true) => { const q = new Path2D(); poly.forEach(([x, y], i) => { const [a, b] = P(x, y); if (i) q.lineTo(a, b); else q.moveTo(a, b); }); if (close) q.closePath(); return q; };
 
   if (kind === 'scan' && scanImg) {
     const bx = alphaBox(scanImg), [dx, dy] = P(pts[0][0], 0), dw = (pts[1][0] - pts[0][0]) * PX, dh = pts[2][1] * PX;
@@ -133,17 +107,13 @@ async function drawSide(kind: Kind, m: M, side: Side, color: string, fabric: Fab
     // 陰影：脇と裾を暗く、中央を少し明るく。縦のしわ
     const gr = g.createLinearGradient(0, 0, W, 0); gr.addColorStop(0, 'rgba(0,0,0,.22)'); gr.addColorStop(0.3, 'rgba(255,255,255,.04)'); gr.addColorStop(0.5, 'rgba(255,255,255,.07)'); gr.addColorStop(0.7, 'rgba(255,255,255,.03)'); gr.addColorStop(1, 'rgba(0,0,0,.24)'); g.fillStyle = gr; g.fillRect(0, 0, W, H);
     for (let i = 0; i < 5; i++) { const x = W * (0.25 + i * 0.12), w = W * 0.05; const f = g.createLinearGradient(x - w, 0, x + w, 0); f.addColorStop(0, 'rgba(0,0,0,0)'); f.addColorStop(0.5, `rgba(0,0,0,${0.04 + (i % 2) * 0.03})`); f.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = f; g.fillRect(x - w, H * 0.3, w * 2, H * 0.7); }
-    // 縫い目・リブ
-    g.strokeStyle = 'rgba(0,0,0,.28)'; g.lineWidth = 1.2; g.setLineDash([3, 3]);
-    if (TOPS.includes(kind)) {
-      const [hx0, hy] = P(-m.hem / 2, m.length - 2.2); const [hx1] = P(m.hem / 2, 0); g.beginPath(); g.moveTo(hx0, hy); g.lineTo(hx1, hy); g.stroke();
-      if (neck) { g.setLineDash([]); g.lineWidth = 2.4 * PX / 4; g.strokeStyle = 'rgba(0,0,0,.22)'; const [a, b] = P(-neck.w / 2 - 1, 0.5); const [cx, cy] = P(0, neck.drop * 1.9 + 1.6); const [ex, ey] = P(neck.w / 2 + 1, 0.5); g.beginPath(); g.moveTo(a, b); g.quadraticCurveTo(cx, cy, ex, ey); g.stroke(); }
-      if (kind === 'hoodie' || kind === 'crew') { g.setLineDash([]); g.fillStyle = 'rgba(0,0,0,.1)'; const [a, b] = P(-m.hem / 2, m.length - 6); g.fillRect(a, b, m.hem * PX, 6 * PX); }
-      if (kind === 'hoodie' && side === 'front') { g.setLineDash([3, 3]); g.strokeStyle = 'rgba(0,0,0,.3)'; const [a, b] = P(-m.chest * 0.33, m.length * 0.62); const [c2, d2] = P(m.chest * 0.33, m.length - 7); g.strokeRect(a, b, c2 - a, d2 - b); g.setLineDash([]); g.fillStyle = 'rgba(0,0,0,.35)'; const [e, f] = P(0, -2); g.beginPath(); g.ellipse(e, f + 4 * PX, 8 * PX, 5 * PX, 0, 0, Math.PI * 2); g.fill(); g.strokeStyle = 'rgba(255,255,255,.6)'; g.lineWidth = 2; g.beginPath(); g.moveTo(...P(-3, 2)); g.lineTo(...P(-3, 16)); g.moveTo(...P(3, 2)); g.lineTo(...P(3, 16)); g.stroke(); }
-    } else {
-      g.setLineDash([]); g.fillStyle = 'rgba(0,0,0,.12)'; const [a, b] = P(-m.waist / 2, 0); g.fillRect(a, b, m.waist * PX, 4 * PX);
-      g.setLineDash([3, 3]); g.strokeStyle = 'rgba(0,0,0,.3)'; g.beginPath(); g.moveTo(...P(0, 4)); g.lineTo(...P(0, m.rise * 0.7)); g.stroke();
-      if (side === 'front') { g.beginPath(); g.moveTo(...P(m.waist / 2 - 2, 4.5)); g.quadraticCurveTo(...P(m.waist / 2 - 8, 9), ...P(m.waist / 2 - 12, 4.5)); g.moveTo(...P(-m.waist / 2 + 2, 4.5)); g.quadraticCurveTo(...P(-m.waist / 2 + 8, 9), ...P(-m.waist / 2 + 12, 4.5)); g.stroke(); }
+    // 縫い目・リブ・ポケット・フードなどの細部（テンプレートの通りに）
+    for (const d of decos) {
+      if (d.poly && d.fill && d.fill !== '__base__') {
+        const q = polyPath(d.poly); g.fillStyle = d.fill; g.fill(q);
+        if (d.rib) { g.save(); g.clip(q); g.strokeStyle = 'rgba(0,0,0,.16)'; g.lineWidth = Math.max(1, 0.12 * PX); const xs2 = d.poly.map((p) => p[0]), ys2 = d.poly.map((p) => p[1]); const [dx, dy] = d.rib.dir, nx = -dy, ny = dx; const cxp = (Math.min(...xs2) + Math.max(...xs2)) / 2, cyp = (Math.min(...ys2) + Math.max(...ys2)) / 2, R = Math.hypot(Math.max(...xs2) - Math.min(...xs2), Math.max(...ys2) - Math.min(...ys2)); for (let t = -R; t <= R; t += d.rib.gap) { const ax = cxp + nx * t, ay = cyp + ny * t; g.beginPath(); g.moveTo(...P(ax - dx * R, ay - dy * R)); g.lineTo(...P(ax + dx * R, ay + dy * R)); g.stroke(); } g.restore(); }
+      }
+      if (d.line) { g.strokeStyle = d.stroke || 'rgba(0,0,0,.3)'; g.lineWidth = Math.max(1, (d.width || 0.1) * PX); g.setLineDash((d.dash || []).map((v) => v * PX)); g.lineCap = 'round'; g.stroke(polyPath(d.line, false)); g.setLineDash([]); }
     }
     g.setLineDash([]);
     g.restore();
@@ -230,6 +200,8 @@ export default function MockupStudio() {
   const [side, setSide] = useState<Side>('front');
   const [tab, setTab] = useState<'shape' | 'material' | 'print' | 'save'>('shape');
   const [showDims, setShowDims] = useState(true);
+  const hot = useRef(''); const [hotV, setHotV] = useState(0);
+  const frozen = useRef<{ sc: number; ox: number; oy: number; x0: number; y0: number } | null>(null);
   const [scan, setScan] = useState<{ front?: string; back?: string; length?: number; chest?: number } | null>(null);
   const [title, setTitle] = useState('');
   const [price, setPrice] = useState(12800);
@@ -247,7 +219,7 @@ export default function MockupStudio() {
     try { const s = JSON.parse(localStorage.getItem('gc-mock-src') || 'null'); if (s?.front) { setScan(s); setKind('scan'); setM({ length: s.length || 70, chest: s.chest || 56 }); } } catch { /* 無視 */ }
   }, []);
   const pickKind = (k: Kind) => { setKind(k); if (k !== 'scan') setM({ ...DEF[k] }); else setM({ length: scan?.length || 70, chest: scan?.chest || 56 }); };
-  const grade = (sz: string) => { if (kind === 'scan') return; const d = GRADE[sz], base = DEF[kind]; const out: M = {}; for (const [k, v] of Object.entries(base)) out[k] = Math.round((v + d * ({ length: 2, chest: 2.5, shoulder: 2, sleeve: 1, hem: 2.5, waist: 2, hip: 2, thigh: 1, inseam: 0, rise: 0.5, sleeveOpen: 0.5, neck: 0.5, hemW: 0.5 }[k] || 0)) * 2) / 2; setM(out); };
+  const grade = (sz: string) => { if (kind === 'scan') return; const d = GRADE[sz], base = DEF[kind]; const out: M = {}; for (const [k, v] of Object.entries(base)) out[k] = Math.round((v + d * (GRADE_STEP[k] || 0)) * 2) / 2; setM(out); };
 
   // ---- 3D：実物の大きさ（床に10cmの格子、175cmの人の影、1cmきざみの物差し） ----
   useEffect(() => {
@@ -280,7 +252,7 @@ export default function MockupStudio() {
         if (!g) return;
         const b = new THREE.Box3().setFromObject(g), c = b.getCenter(new THREE.Vector3());
         // 上の服は肩を床から145cm（身長175cmの人の肩の高さ）、パンツはウエストを100cmに
-        g.position.set(-c.x, (top ? 1.45 : 1.0) - b.max.y, -c.z); hold.add(g);
+        const sz = b.getSize(new THREE.Vector3()); g.position.set(-c.x, (top ? 1.45 : Math.max(1.0, sz.y + 0.03)) - b.max.y, -c.z); hold.add(g);
       },
     };
     return () => { cancelAnimationFrame(raf); ro.disconnect(); oc.dispose(); pm.dispose(); r.dispose(); r.domElement.remove(); three.current = null; };
@@ -303,7 +275,10 @@ export default function MockupStudio() {
         if (!alive) return;
         // 布の厚み：フリース・デニムは少し厚く
         const depth = fabric === 'fleece' ? 1.25 : fabric === 'denim' || fabric === 'canvas' ? 1.1 : fabric === 'nylon' ? 0.9 : 1;
-        const res = buildGarment(F, layerFrom(back.canvas), heightM, depth, phone ? 512 : 1024);
+        // 背面の絵を正面と同じ枠に置き直す（フードなどで上下の範囲がちがっても位置がずれない）
+        const al = document.createElement('canvas'); al.width = front.canvas.width; al.height = front.canvas.height;
+        al.getContext('2d')!.drawImage(back.canvas, (back.bounds.x0 - front.bounds.x0) * PX, (back.bounds.y0 - front.bounds.y0) * PX);
+        const res = buildPillow(F, layerFrom(al), heightM, depth, phone ? 1024 : 2048, phone ? 140 : 200, true);
         three.current?.setGarment(res?.group || null, kind !== 'pants' && kind !== 'shorts');
       }, 350);
     })();
@@ -316,37 +291,56 @@ export default function MockupStudio() {
     const box = cv.parentElement!.getBoundingClientRect(); const dpr = Math.min(devicePixelRatio, 2);
     cv.width = Math.round(box.width * dpr); cv.height = Math.round(box.height * dpr);
     const g = cv.getContext('2d')!; g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cv.width, cv.height);
-    const sc = Math.min(cv.width / b.canvas.width, cv.height / b.canvas.height) * 0.92, ox = (cv.width - b.canvas.width * sc) / 2, oy = (cv.height - b.canvas.height * sc) / 2;
+    // つまんで動かしている間は、画面の縮尺を止める（服が大きくなっても指の下の点がずれないように）
+    const fr = frozen.current;
+    const sc = fr ? fr.sc : Math.min(cv.width / b.canvas.width, cv.height / b.canvas.height) * 0.92;
+    const ox = fr ? fr.ox + (b.bounds.x0 - fr.x0) * PX * sc : (cv.width - b.canvas.width * sc) / 2, oy = fr ? fr.oy + (b.bounds.y0 - fr.y0) * PX * sc : (cv.height - b.canvas.height * sc) / 2;
     g.drawImage(b.canvas, ox, oy, b.canvas.width * sc, b.canvas.height * sc);
     const C = (x: number, y: number): Pt => [ox + (x - b.bounds.x0) * PX * sc, oy + (y - b.bounds.y0) * PX * sc];
     (cv as HTMLCanvasElement & { _map?: unknown })._map = { sc, ox, oy, x0: b.bounds.x0, y0: b.bounds.y0 };
     g.font = `${12 * dpr}px Helvetica,Arial`; g.textAlign = 'center';
     const dim = (a: Pt, z: Pt, label: string, off: Pt = [0, 0]) => { g.strokeStyle = '#d23a2a'; g.fillStyle = '#d23a2a'; g.lineWidth = 1.2 * dpr; g.beginPath(); g.moveTo(a[0] + off[0], a[1] + off[1]); g.lineTo(z[0] + off[0], z[1] + off[1]); g.stroke(); for (const p of [a, z]) { g.beginPath(); g.arc(p[0] + off[0], p[1] + off[1], 2.5 * dpr, 0, 7); g.fill(); } const mx = (a[0] + z[0]) / 2 + off[0], my = (a[1] + z[1]) / 2 + off[1]; const tw = g.measureText(label).width + 8 * dpr; g.fillStyle = '#fff'; g.fillRect(mx - tw / 2, my - 9 * dpr, tw, 16 * dpr); g.fillStyle = '#d23a2a'; g.fillText(label, mx, my + 4 * dpr); };
+    const hs = kind === 'scan' ? [] : shapeOf(kind as BaseKind, m, side).handles, H = (k: string) => hs.find((h) => h.key === k)?.at;
     if (showDims && kind !== 'scan') {
       if (TOPS.includes(kind)) {
-        const th = (kind === 'tee' ? 26 : 58) * Math.PI / 180;
+        const ua = H('ua')!, sp = H('sp')!, ct = H('cuffT')!;
         dim(C(0, 0), C(0, m.length), `${tt('Length', '着丈')} ${m.length}`, [0, 0]);
-        dim(C(-m.chest / 2, m.chest * 0.42 + 2), C(m.chest / 2, m.chest * 0.42 + 2), `${tt('Chest', '身幅')} ${m.chest}`);
-        dim(C(-m.shoulder / 2, 4.5), C(m.shoulder / 2, 4.5), `${tt('Shoulder', '肩幅')} ${m.shoulder}`, [0, -14 * dpr]);
-        dim(C(m.shoulder / 2, 4.5), C(m.shoulder / 2 + m.sleeve * Math.cos(th), 4.5 + m.sleeve * Math.sin(th)), `${tt('Sleeve', '袖丈')} ${m.sleeve}`, [8 * dpr, -8 * dpr]);
+        dim(C(-ua[0], ua[1] + 1.5), C(ua[0], ua[1] + 1.5), `${tt('Chest', '身幅')} ${m.chest}`);
+        dim(C(-sp[0], sp[1]), C(sp[0], sp[1]), `${tt('Shoulder', '肩幅')} ${m.shoulder}`, [0, -14 * dpr]);
+        dim(C(sp[0], sp[1]), C(ct[0], ct[1]), `${tt('Sleeve', '袖丈')} ${m.sleeve}`, [6 * dpr, -10 * dpr]);
       } else if (kind === 'pants' || kind === 'shorts') {
+        const hp = H('hip')!, ho = H('hemO')!;
         dim(C(-m.waist / 2, 0), C(m.waist / 2, 0), `${tt('Waist', 'ウエスト')} ${m.waist}`, [0, -10 * dpr]);
-        dim(C(-m.hip / 2, m.rise * 0.62), C(m.hip / 2, m.rise * 0.62), `${tt('Hip', 'ヒップ')} ${m.hip}`);
-        dim(C(0, 0), C(0, m.rise), `${tt('Rise', '股上')} ${m.rise}`);
-        const cx = m.hip / 4 + 1.5; dim(C(cx, m.rise), C(cx, m.rise + m.inseam), `${tt('Inseam', '股下')} ${m.inseam}`);
+        dim(C(-hp[0], hp[1]), C(hp[0], hp[1]), `${tt('Hip', 'ヒップ')} ${m.hip}`);
+        dim(C(0, 0), C(0, m.rise), `${tt('Rise', '股上')} ${m.rise}`, [-10 * dpr, 0]);
+        dim(C(ho[0] + 1.5, m.rise), C(ho[0] + 1.5, m.rise + m.inseam), `${tt('Inseam', '股下')} ${m.inseam}`);
       }
+    }
+    // 指でつまんで形を変える点（左右どちらでも）
+    if (kind !== 'scan') for (const h of hs) for (const sx of h.at[0] === 0 ? [1] : [1, -1]) {
+      const [x, y] = C(h.at[0] * sx, h.at[1]), on = hot.current === h.key;
+      g.beginPath(); g.arc(x, y, (on ? 9 : 7) * dpr, 0, 7); g.fillStyle = on ? '#d23a2a' : '#fff'; g.fill(); g.lineWidth = 2 * dpr; g.strokeStyle = '#d23a2a'; g.stroke();
+      if (on && sx === 1) { const lab = `${tt(h.label[0], h.label[1])}`; g.font = `600 ${12 * dpr}px Helvetica,Arial`; const tw = g.measureText(lab).width + 14 * dpr; g.fillStyle = '#151515'; g.fillRect(x - tw / 2, y - 34 * dpr, tw, 20 * dpr); g.fillStyle = '#fff'; g.fillText(lab, x, y - 20 * dpr); }
     }
     const p = prints.find((q) => q.id === sel && q.side === side);
     if (p) { const [x, y] = C(p.x, p.y), w = p.w * PX * sc; g.save(); g.translate(x, y); g.rotate(p.rot * Math.PI / 180); g.strokeStyle = '#2a5bd2'; g.setLineDash([5 * dpr, 4 * dpr]); g.lineWidth = 1.5 * dpr; g.strokeRect(-w / 2, -w * 0.4, w, w * 0.8); g.setLineDash([]); g.fillStyle = '#2a5bd2'; g.fillRect(w / 2 - 6 * dpr, w * 0.4 - 6 * dpr, 12 * dpr, 12 * dpr); g.restore(); }
-  }, [side, showDims, kind, m, prints, sel]);
+  }, [side, showDims, kind, m, prints, sel, hotV]);
   useEffect(() => { paint2d(); }, [paint2d]);
   useEffect(() => { const h = () => paint2d(); addEventListener('resize', h); return () => removeEventListener('resize', h); }, [paint2d]);
 
   // 2Dの上でプリントをドラッグして動かす・右下の四角で大きさ
   const drag = useRef<{ id: string; mode: 'move' | 'size'; sx: number; sy: number; x: number; y: number; w: number } | null>(null);
+  const hdrag = useRef<{ h: Handle; sx: number } | null>(null);
   const toCm = (e: React.PointerEvent) => { const cv = view2d.current!; const mp = (cv as HTMLCanvasElement & { _map?: { sc: number; ox: number; oy: number; x0: number; y0: number } })._map; if (!mp) return null; const r = cv.getBoundingClientRect(), dpr = cv.width / r.width; const px = (e.clientX - r.left) * dpr, py = (e.clientY - r.top) * dpr; return { x: (px - mp.ox) / (PX * mp.sc) + mp.x0, y: (py - mp.oy) / (PX * mp.sc) + mp.y0 }; };
   const down = (e: React.PointerEvent) => {
     const c = toCm(e); if (!c) return;
+    // 形の点をつまむ（指でも押しやすいよう、少し広めに）
+    if (kind !== 'scan') {
+      const mp = (view2d.current as HTMLCanvasElement & { _map?: { sc: number } })._map, reach = mp ? 22 / (PX * mp.sc) * Math.min(devicePixelRatio, 2) : 2;
+      for (const h of shapeOf(kind as BaseKind, m, side).handles) for (const sx of [1, -1]) if (Math.hypot(c.x - h.at[0] * sx, c.y - h.at[1]) < Math.max(1.6, reach)) {
+        hdrag.current = { h, sx }; hot.current = h.key; frozen.current = { ...(view2d.current as HTMLCanvasElement & { _map: { sc: number; ox: number; oy: number; x0: number; y0: number } })._map }; setHotV((v) => v + 1); (e.target as HTMLElement).setPointerCapture(e.pointerId); return;
+      }
+    }
     const hit = prints.filter((p) => p.side === side).reverse().find((p) => Math.abs(c.x - p.x) < p.w / 2 + 2 && Math.abs(c.y - p.y) < p.w * 0.45 + 2);
     if (!hit) { setSel(null); return; }
     setSel(hit.id); setTab('print');
@@ -355,10 +349,12 @@ export default function MockupStudio() {
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
   };
   const move = (e: React.PointerEvent) => {
+    const hd = hdrag.current;
+    if (hd) { const c = toCm(e); if (!c) return; setM((x) => { const next = hd.h.apply(x, [c.x * hd.sx, c.y]); for (const k of Object.keys(next)) { const r = RANGE[k]; if (r) next[k] = Math.max(r[0], Math.min(r[1], next[k])); } return next; }); return; }
     const d = drag.current; if (!d) return; const c = toCm(e); if (!c) return;
     setPrints((ps) => ps.map((p) => (p.id !== d.id ? p : d.mode === 'move' ? { ...p, x: Math.round((d.x + c.x - d.sx) * 2) / 2, y: Math.round((d.y + c.y - d.sy) * 2) / 2 } : { ...p, w: Math.max(2, Math.round((d.w + (c.x - d.sx) * 2) * 2) / 2) })));
   };
-  const up = () => { drag.current = null; };
+  const up = () => { drag.current = null; if (hdrag.current) { hdrag.current = null; hot.current = ''; frozen.current = null; setHotV((v) => v + 1); } };
 
   // ---- プリントの追加 ----
   const addImage = async (f: File) => { const src = await readFile(f); const id = 'p' + Date.now().toString(36); const top = kind === 'pants' || kind === 'shorts'; setPrints((ps) => [...ps, { id, type: 'image', side, src, font: 'sans', color: '#ffffff', x: top ? 10 : 0, y: top ? 14 : 22, w: top ? 10 : 24, rot: 0, opacity: 1, crack: false }]); setSel(id); };
@@ -396,7 +392,7 @@ export default function MockupStudio() {
   // 型紙（パターンラボ）へ：寸法を型紙の仕様に、色・生地・プリントもいっしょに渡す
   const toPattern = () => {
     if (!TOPS.includes(kind)) return;
-    const spec = { neckW: m.neck / 2, neckF: kind === 'hoodie' ? 7 : kind === 'crew' ? 8 : 9, neckB: 2.5, shoulderX: m.shoulder / 2, drop: 4, chest: m.chest / 2, armY: Math.max(16, m.chest * 0.43), hem: m.hem / 2, length: m.length, sleeve: m.sleeve, cuff: m.sleeveOpen, sleeves: true };
+    const spec = { neckW: m.neck / 2, neckF: m.neckDrop || 9, neckB: 2.5, shoulderX: m.shoulder / 2, drop: 4, chest: m.chest / 2, armY: m.armhole || Math.max(16, m.chest * 0.43), hem: m.hem / 2, length: m.length, sleeve: m.sleeve, cuff: m.sleeveOpen, sleeves: true };
     const phys = fabric === 'corduroy' ? 'canvas' : fabric === 'image' ? 'jersey' : fabric;
     try {
       localStorage.setItem('gc-pattern-src', JSON.stringify({ spec, color, fabric: phys, tile: fabric, texSrc: fabric === 'image' ? texSrc : undefined, prints: prints.map((p) => ({ ...p, piece: p.side })) }));
@@ -414,7 +410,7 @@ export default function MockupStudio() {
             <label className="mk-chk"><input type="checkbox" checked={showDims} onChange={(e) => setShowDims(e.target.checked)} />{tt('Measurements', '寸法線')}</label>
           </div>
           <div className="mk-2dwrap"><canvas ref={view2d} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} /></div>
-          <small>{tt('Drag a print to move it · drag its blue corner to resize', 'プリントはドラッグで移動 · 青い角で大きさ')}</small>
+          <small>{tt('Drag the red points to reshape (each changes a measurement) · drag a print to move it, its blue corner to resize', '赤い点をつまんで形を直す（寸法に反映）・プリントはドラッグで移動、青い角で大きさ')}</small>
         </div>
       </div>
 
@@ -436,7 +432,7 @@ export default function MockupStudio() {
                   <input type="number" step={0.5} value={m[k]} onChange={(e) => setM((x) => ({ ...x, [k]: Math.max(1, Number(e.target.value) || 0) }))} />
                   <em>cm</em>
                   <button onClick={() => setM((x) => ({ ...x, [k]: x[k] + 0.5 }))} aria-label="+0.5">＋</button>
-                  <input type="range" min={k === 'inseam' ? 5 : 5} max={k === 'inseam' || k === 'length' ? 110 : 80} step={0.5} value={m[k]} onChange={(e) => setM((x) => ({ ...x, [k]: Number(e.target.value) }))} />
+                  <input type="range" min={RANGE[k]?.[0] ?? 5} max={RANGE[k]?.[1] ?? 110} step={0.5} value={m[k]} onChange={(e) => setM((x) => ({ ...x, [k]: Number(e.target.value) }))} />
                 </label>
               ))}
             </div>
