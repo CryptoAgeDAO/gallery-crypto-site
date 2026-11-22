@@ -405,7 +405,7 @@ export default function PatternLab() {
           </div>
           <aside className="lab-side sew-side">
             <div className="sew-tabs">
-              {([['avatar', tt('Avatar', 'アバター')], ['fabric', tt('Fabric', '生地')], ['look', tt('Colour & print', '色・プリント')], ['fit', tt('Fit', 'フィット')], ['save', tt('Save', '保存')]] as [typeof sewTab, string][]).map(([k, l]) => <button key={k} type="button" aria-pressed={sewTab === k} onClick={() => setSewTab(k)}>{l}</button>)}
+              {([['avatar', tt('Avatar', 'アバター')], ['fabric', tt('Fabric', '生地')], ['look', tt('Colour & print', '色・柄')], ['fit', tt('Fit', 'フィット')], ['save', tt('Save', '保存')]] as [typeof sewTab, string][]).map(([k, l]) => <button key={k} type="button" aria-pressed={sewTab === k} onClick={() => setSewTab(k)}>{l}</button>)}
             </div>
 
             {sewTab === 'avatar' && (<>

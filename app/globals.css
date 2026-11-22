@@ -3498,7 +3498,7 @@ html.gate .eg{display:flex}
 .lab-main.sew{grid-template-columns:minmax(0,1fr) minmax(0,360px)}
 .sew-side{max-height:calc(100vh - 20px);overflow:auto}
 .sew-tabs{display:grid;grid-template-columns:repeat(5,1fr);gap:3px;background:#f1efea;border-radius:10px;padding:3px}
-.sew-tabs button{border:0;background:transparent;border-radius:8px;padding:8px 2px;font:600 11.5px/1.2 Helvetica,Arial,sans-serif;cursor:pointer;color:#151515}
+.sew-tabs button{border:0;background:transparent;border-radius:8px;padding:8px 2px;white-space:nowrap;letter-spacing:-.01em;font:600 11.5px/1.2 Helvetica,Arial,sans-serif;cursor:pointer;color:#151515}
 .sew-tabs button[aria-pressed=true]{background:#151515;color:#fff}
 .sew-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .sew-grid label,.sew-edit label{display:grid;grid-template-columns:1fr 70px 20px;align-items:center;gap:4px;font-size:12px}
@@ -3512,7 +3512,7 @@ html.gate .eg{display:flex}
 .sew-fabs b{font-size:10.5px;line-height:1.2;text-align:center}
 .sew-fabs small{font-size:10px;color:#888}
 .sew-props{width:100%;border-collapse:collapse;font-size:12px}
-.sew-props th{text-align:left;font-weight:500;color:#555;width:70px;padding:3px 0}
+.sew-props th{text-align:left;font-weight:500;color:#555;width:5em;white-space:nowrap;padding:3px 0}
 .sew-props td:nth-child(2){width:100%;padding:0 8px}
 .sew-props td:nth-child(2) i{display:block;height:6px;border-radius:3px;background:#151515;max-width:100%}
 .sew-props td:last-child{white-space:nowrap;color:#333}
