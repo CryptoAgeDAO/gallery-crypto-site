@@ -253,11 +253,11 @@ ${d.kind === 'tee' && !dark && !d.tour && !d.print && side === 'front' ? `<rect 
 // ハンガー（レール用）：上の金具がレールに掛かり、木の腕は服の中（服の絵の後ろ）に隠れる。
 // 幅200・高さ120。レールは y≈17、服の上端は y≈51、腕の中心は y≈63。
 export const HANGER = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 120"><defs>
-<linearGradient id="hw" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c99c64"/><stop offset=".5" stop-color="#9c6b37"/><stop offset="1" stop-color="#5e3b1a"/></linearGradient>
-<linearGradient id="hm" x1="0" x2="1"><stop offset="0" stop-color="#6d6f73"/><stop offset=".45" stop-color="#f4f5f7"/><stop offset="1" stop-color="#7c7f84"/></linearGradient></defs>
-<path d="M100 66 V24 A7.5 7.5 0 1 0 85.5 21.5" fill="none" stroke="url(#hm)" stroke-width="2.6" stroke-linecap="round"/>
-<path d="M14 92 Q58 72 94 62 Q100 60.5 106 62 Q142 72 186 92 Q191 96 184 97.5 Q142 80 100 70.5 Q58 80 16 97.5 Q9 96 14 92 Z" fill="url(#hw)"/>
-<path d="M22 90 Q60 72 100 64 Q140 72 178 90" fill="none" stroke="#fff" stroke-opacity=".3" stroke-width="1"/>
-<circle cx="100" cy="65" r="2.6" fill="url(#hm)"/>
+<linearGradient id="hw" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a3a3d"/><stop offset=".35" stop-color="#141415"/><stop offset="1" stop-color="#050505"/></linearGradient>
+<linearGradient id="hm" x1="0" x2="1"><stop offset="0" stop-color="#7d8086"/><stop offset=".45" stop-color="#eef0f3"/><stop offset="1" stop-color="#8a8d92"/></linearGradient></defs>
+<path d="M100 66 V24 A7.5 7.5 0 1 0 85.5 21.5" fill="none" stroke="url(#hm)" stroke-width="2.4" stroke-linecap="round"/>
+<path d="M16 92.5 Q58 73 95 63.5 Q100 62.4 105 63.5 Q142 73 184 92.5 Q188 95.5 183 96.5 Q142 79 100 69.5 Q58 79 17 96.5 Q12 95.5 16 92.5 Z" fill="url(#hw)"/>
+<path d="M24 91 Q60 73.5 100 65.2 Q140 73.5 176 91" fill="none" stroke="#fff" stroke-opacity=".16" stroke-width=".8"/>
+<circle cx="100" cy="66" r="2.3" fill="url(#hm)"/>
 </svg>`;
 export const HANGER_URL = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(HANGER);
