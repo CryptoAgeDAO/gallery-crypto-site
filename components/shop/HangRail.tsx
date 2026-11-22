@@ -182,7 +182,7 @@ export default function HangRail({ items, focusId, onFocus, mode = 'page', rende
   const infoTop = railY + (cur ? hOf(k) * S : 0) + (phone ? 6 : 14);
 
   return (
-    <div ref={host} className={`hr ${mode} ${dark ? 'dark' : ''} ${cur ? 'focus' : ''} ${solid ? 'solid' : ''}`} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={() => { drag.current = null; s3.current.dragging = false; }} onWheel={wheel}>
+    <div ref={host} className={`hr ${mode} ${dark ? 'dark' : ''} ${cur ? 'focus' : ''} ${solid ? 'solid' : ''}`} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={() => { drag.current = null; s3.current.dragging = false; }} onWheel={wheel} onScroll={(e) => { const el = e.currentTarget; if (el.scrollLeft || el.scrollTop) { el.scrollLeft = 0; el.scrollTop = 0; } }}>
       {/* レール（クロームの丸棒と、両端の支柱） */}
       <div className="hr-rail" style={{ top: railY - 3 }}><i /><i /></div>
       {solid && <Rail3D items={items} host={host} pcEls={pcEls} sway={sw} state={s3} onReady={onReady} />}

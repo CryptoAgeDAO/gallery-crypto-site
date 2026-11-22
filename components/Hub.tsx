@@ -370,6 +370,9 @@ function SoundBtn() {
 }
 
 export default function Hub() {
+  // 風船は少し下まで読んだら出す（最初の見出しと重ならないように）
+  const [away, setAway] = useState(true);
+  useEffect(() => { const on = () => setAway(window.scrollY < window.innerHeight * 0.8); on(); addEventListener('scroll', on, { passive: true }); return () => removeEventListener('scroll', on); }, []);
   const { t, lang } = useLang();
   const { evs, put, reset } = useEvents(lang === 'ja' ? 'ja' : 'en');
   const [sel, setSel] = useState<Project | null>(null);
@@ -464,7 +467,7 @@ export default function Hub() {
         ))}
       </section>
       {/* ふわふわ浮かぶ、銀色の砂時計の風船（遊び心。押すといちばん上へ） */}
-      <button className="ap-balloon" onClick={() => { sfx('tick'); scrollTo({ top: 0, behavior: 'smooth' }); }} aria-label={t('Back to top', 'いちばん上へ')}>
+      <button className={`ap-balloon ${away ? 'away' : ''}`} onClick={() => { sfx('tick'); scrollTo({ top: 0, behavior: 'smooth' }); }} aria-label={t('Back to top', 'いちばん上へ')}>
         <svg viewBox="0 0 80 160" aria-hidden>
           <defs><linearGradient id="apb" x1="0" x2="1"><stop offset="0" stop-color="#8d939a" /><stop offset=".35" stop-color="#f6f7f8" /><stop offset=".6" stop-color="#c3c8cd" /><stop offset="1" stop-color="#6f757c" /></linearGradient></defs>
           <path d="M14 8 H66 Q68 8 66 12 L44 48 L66 84 Q68 88 66 92 H14 Q12 88 14 84 L36 48 L14 12 Q12 8 14 8 Z" fill="url(#apb)" stroke="#9aa0a6" strokeWidth="1" />
