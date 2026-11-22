@@ -3369,3 +3369,57 @@ img{image-rendering:auto}
 .gc-toast b{font-size:12px;letter-spacing:.08em;text-transform:uppercase}
 .gc-toast small{font-size:12px;color:#bbb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .gc-toast button{flex:none;border:0;border-radius:999px;background:#fff;color:#111;padding:9px 14px;font-weight:700;font-size:12px;cursor:pointer}
+
+/* ===== 入口の一枚 ===== */
+.eg{display:none}
+html.gate{overflow:hidden}
+html.gate .eg{display:flex}
+.eg{position:fixed;inset:0;z-index:2000;flex-direction:column;justify-content:center;align-items:center;gap:22px;background:#f4f1ea;color:#111;cursor:pointer;overflow:hidden;font-family:"Archivo","Helvetica Neue",Arial,sans-serif;user-select:none;-webkit-user-select:none}
+.eg-blobs{position:absolute;inset:-20%;opacity:.9}
+.eg-blobs i{position:absolute;width:56vmax;height:56vmax;border-radius:50%;mix-blend-mode:multiply;animation:egFloat 18s ease-in-out infinite alternate;-webkit-mask:radial-gradient(closest-side,#000 30%,transparent 100%);mask:radial-gradient(closest-side,#000 30%,transparent 100%)}
+.eg-blobs i:nth-child(1){left:8%;top:12%;background:#e8c33a;animation-duration:17s}
+.eg-blobs i:nth-child(2){right:6%;top:4%;background:#d23a2a;animation-duration:21s;animation-delay:-6s}
+.eg-blobs i:nth-child(3){left:24%;bottom:2%;background:#2a5bd2;animation-duration:24s;animation-delay:-3s}
+.eg-blobs i:nth-child(4){right:18%;bottom:14%;background:#c9a45c;width:30vmax;height:30vmax;animation-duration:15s}
+@keyframes egFloat{0%{transform:translate(0,0) scale(1)}50%{transform:translate(6vmax,-4vmax) scale(1.12)}100%{transform:translate(-5vmax,5vmax) scale(.92)}}
+.eg-grain{position:absolute;inset:0;opacity:.18;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/></filter><rect width='200' height='200' filter='url(%23n)' opacity='.6'/></svg>");mix-blend-mode:multiply;pointer-events:none}
+.eg-kick{position:relative;margin:0;font-size:11px;letter-spacing:.32em}
+.eg-h{position:relative;margin:0;display:flex;flex-wrap:wrap;justify-content:center;align-items:baseline;gap:0 .18em;font-weight:800;font-size:clamp(44px,9vw,148px);line-height:.9;letter-spacing:-.03em;text-align:center;padding:0 16px}
+.eg-sl{font-weight:300;opacity:.5}
+.eg-to{flex-basis:100%;font-family:"Cormorant Garamond","Times New Roman",serif;font-style:italic;font-weight:400;font-size:.52em;letter-spacing:0;margin-top:.1em}
+.eg-h span:not(.eg-sl):not(.eg-to){animation:egPulse 2.6s ease-in-out infinite}
+.eg-h span:nth-child(3){animation-delay:.5s}
+@keyframes egPulse{50%{opacity:.55}}
+.eg-label{position:absolute;left:max(20px,env(safe-area-inset-left));bottom:calc(20px + env(safe-area-inset-bottom));display:grid;gap:2px;padding:10px 12px;background:#fbfaf6;box-shadow:0 1px 0 rgba(0,0,0,.08);font-size:11px;line-height:1.45;max-width:260px}
+.eg-label b{font-weight:700;font-style:italic}
+.eg-curtain{position:absolute;inset:0;background:#0b0b0c;transform:translateY(100%);transition:transform .8s cubic-bezier(.7,0,.2,1)}
+.eg.out .eg-curtain{transform:none}
+.eg.out{animation:egOut .4s .75s forwards}
+@keyframes egOut{to{opacity:0}}
+@media (prefers-reduced-motion:reduce){.eg-blobs i,.eg-h span{animation:none}}
+
+/* ===== トップ：作品のような大きな区画 ===== */
+.ap{position:relative;z-index:2;display:grid;gap:0;margin:40px 0}
+.ap-p{position:relative;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);align-items:center;min-height:min(86vh,760px);padding:clamp(24px,5vw,72px);text-decoration:none;overflow:hidden}
+.ap-p.r{grid-template-columns:minmax(0,1fr) minmax(0,1.1fr)}
+.ap-p.r .ap-pic{order:2}
+.ap-pic{display:grid;place-items:center;height:100%}
+.ap-pic img{width:min(100%,560px);filter:drop-shadow(0 30px 40px rgba(0,0,0,.28));transition:transform 1.2s cubic-bezier(.2,.8,.2,1)}
+.ap-p:hover .ap-pic img{transform:scale(1.04) rotate(-1.5deg)}
+.ap-txt{display:grid;gap:18px;align-content:center;padding:0 clamp(0px,3vw,40px)}
+.ap-txt em{font-style:normal;font-size:12px;letter-spacing:.26em;text-transform:uppercase;opacity:.75}
+.ap-txt b{font-family:"Archivo","Helvetica Neue",Arial,sans-serif;font-weight:800;font-size:clamp(40px,6.2vw,96px);line-height:.95;letter-spacing:-.03em}
+.ap-txt i{font-style:normal;font-weight:700;font-size:13px;letter-spacing:.16em;text-transform:uppercase;justify-self:start;border-bottom:2px solid currentColor;padding-bottom:4px;transition:letter-spacing .4s}
+.ap-p:hover .ap-txt i{letter-spacing:.26em}
+.ap-label{position:absolute;right:clamp(16px,3vw,40px);bottom:clamp(16px,3vw,36px);display:grid;gap:2px;padding:9px 11px;background:#fbfaf6;color:#111;font-size:11px;line-height:1.45;box-shadow:0 1px 0 rgba(0,0,0,.1);max-width:240px}
+.ap-label b{font-style:italic;font-weight:700}
+.ap-p.r .ap-label{right:auto;left:clamp(16px,3vw,40px)}
+@media (max-width:760px){.ap-p,.ap-p.r{grid-template-columns:1fr;min-height:auto;padding:28px 20px 80px}.ap-p.r .ap-pic{order:0}.ap-pic img{width:78%}.ap-txt b{font-size:clamp(34px,10vw,52px)}}
+.ap-balloon{position:fixed;left:max(14px,env(safe-area-inset-left));bottom:calc(14px + env(safe-area-inset-bottom));z-index:800;width:46px;height:92px;border:0;background:none;padding:0;cursor:pointer;animation:apFloat 6s ease-in-out infinite;filter:drop-shadow(0 8px 10px rgba(0,0,0,.25))}
+.ap-balloon svg{width:100%;height:100%}
+@keyframes apFloat{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-14px) rotate(5deg)}}
+@media (prefers-reduced-motion:reduce){.ap-balloon{animation:none}}
+.hb .ap-balloon,.kh .ap-balloon{position:fixed!important;z-index:800!important;left:max(14px,env(safe-area-inset-left));bottom:calc(14px + env(safe-area-inset-bottom));top:auto;right:auto;display:block}
+.hb .ap{z-index:6;isolation:isolate}
+.hb .ap-balloon,.kh .ap-balloon{width:60px;height:120px}
+.ap-label{bottom:clamp(76px,8vw,96px)}

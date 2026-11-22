@@ -4,6 +4,7 @@
 import { AddToCart, QuickAdd } from './cart/Cart';
 import { lineOf } from './cart/lineOf';
 import { cutout as hubCut } from './shop/pieceArt';
+import { LINE } from '@/lib/catalog';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import { LangToggle, useLang } from './Lang';
@@ -436,6 +437,41 @@ export default function Hub() {
           );
         })}
       </nav>
+
+      {/* 作品のように見せる大きな区画：写真（絵）を大きく、大きな見出しと「もっと見る」、美術館の作品札 */}
+      <section className="ap" aria-label={t('Rooms', '部屋')}>
+        {(() => {
+          // 各区画に飾る一着（見本ラインからシリーズ違いで）
+          const f = (se: string, kd: string) => LINE.find((l) => l.series === se && l.draw?.kind === kd) || LINE[0];
+          const lab = (l: (typeof LINE)[number]) => [`${l.title.split(' —')[0]}, 2027`, `${l.facts.find((x) => x[0] === 'Material')?.[1] || ''} — ${l.facts.find((x) => x[0] === 'Finish')?.[1] || ''}`];
+          const a = f('paint', 'hoodie'), b2 = f('record', 'tee'), c = f('fade', 'pants');
+          return [
+            { href: '/shop', k: t('Shop', 'ショップ'), h: t('Five series, one hundred samples.', '5つのシリーズ、100点の見本。'), pid: a.id, bg: '#efe9dc', fg: '#111', lab: lab(a) },
+            { href: '/shop/rail', k: 'The Rail', h: t('Take one off the rail. Turn it in 3D.', 'レールから外して、3Dで回す。'), pid: b2.id, bg: '#0f0f10', fg: '#f1ece2', lab: lab(b2) },
+            { href: '/shop/room', k: t('Showroom', 'ショールーム'), h: t('A white room, every display in 3D.', '白い部屋。すべての陳列を3Dで。'), pid: c.id, bg: '#c9b48e', fg: '#2a2017', lab: lab(c) },
+            { href: '/concept', k: t('Concept', 'コンセプト'), h: t('One of one. On record.', '一点ものに、消えない記録を。'), pid: 't1', bg: '#2a2a2d', fg: '#e8e3d6', lab: [t('On Record Tour tee, 2027', 'On Record ツアーT、2027'), t('The back print is its own record', '背中のプリントはその一着の来歴')] },
+          ];
+        })()        .map((x, i) => (
+          <a key={x.href} href={x.href} className={`ap-p ${i % 2 ? 'r' : ''}`} style={{ background: x.bg, color: x.fg }} data-rv onClick={() => sfx('select')}>
+            <span className="ap-pic">{/* eslint-disable-next-line @next/next/no-img-element */}<img src={hubCut(x.pid)} alt="" loading="lazy" /></span>
+            <span className="ap-txt">
+              <em>{String(i + 1).padStart(2, '0')} — {x.k}</em>
+              <b>{x.h}</b>
+              <i>{t('Explore more', 'もっと見る')} →</i>
+            </span>
+            <span className="ap-label"><b>{x.lab[0]}</b><span>{x.lab[1]}</span><span>{t('Sample — Gallery Crypto', '見本 — Gallery Crypto')}</span></span>
+          </a>
+        ))}
+      </section>
+      {/* ふわふわ浮かぶ、銀色の砂時計の風船（遊び心。押すといちばん上へ） */}
+      <button className="ap-balloon" onClick={() => { sfx('tick'); scrollTo({ top: 0, behavior: 'smooth' }); }} aria-label={t('Back to top', 'いちばん上へ')}>
+        <svg viewBox="0 0 80 160" aria-hidden>
+          <defs><linearGradient id="apb" x1="0" x2="1"><stop offset="0" stop-color="#8d939a" /><stop offset=".35" stop-color="#f6f7f8" /><stop offset=".6" stop-color="#c3c8cd" /><stop offset="1" stop-color="#6f757c" /></linearGradient></defs>
+          <path d="M14 8 H66 Q68 8 66 12 L44 48 L66 84 Q68 88 66 92 H14 Q12 88 14 84 L36 48 L14 12 Q12 8 14 8 Z" fill="url(#apb)" stroke="#9aa0a6" strokeWidth="1" />
+          <path d="M22 14 L38 42" stroke="#fff" strokeWidth="3" strokeLinecap="round" opacity=".7" />
+          <path d="M40 92 v4 q-6 16 2 30 q8 14 -2 30" fill="none" stroke="#777" strokeWidth="1.2" />
+        </svg>
+      </button>
 
       {(['rwa', 'vintage', 'art'] as Pillar[]).map((k) => {
         const p = PILLARS.find((x) => x.k === k)!;
