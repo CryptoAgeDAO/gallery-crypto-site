@@ -253,11 +253,11 @@ ${d.kind === 'tee' && !dark && !d.tour && !d.print && side === 'front' ? `<rect 
 // ハンガー（レール用）：上の金具がレールに掛かり、木の腕は服の中（服の絵の後ろ）に隠れる。
 // 幅200・高さ120。レールは y≈17、服の上端は y≈51、腕の中心は y≈63。
 export const HANGER = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 120"><defs>
-<linearGradient id="hw" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a3a3d"/><stop offset=".35" stop-color="#141415"/><stop offset="1" stop-color="#050505"/></linearGradient>
-<linearGradient id="hm" x1="0" x2="1"><stop offset="0" stop-color="#7d8086"/><stop offset=".45" stop-color="#eef0f3"/><stop offset="1" stop-color="#8a8d92"/></linearGradient></defs>
-<path d="M100 66 V24 A7.5 7.5 0 1 0 85.5 21.5" fill="none" stroke="url(#hm)" stroke-width="2.4" stroke-linecap="round"/>
-<path d="M16 92.5 Q58 73 95 63.5 Q100 62.4 105 63.5 Q142 73 184 92.5 Q188 95.5 183 96.5 Q142 79 100 69.5 Q58 79 17 96.5 Q12 95.5 16 92.5 Z" fill="url(#hw)"/>
-<path d="M24 91 Q60 73.5 100 65.2 Q140 73.5 176 91" fill="none" stroke="#fff" stroke-opacity=".16" stroke-width=".8"/>
-<circle cx="100" cy="66" r="2.3" fill="url(#hm)"/>
+<linearGradient id="hw" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b2b2d"/><stop offset=".3" stop-color="#161617"/><stop offset="1" stop-color="#0a0a0a"/></linearGradient>
+<linearGradient id="hm" x1="0" x2="1"><stop offset="0" stop-color="#6f7278"/><stop offset=".45" stop-color="#dfe2e6"/><stop offset="1" stop-color="#7b7e84"/></linearGradient></defs>
+<path d="M100 62 V24 A7.5 7.5 0 1 0 85.5 21.5" fill="none" stroke="url(#hm)" stroke-width="3.6" stroke-linecap="round"/>
+<path d="M8 92 Q6 82 18 79 Q58 68 93 59 Q100 57 107 59 Q142 68 182 79 Q194 82 192 92 Q191 100 180 99 Q140 82 100 74 Q60 82 20 99 Q9 100 8 92 Z" fill="url(#hw)"/>
+<path d="M20 83 Q60 70 100 61.5 Q140 70 180 83" fill="none" stroke="#fff" stroke-opacity=".08" stroke-width="1.2"/>
+<rect x="95" y="58" width="10" height="7" rx="1.5" fill="url(#hm)"/>
 </svg>`;
 export const HANGER_URL = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(HANGER);

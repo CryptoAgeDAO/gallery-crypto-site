@@ -78,7 +78,7 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
     const chrome = new THREE.MeshStandardMaterial({ color: 0xe8eaec, metalness: 1, roughness: 0.14 });
     const oak = new THREE.MeshStandardMaterial({ color: 0xc9a77c, roughness: 0.6 });
     // ハンガー：黒一色のシンプルなもの（つや消しの黒＋いぶし銀の金具）
-    const hBlack = new THREE.MeshStandardMaterial({ color: 0x0e0e0f, roughness: 0.42, metalness: 0.15 });
+    const hBlack = new THREE.MeshStandardMaterial({ color: 0x111112, roughness: 0.78, metalness: 0 }); // つや消しの黒
     const hSilver = new THREE.MeshStandardMaterial({ color: 0xb9bcc2, roughness: 0.22, metalness: 1 });
     const glass = new THREE.MeshPhysicalMaterial({ color: 0xffffff, transparent: true, opacity: 0.16, roughness: 0.03, metalness: 0, side: THREE.DoubleSide, depthWrite: false });
     const shadowT = canvasTex(128, 128, (g, w, h) => { const gr = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2); gr.addColorStop(0, 'rgba(0,0,0,.5)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); });
@@ -127,17 +127,21 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
       const hook: THREE.Vector3[] = [V(0, -drop - 0.02, 0)];
       hook.push(V(0, -0.025, 0.004), V(0, 0.004, 0.022));
       for (let t = 0; t <= 1.0001; t += 0.125) { const a = t * Math.PI * 1.15; hook.push(V(0, 0.02 + Math.sin(a) * 0.024, Math.cos(a) * 0.024)); }
-      hg.add(tube(hook, 0.003, hSilver, 40));
+      hg.add(tube(hook, 0.0045, hSilver, 40));
       if (clip) {
         const y = -drop + 0.012;
-        hg.add(tube([V(-w / 2, y, 0), V(w / 2, y, 0)], 0.007, hBlack, 4));
-        for (const sx of [-1, 1]) { const c = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.045, 0.026), hBlack); c.position.set(sx * (w / 2 - 0.035), y - 0.03, 0); hg.add(c); }
+        hg.add(tube([V(-w / 2, y, 0), V(w / 2, y, 0)], 0.012, hBlack, 4));
+        for (const sx of [-1, 1]) { const c = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.055, 0.034), hBlack); c.position.set(sx * (w / 2 - 0.035), y - 0.03, 0); hg.add(c); }
       } else {
         // 木のハンガー：中央からなで肩に下がる腕（服の中に隠れる）
-        const y = -drop - 0.05; w *= 0.82; // 腕は服の肩の内側（厚みのあるところ）に隠す
+        const y = -drop - 0.05; w *= 0.88; // 腕は服の肩の内側（厚みのあるところ）に隠す
         const arm = [V(-w / 2, y - 0.07, 0), V(-w * 0.3, y - 0.045, 0), V(-w * 0.12, y - 0.012, 0), V(0, y, 0), V(w * 0.12, y - 0.012, 0), V(w * 0.3, y - 0.045, 0), V(w / 2, y - 0.07, 0)];
-        const m = tube(arm, 0.009, hBlack, 32); m.scale.z = 1.3; m.position.z = -0.016; hg.add(m); // 服（平らな絵でも立体でも）の後ろ側に
-        const nut = new THREE.Mesh(new THREE.CylinderGeometry(0.0065, 0.0065, 0.026, 12), hSilver); nut.rotation.x = Math.PI / 2; nut.position.set(0, y, -0.016); hg.add(nut);
+        const m = tube(arm, 0.017, hBlack, 40); m.scale.z = 2.2; m.position.z = -0.052; hg.add(m); // 太く、肩幅のある木のハンガー。服の後ろ側に
+        for (const sx of [-1, 1]) { const cap = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), hBlack); cap.scale.set(0.03, 0.022, 0.04); cap.position.set(sx * w / 2, y - 0.07, -0.052); hg.add(cap); } // 肩先のふくらみ
+        // 首元にのぞく、太い中央のかたまり（ここだけ服の上に見える）
+        const neck = new THREE.Mesh(new THREE.CapsuleGeometry(0.019, 0.03, 6, 16), hBlack); neck.rotation.z = Math.PI / 2; neck.scale.set(1, 1, 1.25); neck.position.set(0, -drop + 0.004, -0.012); hg.add(neck);
+        hg.add(tube([V(0, -drop + 0.004, -0.012), V(0, y, -0.04)], 0.012, hBlack, 4));
+        const nut = new THREE.Mesh(new THREE.CylinderGeometry(0.0075, 0.0075, 0.012, 14), hSilver); nut.position.set(0, -drop + 0.026, -0.008); hg.add(nut);
       }
       return hg;
     };
