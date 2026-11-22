@@ -7,7 +7,53 @@ export type Body = {
   Y0: number; a: number; b: number; // 肩の高さ、胸の楕円の半径
   armDir: number; // 腕の角度（縦から、ラジアン）
   arms: { p0: [number, number, number]; p1: [number, number, number]; r: number }[];
+  H?: number; // 身長（足もとが y=0）
+  sx?: number; // 肩の丸みの横幅（半分）
+  tmax?: number; // 肩から胴の下端まで
+  prof?: [number, number, number][]; // 胴の断面：[肩からの距離, 横の半径, 前後の半径]
 };
+
+// ---- アバター（体の寸法 cm：胸囲・ウエスト・ヒップは一周の長さ）----
+export type Avatar = { height: number; chest: number; waist: number; hip: number; shoulder: number; arm: number };
+export const AVATARS: { key: string; en: string; ja: string; a: Avatar }[] = [
+  { key: 'S', en: 'Men S', ja: 'メンズ S', a: { height: 165, chest: 86, waist: 72, hip: 89, shoulder: 42, arm: 55 } },
+  { key: 'M', en: 'Men M', ja: 'メンズ M', a: { height: 172, chest: 92, waist: 78, hip: 94, shoulder: 44, arm: 58 } },
+  { key: 'L', en: 'Men L', ja: 'メンズ L', a: { height: 178, chest: 98, waist: 84, hip: 98, shoulder: 46, arm: 60 } },
+  { key: 'XL', en: 'Men XL', ja: 'メンズ XL', a: { height: 183, chest: 106, waist: 92, hip: 104, shoulder: 48, arm: 62 } },
+  { key: 'W', en: 'Women M', ja: 'レディース M', a: { height: 160, chest: 83, waist: 64, hip: 90, shoulder: 38, arm: 53 } },
+];
+// 楕円の周（b = 0.7a）→ 横の半径
+const radOf = (C: number) => C / (2 * Math.PI * 0.863);
+export const ellipseC = (a: number, b: number) => Math.PI * (3 * (a + b) - Math.sqrt((3 * a + b) * (a + 3 * b)));
+export function makeAvatar(v: Avatar): Body {
+  const sc = v.height / 172, Y0 = v.height * 0.82;
+  const ac = radOf(v.chest), aw = radOf(v.waist), ah = radOf(v.hip);
+  const prof: [number, number, number][] = [
+    [7, ac * 0.93, ac * 0.6], [16 * sc, ac * 0.99, ac * 0.68], [25 * sc, ac, ac * 0.7], [36 * sc, (ac + aw) / 2, ((ac + aw) / 2) * 0.7],
+    [45 * sc, aw, aw * 0.72], [56 * sc, (aw + ah) / 2, ((aw + ah) / 2) * 0.72], [68 * sc, ah, ah * 0.74], [86 * sc, ah * 0.97, ah * 0.72],
+  ];
+  const sx = Math.max(ac * 1.02, v.shoulder / 2 - 1.2), ang = 0.62, len = v.arm * 0.95;
+  const arms = [1, -1].map((s) => {
+    const jx = s * Math.max(ac * 1.08, v.shoulder / 2 - 3.5);
+    const p0: [number, number, number] = [jx, Y0 - 5, 0];
+    const p1: [number, number, number] = [jx + s * Math.sin(ang) * len, Y0 - 5 - Math.cos(ang) * len, 0];
+    return { p0, p1, r: 4.6 * Math.sqrt(sc * v.chest / 92) };
+  });
+  return { Y0, a: ac, b: ac * 0.7, armDir: ang, arms, H: v.height, sx, tmax: 86 * sc, prof };
+}
+
+// ---- 生地の物性（CLO などの「生地プロパティ」を簡単にしたもの）----
+export type FabricPhys = { key: string; en: string; ja: string; gsm: number; stretch: number; compress: number; bend: number; thick: number; friction: number; limit: number }; // limit：伸びの上限（0.05＝5%）
+export const FABRIC_PHYS: FabricPhys[] = [
+  { key: 'jersey', en: 'Cotton jersey', ja: '綿ジャージー', gsm: 180, stretch: 0.93, compress: 0.22, bend: 0.12, thick: 0.08, friction: 0.35, limit: 0.06 },
+  { key: 'rib', en: 'Rib knit', ja: 'リブ', gsm: 230, stretch: 0.84, compress: 0.25, bend: 0.1, thick: 0.1, friction: 0.4, limit: 0.12 },
+  { key: 'fleece', en: 'Fleece', ja: 'フリース', gsm: 330, stretch: 0.95, compress: 0.3, bend: 0.34, thick: 0.25, friction: 0.45, limit: 0.05 },
+  { key: 'denim', en: 'Denim 12oz', ja: 'デニム 12oz', gsm: 400, stretch: 1, compress: 0.45, bend: 0.62, thick: 0.12, friction: 0.4, limit: 0.015 },
+  { key: 'canvas', en: 'Canvas / twill', ja: 'キャンバス・ツイル', gsm: 300, stretch: 1, compress: 0.4, bend: 0.5, thick: 0.1, friction: 0.35, limit: 0.02 },
+  { key: 'nylon', en: 'Nylon', ja: 'ナイロン', gsm: 80, stretch: 1, compress: 0.15, bend: 0.06, thick: 0.04, friction: 0.15, limit: 0.02 },
+  { key: 'silk', en: 'Silk', ja: 'シルク', gsm: 60, stretch: 0.97, compress: 0.1, bend: 0.02, thick: 0.03, friction: 0.12, limit: 0.03 },
+];
+export const fabricOf = (k: string) => FABRIC_PHYS.find((f) => f.key === k) || FABRIC_PHYS[0];
 
 export type MeshPiece = {
   id: string; role: Role;
@@ -24,6 +70,8 @@ export type Sim = {
   pieces: MeshPiece[];
   body: Body;
   step: number;
+  fab: FabricPhys;
+  contact: Float32Array; // ボディに当たっている強さ（フィットマップ用）
 };
 
 const dist = (a: Pt, b: Pt) => Math.hypot(a[0] - b[0], a[1] - b[1]);
@@ -125,13 +173,21 @@ export function makeBody(chestHalf: number, shoulderX: number): Body {
 // 胴の断面（高さ y の楕円の半径）
 export function torso(B: Body, y: number): [number, number] | null {
   const t = B.Y0 - y;
+  if (B.prof) {
+    const P = B.prof;
+    if (t < P[0][0] || t > P[P.length - 1][0]) return null;
+    let k = 1; while (k < P.length - 1 && P[k][0] < t) k++;
+    const [t0, a0, b0] = P[k - 1], [t1, a1, b1] = P[k], u = Math.max(0, Math.min(1, (t - t0) / (t1 - t0 || 1))), e = u * u * (3 - 2 * u);
+    return [a0 + (a1 - a0) * e, b0 + (b1 - b0) * e];
+  }
   if (t < 7 || t > 86) return null;
   const k = t < 25 ? 0.96 + (t - 7) * 0.0022 : t < 45 ? 1 - ((t - 25) / 20) * 0.12 : 0.88 + Math.min(1, (t - 45) / 25) * 0.14;
   return [B.a * k, B.b * k * (t < 25 ? 0.96 : 1)];
 }
 
-function collide(B: Body, p: Float32Array, i: number, m = 0.6) {
-  let x = p[i], y = p[i + 1], z = p[i + 2];
+function collide(B: Body, p: Float32Array, i: number, m = 0.6): number {
+  const x0 = p[i], y0 = p[i + 1], z0 = p[i + 2];
+  let x = x0, y = y0, z = z0;
   // 胴
   const e = torso(B, y);
   if (e) {
@@ -140,7 +196,7 @@ function collide(B: Body, p: Float32Array, i: number, m = 0.6) {
   }
   // 肩（楕円体）
   {
-    const cx = 0, cy = B.Y0 - 7, rx = B.a * 1.16 + m, ry = 8 + m, rz = B.b * 0.98 + m;
+    const cx = 0, cy = B.Y0 - 7, rx = (B.sx ?? B.a * 1.16) + m, ry = 8 + m, rz = B.b * 0.98 + m;
     const dx = (x - cx) / rx, dy = (y - cy) / ry, dz = z / rz, q = Math.hypot(dx, dy, dz);
     if (q < 1 && y > cy - 2) { const s = 1 / Math.max(q, 1e-4); x = cx + dx * s * rx; y = cy + dy * s * ry; z = dz * s * rz; }
   }
@@ -158,9 +214,8 @@ function collide(B: Body, p: Float32Array, i: number, m = 0.6) {
     const dx = x - cx, dy = y - cy, dz = z - cz, d = Math.hypot(dx, dy, dz), r = a.r + m;
     if (d < r && d > 1e-4) { const s = r / d; x = cx + dx * s; y = cy + dy * s; z = cz + dz * s; }
   }
-  const moved = x !== p[i] || y !== p[i + 1] || z !== p[i + 2];
   p[i] = x; p[i + 1] = y; p[i + 2] = z;
-  return moved;
+  return Math.hypot(x - x0, y - y0, z - z0);
 }
 
 // 型紙上の点 (x, y) を、縫う前の 3D の位置に置く
@@ -197,7 +252,7 @@ function placer(pc: PieceDef, pts: Pt[], B: Body, idx: number) {
   return ([x, y]: Pt): [number, number, number] => [x + (idx % 3 - 1) * 30, B.Y0 - y + 10, Rz + 12 + Math.floor(idx / 3) * 6];
 }
 
-export function buildSim(doc: PatternDoc, B: Body, h: number): Sim {
+export function buildSim(doc: PatternDoc, B: Body, h: number, fab: FabricPhys = FABRIC_PHYS[0]): Sim {
   const ms = meshPattern(doc, h);
   const N = ms.reduce((s, m) => s + m.pts.length, 0);
   const pos = new Float32Array(N * 3), prev = new Float32Array(N * 3), inv = new Float32Array(N).fill(1);
@@ -215,10 +270,10 @@ export function buildSim(doc: PatternDoc, B: Body, h: number): Sim {
     for (let t = 0; t < T.length; t += 3) for (let k = 0; k < 3; k++) {
       const a = T[t + k], b = T[t + (k + 1) % 3], c = T[t + (k + 2) % 3];
       const kk = a < b ? `${a},${b}` : `${b},${a}`;
-      if (!seen.has(kk)) { seen.set(kk, 1); cons.push(off + a, off + b, dist(m.pts[a], m.pts[b]), 1); }
+      if (!seen.has(kk)) { seen.set(kk, 1); cons.push(off + a, off + b, dist(m.pts[a], m.pts[b]), 1); } // 4番目：1＝伸び、0＝曲げ
       (opp.get(kk) || opp.set(kk, []).get(kk)!).push(c);
     }
-    for (const o of Array.from(opp.values())) if (o.length === 2) cons.push(off + o[0], off + o[1], dist(m.pts[o[0]], m.pts[o[1]]), 0.3);
+    for (const o of Array.from(opp.values())) if (o.length === 2) cons.push(off + o[0], off + o[1], dist(m.pts[o[0]], m.pts[o[1]]), 0);
     const edgeIdx: Record<string, number[]> = {};
     for (const k in m.edgeIdx) edgeIdx[k] = m.edgeIdx[k].map((i) => off + i);
     pieces.push({ id: m.pc.id, role: m.pc.role, off, n: m.pts.length, uv2d, tris: new Uint32Array(T), edgeIdx });
@@ -235,19 +290,21 @@ export function buildSim(doc: PatternDoc, B: Body, h: number): Sim {
       seams.push(A[i], b[i], d0);
     }
   }
-  for (let i = 0; i < N; i++) collide(B, pos, i * 3, 1.2);
+  for (let i = 0; i < N; i++) collide(B, pos, i * 3, 1.2 + fab.thick);
   prev.set(pos);
-  return { pos, prev, inv, cons: new Float32Array(cons), seams: new Float32Array(seams), pieces, body: B, step: 0 };
+  return { pos, prev, inv, cons: new Float32Array(cons), seams: new Float32Array(seams), pieces, body: B, step: 0, fab, contact: new Float32Array(N) };
 }
 
 export const TOTAL = 540;
 export function stepSim(S: Sim, steps: number, iters = 18) {
-  const { pos, prev, cons, seams, body } = S;
+  const { pos, prev, cons, seams, body, fab, contact } = S;
   const N = pos.length / 3;
+  // 生地：重いほど下に引かれ、軽いほど空気でふわりと止まる。厚いほどボディから離れる
+  const gK = 0.8 + fab.gsm / 1000, margin = 0.5 + fab.thick, sK = fab.stretch, cK = fab.compress, bK = Math.max(0.01, fab.bend);
   for (let st = 0; st < steps; st++) {
     S.step++;
-    const g = 981 * (1 / 60) ** 2 * (0.22 * Math.max(0, Math.min(1, (S.step - 60) / 120)) + 0.3 * Math.max(0, Math.min(1, (S.step - 240) / 120)));
-    const damp = S.step < 200 ? 0.9 : 0.97;
+    const g = gK * 981 * (1 / 60) ** 2 * (0.22 * Math.max(0, Math.min(1, (S.step - 60) / 120)) + 0.3 * Math.max(0, Math.min(1, (S.step - 240) / 120)));
+    const damp = S.step < 200 ? 0.9 : fab.gsm < 100 ? 0.95 : 0.97;
     for (let i = 0; i < N * 3; i += 3) {
       const vx = (pos[i] - prev[i]) * damp, vy = (pos[i + 1] - prev[i + 1]) * damp, vz = (pos[i + 2] - prev[i + 2]) * damp;
       prev[i] = pos[i]; prev[i + 1] = pos[i + 1]; prev[i + 2] = pos[i + 2];
@@ -257,11 +314,23 @@ export function stepSim(S: Sim, steps: number, iters = 18) {
     for (let it = 0; it < iters; it++) {
       for (let c = 0; c < cons.length; c += 4) {
         const a = cons[c] * 3, b = cons[c + 1] * 3, rest = cons[c + 2];
-        let k = cons[c + 3];
+        const stretchC = cons[c + 3] === 1;
         const dx = pos[b] - pos[a], dy = pos[b + 1] - pos[a + 1], dz = pos[b + 2] - pos[a + 2];
         const d = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1e-6;
-        if (d < rest) k *= 0.25; // 布は縮みには弱く、伸びには強い
+        let k = stretchC ? sK : bK;
+        if (d < rest) k *= stretchC ? cK : 1; // 布は縮みには弱く、伸びには強い（強さは生地による）
         const f = ((d - rest) / d) * 0.5 * k;
+        pos[a] += dx * f; pos[a + 1] += dy * f; pos[a + 2] += dz * f;
+        pos[b] -= dx * f; pos[b + 1] -= dy * f; pos[b + 2] -= dz * f;
+      }
+      // 伸びの上限（ストレインリミット）：生地が伸びきったら、それ以上は伸びない
+      if (it >= iters - 4) for (let c = 0; c < cons.length; c += 4) {
+        if (cons[c + 3] !== 1) continue;
+        const a = cons[c] * 3, b = cons[c + 1] * 3, mx = cons[c + 2] * (1 + fab.limit);
+        const dx = pos[b] - pos[a], dy = pos[b + 1] - pos[a + 1], dz = pos[b + 2] - pos[a + 2];
+        const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        if (d <= mx) continue;
+        const f = ((d - mx) / d) * 0.5;
         pos[a] += dx * f; pos[a + 1] += dy * f; pos[a + 2] += dz * f;
         pos[b] -= dx * f; pos[b + 1] -= dy * f; pos[b + 2] -= dz * f;
       }
@@ -275,10 +344,12 @@ export function stepSim(S: Sim, steps: number, iters = 18) {
         pos[b] -= dx * f; pos[b + 1] -= dy * f; pos[b + 2] -= dz * f;
       }
       if (it % 2 === 1 || it === iters - 1) for (let i = 0; i < N; i++) {
-        if (collide(body, pos, i * 3)) { // 接触面の摩擦
-          const j = i * 3;
-          prev[j] += (pos[j] - prev[j]) * 0.3; prev[j + 1] += (pos[j + 1] - prev[j + 1]) * 0.3; prev[j + 2] += (pos[j + 2] - prev[j + 2]) * 0.3;
-        }
+        const mv = collide(body, pos, i * 3, margin);
+        if (mv > 0) { // 接触面の摩擦
+          const j = i * 3, fr = fab.friction;
+          prev[j] += (pos[j] - prev[j]) * fr; prev[j + 1] += (pos[j + 1] - prev[j + 1]) * fr; prev[j + 2] += (pos[j + 2] - prev[j + 2]) * fr;
+          if (it === iters - 1) contact[i] = contact[i] * 0.9 + Math.min(1, mv * 4 + 0.15) * 0.1;
+        } else if (it === iters - 1) contact[i] *= 0.9;
       }
     }
   }
@@ -292,4 +363,63 @@ export function seamGap(S: Sim) {
     m = Math.max(m, Math.hypot(S.pos[a] - S.pos[b], S.pos[a + 1] - S.pos[b + 1], S.pos[a + 2] - S.pos[b + 2]));
   }
   return m;
+}
+
+// ---- 解析（CLO の「ひずみマップ」「フィットマップ」にあたるもの）----
+// 頂点ごとの伸び（%）：まわりの布が型紙の長さよりどれだけ伸びているか
+export function strainMap(S: Sim): Float32Array {
+  const N = S.pos.length / 3, sum = new Float32Array(N), cnt = new Float32Array(N), p = S.pos, c = S.cons;
+  for (let k = 0; k < c.length; k += 4) {
+    if (c[k + 3] !== 1) continue;
+    const a = c[k], b = c[k + 1], r = c[k + 2];
+    const d = Math.hypot(p[b * 3] - p[a * 3], p[b * 3 + 1] - p[a * 3 + 1], p[b * 3 + 2] - p[a * 3 + 2]);
+    const e = (d / (r || 1e-6) - 1) * 100;
+    sum[a] += e; sum[b] += e; cnt[a]++; cnt[b]++;
+  }
+  for (let i = 0; i < N; i++) sum[i] = cnt[i] ? sum[i] / cnt[i] : 0;
+  return sum;
+}
+// 色：伸び（%）→ 青（ゆるい）・緑（そのまま）・黄・赤（伸びている）
+export function strainColor(e: number): [number, number, number] {
+  const t = Math.max(-1, Math.min(1, e / 10));
+  if (t < 0) return [0.2 + 0.3 * (1 + t), 0.55 + 0.2 * (1 + t), 0.95];
+  if (t < 0.5) { const u = t / 0.5; return [0.5 + 0.5 * u, 0.75 + 0.15 * u, 0.95 - 0.75 * u]; }
+  const u = (t - 0.5) / 0.5; return [1, 0.9 - 0.75 * u, 0.2 - 0.1 * u];
+}
+export function fitColor(v: number): [number, number, number] {
+  const t = Math.max(0, Math.min(1, v));
+  return t < 0.15 ? [0.93, 0.93, 0.9] : t < 0.5 ? [1, 0.85 - (t - 0.15) * 0.6, 0.3] : [0.92, 0.3 - (t - 0.5) * 0.4, 0.2];
+}
+
+// ゆとり：体のある高さで、服の周りの長さ − 体の周りの長さ
+function hullLen(pts: [number, number][]) {
+  if (pts.length < 3) return 0;
+  const P = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cr = (o: number[], a: number[], b: number[]) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lo: [number, number][] = [], up: [number, number][] = [];
+  for (const p of P) { while (lo.length >= 2 && cr(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
+  for (let i = P.length - 1; i >= 0; i--) { const p = P[i]; while (up.length >= 2 && cr(up[up.length - 2], up[up.length - 1], p) <= 0) up.pop(); up.push(p); }
+  const H = lo.slice(0, -1).concat(up.slice(0, -1));
+  let L = 0; for (let i = 0; i < H.length; i++) { const a = H[i], b = H[(i + 1) % H.length]; L += Math.hypot(a[0] - b[0], a[1] - b[1]); }
+  return L;
+}
+export type Fit = { label: [string, string]; body: number; garment: number; ease: number }[];
+export function measureFit(S: Sim): { fit: Fit; lengthCm: number; heightM: number } {
+  const B = S.body, sc = (B.H || 172) / 172, out: Fit = [];
+  const torsoIdx: number[] = [];
+  for (const pc of S.pieces) if (pc.role === 'front' || pc.role === 'back') for (let i = 0; i < pc.n; i++) torsoIdx.push(pc.off + i);
+  let yMin = Infinity, yMax = -Infinity;
+  for (const i of torsoIdx) { const y = S.pos[i * 3 + 1]; if (y < yMin) yMin = y; if (y > yMax) yMax = y; }
+  let gMin = Infinity, gMax = -Infinity;
+  for (let i = 0; i < S.pos.length; i += 3) { const y = S.pos[i + 1]; if (y < gMin) gMin = y; if (y > gMax) gMax = y; }
+  for (const [t, en, ja] of [[25 * sc, 'Chest', '胸囲'], [45 * sc, 'Waist', 'ウエスト'], [68 * sc, 'Hip', 'ヒップ']] as [number, string, string][]) {
+    const y = B.Y0 - t; if (y < yMin + 1) continue;
+    const e = torso(B, y); if (!e) continue;
+    const ring: [number, number][] = [];
+    for (const i of torsoIdx) if (Math.abs(S.pos[i * 3 + 1] - y) < 1.6) ring.push([S.pos[i * 3], S.pos[i * 3 + 2]]);
+    if (ring.length < 8) continue;
+    const g = hullLen(ring), b = ellipseC(e[0], e[1]);
+    out.push({ label: [en, ja], body: Math.round(b), garment: Math.round(g), ease: Math.round(g - b) });
+  }
+  return { fit: out, lengthCm: Math.round((yMax - yMin) * 10) / 10, heightM: Math.round(gMax - gMin) / 100 };
 }

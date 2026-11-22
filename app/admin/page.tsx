@@ -296,6 +296,21 @@ function Items() {
   const [items, setItems] = useState<Item[]>([]);
   const [edit, setEdit] = useState<Partial<Item> | null | undefined>(undefined);
   const [st, setSt] = useState('');
+  // スタジオ（スキャン・モックアップ・型紙の3D縫製）でつくって「店に並べた」見本を、本番の商品の下書きにする
+  const [studio, setStudio] = useState<{ id: string; title: string; img: string; back?: string; facts?: [string, string][] }[] | null>(null);
+  const openStudio = () => { try { setStudio((JSON.parse(localStorage.getItem('gc-shop-local') || '[]') as { id: string; title: string; img: string; back?: string; facts?: [string, string][] }[]).filter((x) => /^(scan|mock|pat)-/.test(String(x.id)) && x.img)); } catch { setStudio([]); } };
+  const fromStudio = async (x: { title: string; img: string; back?: string; facts?: [string, string][] }) => {
+    setSt(tt('Uploading…', 'アップロード中…'));
+    try {
+      // 透明な背景は白に（写真はJPEGで保存されるため）
+      const toFile = async (d: string, n: string) => { const im = new Image(); im.src = d; await im.decode(); const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight; const g = c.getContext('2d')!; g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(im, 0, 0); const b = await new Promise<Blob>((r) => c.toBlob((x) => r(x!), 'image/png')); return new File([b], n, { type: 'image/png' }); };
+      const [f] = await upload([await toFile(x.img, 'front.png')]);
+      const photos = [f];
+      if (x.back) { const [b] = await upload([await toFile(x.back, 'back.png')]); photos.push(b + '#back'); }
+      const size = x.facts?.find((q) => q[0] === 'Size')?.[1] || '';
+      setEdit({ ...BLANK, photos, title: x.title, size, published: false }); setStudio(null); setSt(tt('Draft made from the studio piece — check and save.', 'スタジオの見本から下書きをつくりました。確認して保存してください。'));
+    } catch (err) { setSt(tt('Error: ', 'エラー：') + (err as Error).message); }
+  };
   const load = useCallback(async () => {
     const { data, error } = await db.from('items').select('*').order('serial', { ascending: false });
     if (error) setSt(tt('Could not load: ', '読み込めませんでした：') + error.message);
@@ -339,6 +354,7 @@ function Items() {
             }} />
           </label>
           <button className="btn" onClick={() => setEdit(null)}>{tt('Add without photo', '写真なしで追加')}</button>
+          <button className="btn" onClick={openStudio}>{tt('From the studio', 'スタジオから')}</button>
           <button className="btn" onClick={() => csvDownload('items.csv', [
             ['No.', 'band', 'title', 'year', 'era', 'size', 'tag', 'stitch', 'made_in', 'cond', 'dealer', 'rank', 'price_usd', 'sold', 'published', 'provenance'],
             ...items.map((it) => [certNo(it), it.band, it.title, it.year, it.era, it.size, it.tag, it.stitch ? 'yes' : '', it.made_in, it.cond, it.dealer, it.rank || '', it.price_usd, it.sold ? 'yes' : '', it.published ? 'yes' : 'no', it.prov]),
@@ -347,6 +363,14 @@ function Items() {
         {st && <p className="status">{st}</p>}
       </div>
 
+      {studio && (
+        <div className="studio-pick">
+          <b>{tt('Pieces saved from the studio on this device', 'この端末でスタジオから「店に並べた」見本')}</b>
+          {!studio.length && <p>{tt('Nothing yet. In the Studio, use “Display in the store” after a scan, a mockup or a 3D sew.', 'まだありません。スタジオで、スキャン・モックアップ・3D縫製のあと「店に並べる」を押してください。')}</p>}
+          <div className="studio-pick-row">{studio.map((x) => <button key={x.id} className="studio-pick-it" onClick={() => fromStudio(x)}>{/* eslint-disable-next-line @next/next/no-img-element */}<img src={x.img} alt="" /><span>{x.title}</span></button>)}</div>
+          <button className="btn" onClick={() => setStudio(null)}>{tt('Close', '閉じる')}</button>
+        </div>
+      )}
       {edit !== undefined && <ItemForm key={edit?.id || 'new' + (edit?.photos?.[0] || '')} init={edit} onDone={(m) => { setEdit(undefined); if (m) setSt(m); load(); }} />}
 
       <p className="note">{items.length} pieces · {items.filter((i) => i.published).length} published · {items.filter((i) => !i.published).length} drafts</p>

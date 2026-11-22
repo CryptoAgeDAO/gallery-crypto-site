@@ -19,7 +19,7 @@ export default function Studio() {
   useLang();
   const [mode, setMode] = useState<Mode>('scan');
   // #mock で開くとモックアップ（スマートスキャンの「モックアップで編集」から）
-  useEffect(() => { const h = () => { if (location.hash === '#mock') setMode('mock'); }; h(); addEventListener('hashchange', h); return () => removeEventListener('hashchange', h); }, []);
+  useEffect(() => { const h = () => { if (location.hash === '#mock') setMode('mock'); else if (location.hash === '#pattern') setMode('pattern'); else if (location.hash === '#scan') setMode('scan'); }; h(); addEventListener('hashchange', h); return () => removeEventListener('hashchange', h); }, []);
   return (
     <main className="adm studio">
       <header className="studio-hd">

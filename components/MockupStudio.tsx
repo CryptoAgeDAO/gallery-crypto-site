@@ -393,6 +393,16 @@ export default function MockupStudio() {
   const download = () => { const b = lastBuilt.current; if (!b) return; for (const s of ['front', 'back'] as Side[]) { const a = document.createElement('a'); a.href = b[s].canvas.toDataURL('image/png'); a.download = `mockup-${s}.png`; a.click(); } };
 
   const fields = useMemo(() => Object.keys(m), [m]);
+  // 型紙（パターンラボ）へ：寸法を型紙の仕様に、色・生地・プリントもいっしょに渡す
+  const toPattern = () => {
+    if (!TOPS.includes(kind)) return;
+    const spec = { neckW: m.neck / 2, neckF: kind === 'hoodie' ? 7 : kind === 'crew' ? 8 : 9, neckB: 2.5, shoulderX: m.shoulder / 2, drop: 4, chest: m.chest / 2, armY: Math.max(16, m.chest * 0.43), hem: m.hem / 2, length: m.length, sleeve: m.sleeve, cuff: m.sleeveOpen, sleeves: true };
+    const phys = fabric === 'corduroy' ? 'canvas' : fabric === 'image' ? 'jersey' : fabric;
+    try {
+      localStorage.setItem('gc-pattern-src', JSON.stringify({ spec, color, fabric: phys, tile: fabric, texSrc: fabric === 'image' ? texSrc : undefined, prints: prints.map((p) => ({ ...p, piece: p.side })) }));
+      location.hash = 'pattern'; dispatchEvent(new HashChangeEvent('hashchange'));
+    } catch { setMsg(tt('Could not hand over (storage is full).', '引き継げませんでした（保存領域がいっぱいです）。')); }
+  };
   return (
     <section className="mk">
       <div className="mk-stage">
@@ -431,6 +441,12 @@ export default function MockupStudio() {
               ))}
             </div>
             <p className="mk-fine">{tt('Measured flat, in centimetres, to 0.5 cm. The 3D shows the piece at this exact size.', '平置きで測った数字（cm・0.5cm単位）。3Dはこの大きさのまま表示します。')}</p>
+            {TOPS.includes(kind) && (
+              <div className="mk-pat">
+                <button className="ss-btn" onClick={toPattern}>{tt('Sew it precisely from a pattern →', '型紙から精密に縫う（3D縫製）→')}</button>
+                <p className="mk-fine">{tt('Turns these measurements into a real pattern (front, back, sleeves), then sews it as cloth on an avatar — with fabric physics, strain and fit maps, like CLO. Colour, fabric and prints come along.', 'この寸法から型紙（前身頃・後身頃・袖）をつくり、アバターに布として縫って着せます。CLOのように生地の物性・ひずみ・フィットを確かめられます。色・生地・プリントも引き継ぎます。')}</p>
+              </div>
+            )}
           </div>
         )}
 
