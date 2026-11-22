@@ -16,6 +16,7 @@ import { matte } from '@/lib/scan/matte';
 import { carve, surface, hullMesh, exportable, type View } from '@/lib/scan/hull';
 import type { Shot } from './scan/Capture';
 import { isPhone } from '@/lib/device';
+import { unlockSpeech } from '@/lib/voice';
 const Capture = dynamic(() => import('./scan/Capture'), { ssr: false });
 import { autoLandmarks } from './lab/landmarks';
 import { calibrate, docToSVG, draft, pxMeasures, specFrom, type Spec } from './lab/draft';
@@ -100,6 +101,7 @@ export default function SmartScan() {
     const DM = (window as unknown as { DeviceMotionEvent?: { requestPermission?: () => Promise<string> } }).DeviceMotionEvent;
     if (DO?.requestPermission) await DO.requestPermission().catch(() => 'denied');
     if (DM?.requestPermission) await DM.requestPermission().catch(() => 'denied');
+    unlockSpeech(); // iPhone：ボタンを押したこの時に、読み上げを使えるようにしておく
     setPhase('camera');
   };
   const onCaptured = (list: Shot[], sens: boolean) => {

@@ -12,6 +12,8 @@ import { buildPillow } from './pillow3d';
 import type { Layer } from './GhostMannequin';
 import { tt } from './Lang';
 import { isPhone } from '@/lib/device';
+import { canListen, canSpeak, listen, speak, unlockSpeech } from '@/lib/voice';
+import { parseVoice } from '@/lib/voiceCommands';
 import { TEMPLATES, GRADE_STEP, shapeOf, type BaseKind, type Handle, type Deco } from './mockup/templates';
 
 type Kind = 'tee' | 'ls' | 'hoodie' | 'crew' | 'pants' | 'shorts' | 'scan';
@@ -374,6 +376,46 @@ export default function MockupStudio() {
   };
 
   // ---- 保存：ショップ・レール・ショールームに（この端末） ----
+  // ---- 声で操作 ----
+  const [mic, setMic] = useState<'off' | 'on'>('off');
+  const [heard, setHeard] = useState('');
+  const [did, setDid] = useState('');
+  const [voiceHelp, setVoiceHelp] = useState(false);
+  const hist = useRef<{ kind: Kind; m: M; color: string; fabric: Fabric; prints: Print[] }[]>([]);
+  const stopMic = useRef<() => void>(() => undefined);
+  const say = (t: string) => { setDid(t); if (canSpeak()) speak(t, { urgent: true }); };
+  const runVoice = (text: string) => {
+    const acts = parseVoice(text);
+    if (!acts.length) { say(tt('Sorry, I did not catch a command. Try “length 72” or “colour black”.', 'うまく聞き取れませんでした。「着丈72センチ」「色を黒に」のように話してください。')); return; }
+    const u = acts.find((a) => a.t === 'undo');
+    if (u) { const h = hist.current.pop(); if (h) { setKind(h.kind); setM(h.m); setColor(h.color); setFabric(h.fabric); setPrints(h.prints); say(tt('Undone.', '元に戻しました。')); } else say(tt('Nothing to undo.', '戻せる操作がありません。')); return; }
+    hist.current.push({ kind, m, color, fabric, prints }); if (hist.current.length > 20) hist.current.shift();
+    let k = kind, mm: M = { ...m }; const done: string[] = [];
+    for (const a of acts) {
+      if (a.t === 'kind' && a.v in DEF) { k = a.v as Kind; mm = { ...DEF[a.v as Exclude<Kind, 'scan'>] }; done.push(tt(TEMPLATES[a.v as BaseKind].en, TEMPLATES[a.v as BaseKind].ja)); }
+      if (a.t === 'size' && k !== 'scan' && a.v in GRADE) { const d = GRADE[a.v], base = DEF[k as Exclude<Kind, 'scan'>]; mm = {}; for (const [q, v] of Object.entries(base)) mm[q] = Math.round((v + d * (GRADE_STEP[q] || 0)) * 2) / 2; done.push(tt(`size ${a.v}`, `${a.v}サイズ`)); }
+      if (a.t === 'set' || a.t === 'add') {
+        const key = a.k === 'hem' && (k === 'pants' || k === 'shorts') ? 'hemW' : a.k;
+        if (!(key in mm)) { done.push(tt(`this shape has no ${LABEL[key]?.[0] || key}`, `この形に「${LABEL[key]?.[1] || key}」はありません`)); continue; }
+        const r = RANGE[key] || [1, 200], v = Math.round(Math.max(r[0], Math.min(r[1], a.t === 'set' ? a.v : mm[key] + a.v)) * 2) / 2;
+        mm[key] = v; done.push(tt(`${LABEL[key]?.[0] || key} ${v} cm`, `${LABEL[key]?.[1] || key}を${v}センチ`));
+      }
+      if (a.t === 'color') { setColor(a.v); if (k === 'scan') setTint(true); done.push(tt(`colour ${a.name}`, `色を${a.name}`)); }
+      if (a.t === 'fabric' && k !== 'scan') { setFabric(a.v as Fabric); done.push(tt(FABRICS.find((f) => f[0] === a.v)?.[1] || a.v, FABRICS.find((f) => f[0] === a.v)?.[2] || a.v)); }
+      if (a.t === 'side') { setSide(a.v); done.push(a.v === 'back' ? tt('back', '背中') : tt('front', '正面')); }
+      if (a.t === 'text') { const id = 'p' + Date.now().toString(36); const bottom = k === 'pants' || k === 'shorts'; setPrints((ps) => [...ps, { id, type: 'text', side, text: a.v, font: 'sans', color: color === '#f4f3ef' || color === '#e8e3d6' ? '#141414' : '#f1ece2', x: bottom ? 10 : 0, y: bottom ? 14 : 22, w: bottom ? 12 : 24, rot: 0, opacity: 0.95, crack: false }]); setSel(id); setTab('print'); done.push(tt(`added the text “${a.v}”`, `文字「${a.v}」を追加`)); }
+    }
+    if (k !== kind) setKind(k);
+    if (JSON.stringify(mm) !== JSON.stringify(m)) setM(mm);
+    if (acts.some((a) => a.t === 'save')) { setTimeout(() => save(), 700); done.push(tt('saving to the store', '店に並べます')); }
+    say(done.join(tt(', ', '、')) + tt('.', '。'));
+  };
+  const toggleMic = () => {
+    if (mic === 'on') { stopMic.current(); setMic('off'); return; }
+    unlockSpeech(); setHeard(''); setDid('');
+    stopMic.current = listen((t) => { setHeard(t); runVoice(t); }, (t) => setHeard(t), (st, err) => { if (st === 'on') setMic('on'); else { setMic('off'); if (st === 'error' && err && err !== 'no-speech' && err !== 'aborted') setDid(err === 'not-allowed' ? tt('Microphone access was not allowed.', 'マイクの使用が許可されていません。') : tt('Voice input stopped.', '音声入力が止まりました。')); } });
+  };
+
   const save = () => {
     const b = lastBuilt.current; if (!b) return;
     try {
@@ -408,7 +450,16 @@ export default function MockupStudio() {
           <div className="mk-2dbar">
             <div className="mk-seg"><button aria-pressed={side === 'front'} onClick={() => setSide('front')}>{tt('Front', '正面')}</button><button aria-pressed={side === 'back'} onClick={() => setSide('back')}>{tt('Back', '背中')}</button></div>
             <label className="mk-chk"><input type="checkbox" checked={showDims} onChange={(e) => setShowDims(e.target.checked)} />{tt('Measurements', '寸法線')}</label>
+            {canListen() && <button className={`mk-mic ${mic === 'on' ? 'on' : ''}`} onClick={toggleMic} aria-pressed={mic === 'on'} aria-label={tt('Voice control', '声で操作')}><svg viewBox="0 0 24 24" aria-hidden><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" /></svg>{mic === 'on' ? tt('Listening…', '聞いています…') : tt('Voice', '声で操作')}</button>}
+            <button className="mk-q" onClick={() => setVoiceHelp((v) => !v)} aria-label={tt('Voice examples', '話し方の例')}>?</button>
           </div>
+          {(heard || did || voiceHelp) && (
+            <div className="mk-voice">
+              {heard && <p><b>{tt('Heard', '聞き取り')}</b>「{heard}」</p>}
+              {did && <p><b>{tt('Done', '反映')}</b>{did}</p>}
+              {voiceHelp && <p className="mk-fine">{tt('Try: “hoodie”, “size L”, “length 72”, “chest 2 cm bigger”, “sleeve minus 3”, “colour black”, “denim”, “back”, “text TOKYO add”, “undo”, “save”. Speech is turned into text by the browser’s own recognition (in Chrome this is done on the browser maker’s server).', '例：「パーカー」「Lサイズ」「着丈72センチ」「身幅を2センチ大きく」「袖丈マイナス3」「色を黒に」「デニム」「背中」「文字 TOKYO を追加」「元に戻して」「保存」。声の文字起こしはブラウザの音声認識を使います（Chrome ではブラウザ提供元のサーバーで処理されます）。')}</p>}
+            </div>
+          )}
           <div className="mk-2dwrap"><canvas ref={view2d} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} /></div>
           <small>{tt('Drag the red points to reshape (each changes a measurement) · drag a print to move it, its blue corner to resize', '赤い点をつまんで形を直す（寸法に反映）・プリントはドラッグで移動、青い角で大きさ')}</small>
         </div>

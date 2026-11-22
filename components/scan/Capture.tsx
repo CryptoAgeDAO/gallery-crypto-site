@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import { tt } from '../Lang';
 import { loadMatte, saliency, matte } from '@/lib/scan/matte';
 import { carve, surface, type View } from '@/lib/scan/hull';
+import { canSpeak, speak, hush } from '@/lib/voice';
 import { segment } from '../scanSegment';
 
 export type Shot = { img: HTMLCanvasElement; mask: Uint8ClampedArray | null; phi: number | null; ai: boolean };
@@ -39,6 +40,11 @@ export default function Capture({ onDone, onCancel }: { onDone: (shots: Shot[], 
   const [ai, setAi] = useState<'loading' | 'on' | 'off'>('loading');
   const [err, setErr] = useState('');
   const [auto, setAuto] = useState(true);
+  // 音声ガイド：画面を見なくても撮れるように、直すことと進み具合を声で
+  const [voice, setVoice] = useState(true);
+  const voiceR = useRef(voice); voiceR.current = voice;
+  const badSince = useRef<{ key: string; at: number; said: string }>({ key: '', at: 0, said: '' });
+  const told = useRef(0);
   const lastShot = useRef(0);
   const miniApi = useRef<{ set: (g: THREE.BufferGeometry | null) => void } | null>(null);
 
@@ -60,7 +66,7 @@ export default function Capture({ onDone, onCancel }: { onDone: (shots: Shot[], 
     };
     const onM = (e: DeviceMotionEvent) => { const r = e.rotationRate; if (r) sens.current.rate = Math.hypot(r.alpha || 0, r.beta || 0, r.gamma || 0); };
     addEventListener('deviceorientation', onO); addEventListener('devicemotion', onM);
-    return () => { alive = false; removeEventListener('deviceorientation', onO); removeEventListener('devicemotion', onM); stream.current?.getTracks().forEach((t) => t.stop()); stream.current = null; };
+    return () => { alive = false; hush(); removeEventListener('deviceorientation', onO); removeEventListener('devicemotion', onM); stream.current?.getTracks().forEach((t) => t.stop()); stream.current = null; };
   }, []);
 
   // 育っていく3D（小さな表示）
@@ -98,6 +104,13 @@ export default function Capture({ onDone, onCancel }: { onDone: (shots: Shot[], 
     const shot: Shot = { img: grab(v), mask: null, phi, ai: false };
     shots.current.push(shot); if (bin >= 0) bins.current[bin] = true; lastShot.current = performance.now();
     setCount(shots.current.length);
+    if (voiceR.current && canSpeak()) {
+      const n = shots.current.length, f = bins.current.filter(Boolean).length / BINS;
+      const ms = S.seen ? [[0.25, tt('A quarter done.', '4分の1まで撮れました。')], [0.5, tt('Halfway. Keep going.', '半分です。そのまま進んで。')], [0.75, tt('Three quarters. Almost there.', 'あと4分の1です。')], [0.95, tt('Full lap done. Press finish.', '一周撮れました。完了を押してください。')]] as [number, string][] : [];
+      const m = ms.filter(([t]) => f >= t).pop();
+      if (n === 1) speak(tt('Front captured. Now walk slowly around the piece.', '正面を撮りました。服のまわりをゆっくり歩いてください。'), { urgent: true });
+      else if (m && told.current < m[0]) { told.current = m[0]; speak(m[1], { urgent: true }); }
+    }
     try { navigator.vibrate?.(10); } catch { /* 無視 */ }
     matte(shot.img).then((r) => { shot.mask = r.mask; shot.ai = r.ai; rebuildMini(); });
   }, [rebuildMini]);
@@ -150,6 +163,10 @@ export default function Capture({ onDone, onCancel }: { onDone: (shots: Shot[], 
         { ok: Lv.sharp > Math.max(18, Lv.sharpRef * 0.55), key: 'sharp', en: 'Hold still — the image is blurred', ja: 'ぶれています。少し止まって' },
       ];
       const ok = c.every((x) => x.ok); Lv.ok = ok;
+      // 直してほしいことが1.2秒続いたら声で（同じことは繰り返しすぎない）
+      const b0 = c.find((x) => !x.ok);
+      if (b0) { if (badSince.current.key !== b0.key) badSince.current = { key: b0.key, at: now, said: badSince.current.said }; else if (voiceR.current && now - badSince.current.at > 1200 && badSince.current.said !== b0.key + Math.floor(now / 6000)) { badSince.current.said = b0.key + Math.floor(now / 6000); speak(tt(b0.en, b0.ja), { gap: 5000 }); } }
+      else badSince.current.key = '';
       if (Math.round(now / 150) % 2 === 0) { setConds(c); if (S.seen && S.yaw != null) setHeading(S.y0 == null ? 0 : ((S.yaw - S.y0) % 360 + 360) % 360); }
       // 自動撮影：センサーがあれば向きの空いている所で、なければ0.8秒ごと
       if (auto && ok && now - lastShot.current > (S.seen ? 250 : 800)) take();
@@ -187,6 +204,7 @@ export default function Capture({ onDone, onCancel }: { onDone: (shots: Shot[], 
       <div className="cap-bar">
         <button className="ss-btn" onClick={finish}>{filled >= BINS * 0.75 || count >= 24 ? tt('Done — build 3D', '撮影完了 → 3Dにする') : tt(`Finish (${count})`, `ここで終える（${count}枚）`)}</button>
         <button className="ss-btn ghost" onClick={() => take(true)}>{tt('Take one now', '今の向きで1枚')}</button>
+        {canSpeak() && <button className="cap-voice" aria-pressed={voice} onClick={() => { setVoice((v) => { if (v) hush(); return !v; }); }}>{voice ? tt('Voice guide on', '音声ガイド ON') : tt('Voice guide off', '音声ガイド OFF')}</button>}
         <button className="ss-chip" aria-pressed={auto} onClick={() => setAuto((a) => !a)}>{auto ? tt('Auto capture on', '自動撮影 ON') : tt('Auto capture off', '自動撮影 OFF')}</button>
         <button className="ss-link" onClick={onCancel}>{tt('Cancel', 'やめる')}</button>
       </div>

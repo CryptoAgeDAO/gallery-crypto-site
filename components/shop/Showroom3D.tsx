@@ -116,14 +116,47 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
     let built3D = 0; const MAX3D = mobile ? 4 : 40;
 
     // 服：まず平らな絵を出し、順番に立体に置き換える。親の原点が肩の上の中央、高さ h（m）
-    const garment = (parent: THREE.Object3D, p: SPiece, h0: number, ri: number, face: THREE.Vector3, dist: number, hanger = true) => {
+    // ハンガー：服の中に腕が隠れ、首元から金具が出てレールに掛かる。パンツはクリップ式
+    const tube = (pts: THREE.Vector3[], r: number, mat: THREE.Material, seg = 24) => new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), seg, r, 8, false), mat);
+    const hangerOf = (w: number, clip: boolean, drop: number) => {
+      const hg = new THREE.Group();
+      // 金具：首元からまっすぐ上がり、レールの上を回って後ろへ
+      const hook: THREE.Vector3[] = [V(0, -drop - 0.02, 0)];
+      hook.push(V(0, -0.025, 0.004), V(0, 0.004, 0.022));
+      for (let t = 0; t <= 1.0001; t += 0.125) { const a = t * Math.PI * 1.15; hook.push(V(0, 0.02 + Math.sin(a) * 0.024, Math.cos(a) * 0.024)); }
+      hg.add(tube(hook, 0.0032, chrome, 40));
+      if (clip) {
+        const y = -drop + 0.012;
+        hg.add(tube([V(-w / 2, y, 0), V(w / 2, y, 0)], 0.006, chrome, 4));
+        for (const sx of [-1, 1]) { const c = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.05, 0.03), chrome); c.position.set(sx * (w / 2 - 0.035), y - 0.03, 0); hg.add(c); }
+      } else {
+        // 木のハンガー：中央からなで肩に下がる腕（服の中に隠れる）
+        const y = -drop - 0.025;
+        const arm = [V(-w / 2, y - 0.07, 0), V(-w * 0.3, y - 0.045, 0), V(-w * 0.12, y - 0.012, 0), V(0, y, 0), V(w * 0.12, y - 0.012, 0), V(w * 0.3, y - 0.045, 0), V(w / 2, y - 0.07, 0)];
+        const m = tube(arm, 0.011, oak, 32); m.scale.z = 1.5; hg.add(m);
+        const nut = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.03, 12), chrome); nut.rotation.x = Math.PI / 2; nut.position.set(0, y, 0); hg.add(nut);
+      }
+      return hg;
+    };
+    const garment = (parent: THREE.Object3D, p: SPiece, h0: number, ri: number, face: THREE.Vector3, dist: number, hanger = true, clip = false) => {
       // 採寸した服は、その実物の高さで（パンツが床に着かないよう上限あり）
       const h = p.heightM ? Math.min(1.25, Math.max(0.2, p.heightM)) : h0;
-      const g = new THREE.Group(); parent.add(g);
-      if (hanger) { const hb = new THREE.Mesh(new THREE.TorusGeometry(h * 0.33, 0.012, 6, 24, Math.PI * 0.55), oak); hb.rotation.z = Math.PI / 2 - Math.PI * 0.275; hb.position.y = -h * 0.28; hb.scale.y = 0.55; g.add(hb); const hk = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.005, 6, 16, Math.PI * 1.3), chrome); hk.position.y = 0.05; g.add(hk); }
+      const g0 = new THREE.Group(); parent.add(g0);
+      const drop = hanger ? 0.1 : 0; // レールから服の上端まで
+      const g = new THREE.Group(); g.position.y = -drop + (clip ? 0.035 : 0); g0.add(g); // クリップは服の上端をはさむ
+      if (hanger) g0.add(hangerOf(clip ? Math.min(0.4, h * 0.36) : Math.max(0.34, Math.min(0.46, h * 0.56)), clip, drop));
       const flat = new THREE.Mesh(new THREE.PlaneGeometry(h * 1.09, h), new THREE.MeshStandardMaterial({ transparent: true, alphaTest: 0.4, roughness: 0.9, side: THREE.DoubleSide }));
       flat.position.y = -h * 0.5 - h * 0.02; flat.userData.id = p.id; g.add(flat); hits.push(flat);
-      loadTex(p.tex).then((t) => { if (t && alive) { (flat.material as THREE.MeshStandardMaterial).map = t; (flat.material as THREE.MeshStandardMaterial).needsUpdate = true; } });
+      loadTex(p.tex).then((t) => {
+        if (!t || !alive) return; (flat.material as THREE.MeshStandardMaterial).map = t; (flat.material as THREE.MeshStandardMaterial).needsUpdate = true;
+        // 絵の余白を除いて、服の上端がハンガーの位置に来るように板の大きさと位置を合わせる
+        try {
+          const im = t.image as HTMLImageElement | HTMLCanvasElement; const W = 80, H = Math.max(8, Math.round(80 * (im.height / im.width)));
+          const c = document.createElement('canvas'); c.width = W; c.height = H; const cg = c.getContext('2d', { willReadFrequently: true })!; cg.drawImage(im, 0, 0, W, H);
+          const d = cg.getImageData(0, 0, W, H).data; let y0 = H, y1 = 0; for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (d[(y * W + x) * 4 + 3] > 100) { if (y < y0) y0 = y; if (y > y1) y1 = y; }
+          if (y1 > y0) { const f0 = y0 / H, f1 = (y1 + 1) / H, PH = h / (f1 - f0), PW = PH * (im.width / im.height); flat.geometry.dispose(); flat.geometry = new THREE.PlaneGeometry(PW, PH); flat.position.y = f0 * PH - PH / 2; }
+        } catch { /* 無視 */ }
+      });
       const look = new THREE.Vector3(); g.updateWorldMatrix(true, false);
       queue.push(async () => {
         if (!alive || built3D >= MAX3D) return;
@@ -137,7 +170,7 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
       });
       g.getWorldPosition(look); look.y -= h * 0.5;
       spots.set(p.id, { look: look.clone(), pos: look.clone().add(face.clone().multiplyScalar(dist)).setY(Math.max(1.3, look.y + 0.15)), room: ri });
-      return g;
+      return g0;
     };
     // 平らな商品（帽子・小物・アート）：絵の板。少し傾けて影を落とす
     const flatPiece = (parent: THREE.Object3D, p: SPiece, w: number, ri: number, face: THREE.Vector3, dist: number, tilt = 0) => {
@@ -220,7 +253,7 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
           ps.forEach((p, k) => {
             const x = -L / 2 + 0.45 + (k * (L - 0.9)) / Math.max(1, n - 1);
             const a = new THREE.Group(); a.position.set(n === 1 ? 0 : x, 1.83, 0.02); g0.add(a); swayers.push({ o: a, ph: k });
-            garment(a, p, 1.05, ri, V(0, 0, 1), 2.6);
+            garment(a, p, 1.05, ri, V(0, 0, 1), 2.6, true, true);
           });
           stops[ri] = { pos: V(cx - 0.4, 1.6, cz + 4.4), look: V(cx, 1.1, cz) };
           break;
