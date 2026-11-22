@@ -78,7 +78,6 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
     const chrome = new THREE.MeshStandardMaterial({ color: 0xe8eaec, metalness: 1, roughness: 0.14 });
     const oak = new THREE.MeshStandardMaterial({ color: 0xc9a77c, roughness: 0.6 });
     // ハンガー：黒一色のシンプルなもの（つや消しの黒＋いぶし銀の金具）
-    const hBlack = new THREE.MeshStandardMaterial({ color: 0x111112, roughness: 0.78, metalness: 0 }); // つや消しの黒
     const hSilver = new THREE.MeshStandardMaterial({ color: 0xb9bcc2, roughness: 0.22, metalness: 1 });
     const glass = new THREE.MeshPhysicalMaterial({ color: 0xffffff, transparent: true, opacity: 0.16, roughness: 0.03, metalness: 0, side: THREE.DoubleSide, depthWrite: false });
     const shadowT = canvasTex(128, 128, (g, w, h) => { const gr = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2); gr.addColorStop(0, 'rgba(0,0,0,.5)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); });
@@ -121,27 +120,39 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
     // 服：まず平らな絵を出し、順番に立体に置き換える。親の原点が肩の上の中央、高さ h（m）
     // ハンガー：服の中に腕が隠れ、首元から金具が出てレールに掛かる。パンツはクリップ式
     const tube = (pts: THREE.Vector3[], r: number, mat: THREE.Material, seg = 24) => new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), seg, r, 8, false), mat);
+    // ハンガー：白い綿の布でくるんだもの（肩の広い型と、パンツ用のまっすぐな型）＋細い銀の金具
+    const clothTex = canvasTex(256, 256, (g, W, H) => {
+      g.fillStyle = '#f4f2ed'; g.fillRect(0, 0, W, H);
+      let sd = 11; const r = () => { sd = (sd * 16807) % 2147483647; return (sd - 1) / 2147483646; };
+      for (let i = 0; i < 70; i++) { const x = r() * W, y = r() * H, l = 20 + r() * 70, a = (r() - 0.5) * 0.6; g.strokeStyle = r() < 0.5 ? 'rgba(0,0,0,.06)' : 'rgba(255,255,255,.5)'; g.lineWidth = 1 + r() * 2.5; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + Math.cos(a) * l * 0.5, y + Math.sin(a) * l * 0.5 + (r() - 0.5) * 8, x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke(); }
+      for (let i = 0; i < 2200; i++) { g.fillStyle = `rgba(0,0,0,${r() * 0.035})`; g.fillRect(r() * W, r() * H, 1, 1); }
+    });
+    clothTex.wrapS = clothTex.wrapT = THREE.RepeatWrapping; clothTex.repeat.set(9, 9);
+    const hCloth = new THREE.MeshStandardMaterial({ color: 0xffffff, map: clothTex, roughness: 0.96, metalness: 0 });
+    const extrude = (sh: THREE.Shape, depth: number, bevel: number) => { const g = new THREE.ExtrudeGeometry(sh, { depth, bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 4, curveSegments: 18 }); g.translate(0, 0, -depth / 2); return g; };
     const hangerOf = (w: number, clip: boolean, drop: number) => {
       const hg = new THREE.Group();
-      // 金具：首元からまっすぐ上がり、レールの上を回って後ろへ
-      const hook: THREE.Vector3[] = [V(0, -drop - 0.02, 0)];
-      hook.push(V(0, -0.025, 0.004), V(0, 0.004, 0.022));
+      const top = clip ? -drop + 0.03 : -drop + 0.014; // 金具の付け根
+      // 金具：細い銀。付け根からまっすぐ上がり、レールの上を回って後ろへ
+      const hook: THREE.Vector3[] = [V(0, top - 0.01, 0), V(0, -0.025, 0.004), V(0, 0.004, 0.022)];
       for (let t = 0; t <= 1.0001; t += 0.125) { const a = t * Math.PI * 1.15; hook.push(V(0, 0.02 + Math.sin(a) * 0.024, Math.cos(a) * 0.024)); }
-      hg.add(tube(hook, 0.0045, hSilver, 40));
+      hg.add(tube(hook, 0.0034, hSilver, 40));
       if (clip) {
-        const y = -drop + 0.012;
-        hg.add(tube([V(-w / 2, y, 0), V(w / 2, y, 0)], 0.012, hBlack, 4));
-        for (const sx of [-1, 1]) { const c = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.055, 0.034), hBlack); c.position.set(sx * (w / 2 - 0.035), y - 0.03, 0); hg.add(c); }
+        // パンツ用：まっすぐな棒を白い布でくるんだ帯。腰の上にかかる
+        const bw = Math.max(0.34, w * 1.08), bh = 0.06, sh = new THREE.Shape();
+        sh.moveTo(-bw / 2, -bh / 2); sh.lineTo(bw / 2, -bh / 2); sh.lineTo(bw / 2, bh / 2); sh.lineTo(-bw / 2, bh / 2); sh.closePath();
+        const m = new THREE.Mesh(extrude(sh, 0.01, 0.005), hCloth); m.position.set(0, top - bh / 2 - 0.004, 0.012); m.castShadow = !mobile; hg.add(m);
       } else {
-        // 木のハンガー：中央からなで肩に下がる腕（服の中に隠れる）
-        const y = -drop - 0.05; w *= 0.88; // 腕は服の肩の内側（厚みのあるところ）に隠す
-        const arm = [V(-w / 2, y - 0.07, 0), V(-w * 0.3, y - 0.045, 0), V(-w * 0.12, y - 0.012, 0), V(0, y, 0), V(w * 0.12, y - 0.012, 0), V(w * 0.3, y - 0.045, 0), V(w / 2, y - 0.07, 0)];
-        const m = tube(arm, 0.017, hBlack, 40); m.scale.z = 2.2; m.position.z = -0.052; hg.add(m); // 太く、肩幅のある木のハンガー。服の後ろ側に
-        for (const sx of [-1, 1]) { const cap = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), hBlack); cap.scale.set(0.03, 0.022, 0.04); cap.position.set(sx * w / 2, y - 0.07, -0.052); hg.add(cap); } // 肩先のふくらみ
-        // 首元にのぞく、太い中央のかたまり（ここだけ服の上に見える）
-        const neck = new THREE.Mesh(new THREE.CapsuleGeometry(0.019, 0.03, 6, 16), hBlack); neck.rotation.z = Math.PI / 2; neck.scale.set(1, 1, 1.25); neck.position.set(0, -drop + 0.004, -0.012); hg.add(neck);
-        hg.add(tube([V(0, -drop + 0.004, -0.012), V(0, y, -0.04)], 0.012, hBlack, 4));
-        const nut = new THREE.Mesh(new THREE.CylinderGeometry(0.0075, 0.0075, 0.012, 14), hSilver); nut.position.set(0, -drop + 0.026, -0.008); hg.add(nut);
+        // 肩の広いハンガー：中央が山になり、肩先は幅広。布でくるんだ柔らかい角
+        const hw = Math.min(0.47, w * 0.98) / 2, s2 = new THREE.Shape();
+        s2.moveTo(0, 0);
+        s2.quadraticCurveTo(0.03, 0, 0.05, -0.008); s2.quadraticCurveTo(hw * 0.55, -0.04, hw - 0.02, -0.074);
+        s2.quadraticCurveTo(hw + 0.004, -0.08, hw, -0.1); s2.quadraticCurveTo(hw - 0.004, -0.114, hw - 0.022, -0.11);
+        s2.quadraticCurveTo(hw * 0.55, -0.085, 0.05, -0.056); s2.quadraticCurveTo(0.02, -0.05, 0, -0.05);
+        s2.quadraticCurveTo(-0.02, -0.05, -0.05, -0.056); s2.quadraticCurveTo(-hw * 0.55, -0.085, -hw + 0.022, -0.11);
+        s2.quadraticCurveTo(-hw + 0.004, -0.114, -hw, -0.1); s2.quadraticCurveTo(-hw - 0.004, -0.08, -hw + 0.02, -0.074);
+        s2.quadraticCurveTo(-hw * 0.55, -0.04, -0.05, -0.008); s2.quadraticCurveTo(-0.03, 0, 0, 0);
+        const m = new THREE.Mesh(extrude(s2, 0.03, 0.009), hCloth); m.position.set(0, top, -0.022); m.castShadow = !mobile; hg.add(m); // 服の後ろ寄りに（首元の山だけがのぞく）
       }
       return hg;
     };
@@ -150,7 +161,7 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
       const h = p.heightM ? Math.min(1.25, Math.max(0.2, p.heightM)) : h0;
       const g0 = new THREE.Group(); parent.add(g0);
       const drop = hanger ? 0.1 : 0; // レールから服の上端まで
-      const g = new THREE.Group(); g.position.y = -drop + (clip ? 0.035 : 0); g0.add(g); // クリップは服の上端をはさむ
+      const g = new THREE.Group(); g.position.y = -drop + (clip ? 0.035 : 0); g0.add(g); // パンツは布の帯に腰をかける
       if (hanger) g0.add(hangerOf(clip ? Math.min(0.4, h * 0.36) : Math.max(0.34, Math.min(0.46, h * 0.56)), clip, drop));
       const flat = new THREE.Mesh(new THREE.PlaneGeometry(h * 1.09, h), new THREE.MeshStandardMaterial({ transparent: true, alphaTest: 0.4, roughness: 0.9, side: THREE.DoubleSide }));
       flat.position.y = -h * 0.5 - h * 0.02; flat.userData.id = p.id; g.add(flat); hits.push(flat);

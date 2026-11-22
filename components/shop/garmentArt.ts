@@ -252,12 +252,12 @@ ${d.kind === 'tee' && !dark && !d.tour && !d.print && side === 'front' ? `<rect 
 // 本物っぽい木のハンガー（銀のフック）
 // ハンガー（レール用）：上の金具がレールに掛かり、木の腕は服の中（服の絵の後ろ）に隠れる。
 // 幅200・高さ120。レールは y≈17、服の上端は y≈51、腕の中心は y≈63。
+// 白い綿でくるんだ、肩の広いハンガー（細い銀の金具）
 export const HANGER = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 120"><defs>
-<linearGradient id="hw" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b2b2d"/><stop offset=".3" stop-color="#161617"/><stop offset="1" stop-color="#0a0a0a"/></linearGradient>
-<linearGradient id="hm" x1="0" x2="1"><stop offset="0" stop-color="#6f7278"/><stop offset=".45" stop-color="#dfe2e6"/><stop offset="1" stop-color="#7b7e84"/></linearGradient></defs>
-<path d="M100 62 V24 A7.5 7.5 0 1 0 85.5 21.5" fill="none" stroke="url(#hm)" stroke-width="3.6" stroke-linecap="round"/>
-<path d="M8 92 Q6 82 18 79 Q58 68 93 59 Q100 57 107 59 Q142 68 182 79 Q194 82 192 92 Q191 100 180 99 Q140 82 100 74 Q60 82 20 99 Q9 100 8 92 Z" fill="url(#hw)"/>
-<path d="M20 83 Q60 70 100 61.5 Q140 70 180 83" fill="none" stroke="#fff" stroke-opacity=".08" stroke-width="1.2"/>
-<rect x="95" y="58" width="10" height="7" rx="1.5" fill="url(#hm)"/>
+<linearGradient id="hw" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#f1efea"/><stop offset="1" stop-color="#d9d6cf"/></linearGradient>
+<linearGradient id="hm" x1="0" x2="1"><stop offset="0" stop-color="#7d8086"/><stop offset=".45" stop-color="#eef0f3"/><stop offset="1" stop-color="#8a8d92"/></linearGradient></defs>
+<path d="M100 60 V24 A7.5 7.5 0 1 0 85.5 21.5" fill="none" stroke="url(#hm)" stroke-width="2.2" stroke-linecap="round"/>
+<path d="M100 58 Q108 58 112 60 Q150 72 182 84 Q190 87 189 94 Q187 100 180 99 Q150 88 112 78 Q104 76 100 76 Q96 76 88 78 Q50 88 20 99 Q13 100 11 94 Q10 87 18 84 Q50 72 88 60 Q92 58 100 58 Z" fill="url(#hw)" stroke="#cfcbc3" stroke-width=".7"/>
+<path d="M60 74 q8 -2 14 1 M128 70 q9 1 15 5 M150 82 q8 1 12 5 M38 86 q7 -3 13 -1 M96 63 q4 3 8 0" fill="none" stroke="#000" stroke-opacity=".08" stroke-width="1"/>
 </svg>`;
 export const HANGER_URL = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(HANGER);
