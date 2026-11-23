@@ -16,8 +16,8 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 
 export type GPiece = { id: string; title: string; kind: 'garment' | 'cap' | 'art'; tex: string; code?: string };
 export type GRoom = { key: string; pieces: GPiece[] };
-export type GalleryApi = { goRoom: (i: number) => void; focus: (id: string | null) => void };
-export type GState = { room: number; focus: string | null; moving: boolean; ready: boolean; lost?: boolean };
+export type GalleryApi = { goRoom: (i: number) => void; focus: (id: string | null) => void; walk?: (on: boolean) => void; stick?: (x: number, y: number) => void };
+export type GState = { room: number; focus: string | null; moving: boolean; ready: boolean; lost?: boolean; walking?: boolean };
 
 // 間口 10.4m × 奥行き 22m、天井 4.8m の細長い店。z が大きいほど通り側
 // 広い倉庫のような売り場（幅18m・奥行28m・天井6.2m）

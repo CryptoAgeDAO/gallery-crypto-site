@@ -373,6 +373,8 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
     };
     const wpos = (o: THREE.Object3D) => { const v = new THREE.Vector3(); o.getWorldPosition(v); return v; };
 
+    // ぶつかるもの（床の上の円 c:[x,z,半径] と箱 b:[x0,x1,z0,z1]）。歩くときに使う
+    const obs: { c?: [number, number, number]; b?: [number, number, number, number]; hall?: boolean }[] = [];
     let wantHall = false;
     const zoneOf: Zone[] = [];
     rooms.forEach((room, ri) => {
@@ -383,7 +385,7 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
           const sp = mobile ? 1.5 : 2.6, xs = n === 1 ? [0] : ps.map((_, k) => -sp + (2 * sp * k) / Math.max(1, n - 1));
           ps.forEach((p, k) => {
             const x = xs[k], z = 10.2 - Math.abs(x) * 0.25;
-            const base = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.6, 0.3, 48), white); base.position.set(x, 0.15, z); base.castShadow = base.receiveShadow = !mobile; scene.add(base); softShadow(x, z, 1.8, 1.8, 0.45);
+            const base = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.6, 0.3, 48), white); base.position.set(x, 0.15, z); base.castShadow = base.receiveShadow = !mobile; scene.add(base); softShadow(x, z, 1.8, 1.8, 0.45); obs.push({ c: [x, z, 0.62] });
             const turn = new THREE.Group(); turn.position.set(x, 0.3, z); scene.add(turn); spinners.push(turn);
             rod(V(0, 0, 0), V(0, 1.3, 0), 0.02, chrome, turn);
             rod(V(-0.18, 1.5, 0), V(0.18, 1.5, 0), 0.015, chrome, turn);
@@ -410,8 +412,8 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
         case 'rack': { // L3 パンツ：二台のラックを L 字に（左の壁の開口から展示ホールへ抜けられる）
           zoneOf[ri] = 'L3';
           const a = ps.slice(0, Math.ceil(n * 0.58)), b = ps.slice(a.length);
-          rackFree(grp(-6.2, -10.1, -Math.PI / 2), a, 6.4, ri, V(-1, 0, 0));
-          if (b.length) rackFree(grp(-9.3, -12.9, 0), b, 4.6, ri, V(0, 0, 1));
+          rackFree(grp(-6.2, -10.1, -Math.PI / 2), a, 6.4, ri, V(-1, 0, 0)); obs.push({ b: [-6.6, -5.8, -13.3, -6.9] });
+          if (b.length) { rackFree(grp(-9.3, -12.9, 0), b, 4.6, ri, V(0, 0, 1)); obs.push({ b: [-11.6, -7.0, -13.25, -12.55] }); }
           stops[ri] = mobile ? { pos: V(-10.4, 2.0, -6.9), look: V(-7.4, 1.0, -12.2) } : { pos: V(-10.6, 1.8, -7.0), look: V(-7.6, 1.05, -11.8) };
           break;
         }
@@ -425,7 +427,7 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
           zoneOf[ri] = 'R3';
           const g0 = grp(9.0, -9.4, -Math.PI / 2), cols = Math.ceil(n / 2), L = Math.max(3, Math.min(6.4, cols * 0.7 + 0.6));
           box(L, 0.05, 1.3, oak, 0, 0.88, 0, g0); for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(0.06, 0.86, 0.06, black, sx * (L / 2 - 0.15), 0.43, sz * 0.55, g0);
-          softShadow(9.0, -9.4, 2.6, L + 1.2, 0.4);
+          softShadow(9.0, -9.4, 2.6, L + 1.2, 0.4); obs.push({ b: [8.35, 9.65, -9.4 - L / 2, -9.4 + L / 2] });
           box(0.7, 0.18, 0.5, white, -L / 2 + 0.6, 0.995, -0.25, g0); box(0.7, 0.18, 0.5, white, L / 2 - 0.6, 0.995, -0.25, g0);
           ps.forEach((p, k) => {
             const col = k % cols, row = Math.floor(k / cols);
@@ -452,7 +454,7 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
         case 'case': { // R2 小物：長いガラスのショーケース（2段）
           zoneOf[ri] = 'R2';
           const per = Math.ceil(n / 2), L = Math.max(1.9, per * 0.42 + 0.3), g0 = grp(9.4, 0, -Math.PI / 2);
-          box(L, 0.9, 0.8, white, 0, 0.45, 0, g0); softShadow(9.4, 0, 1.8, L + 0.9, 0.45);
+          box(L, 0.9, 0.8, white, 0, 0.45, 0, g0); softShadow(9.4, 0, 1.8, L + 0.9, 0.45); obs.push({ b: [9.0, 9.8, -L / 2, L / 2] });
           const gl = new THREE.Mesh(new THREE.BoxGeometry(L - 0.04, 0.75, 0.76), glass); gl.position.set(0, 1.28, 0); g0.add(gl);
           for (const [a, b] of [[V(-L / 2, 1.655, -0.38), V(L / 2, 1.655, -0.38)], [V(-L / 2, 1.655, 0.38), V(L / 2, 1.655, 0.38)], [V(-L / 2, 1.655, -0.38), V(-L / 2, 1.655, 0.38)], [V(L / 2, 1.655, -0.38), V(L / 2, 1.655, 0.38)]] as [THREE.Vector3, THREE.Vector3][]) rod(a, b, 0.008, chrome, g0);
           box(L - 0.1, 0.012, 0.7, glass, 0, 1.18, 0, g0);
@@ -534,7 +536,8 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
     const cur = { pos: stops[0]?.pos.clone() || V(0, 1.6, 9), look: stops[0]?.look.clone() || V(0, 1.2, 0) };
     const goal = { pos: cur.pos.clone(), look: cur.look.clone() };
     let yaw = 0, pitch = 0, zoom = 1, moving = false;
-    const emit = (ready = true) => cb.current.onState({ room, focus, moving, ready });
+    let walking = false; // 歩いているあいだは、下の「歩く」の処理がカメラを動かす
+    const emit = (ready = true) => cb.current.onState({ room, focus, moving, ready, walking });
     // 売り場から売り場へ：壁を抜けないよう、部屋の開口（と吹き抜け）を通って移動する
     type WP = { pos: THREE.Vector3; look: THREE.Vector3; zone: Zone };
     let via: WP[] = [], zoneNow: Zone = zoneOf[0] || 'hub', goalZone: Zone = zoneNow;
@@ -553,24 +556,113 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
       wps.push({ pos: pos.clone(), look: look.clone(), zone: to });
       const f = wps.shift()!; goal.pos.copy(f.pos); goal.look.copy(f.look); goalZone = f.zone; via = wps;
     };
-    const goRoom = (i: number) => { if (!stops[i]) return; room = i; focus = null; route(stops[i].pos, stops[i].look, zoneOf[i] || 'hub'); yaw = pitch = 0; zoom = 1; moving = true; emit(); };
+    const goRoom = (i: number) => { if (!stops[i]) return; stopWalkRef(); room = i; focus = null; route(stops[i].pos, stops[i].look, zoneOf[i] || 'hub'); yaw = pitch = 0; zoom = 1; moving = true; emit(); };
     const doFocus = (id: string | null) => {
       if (!id) { focus = null; goRoom(room); return; }
-      const s = spots.get(id); if (!s) return;
+      const s = spots.get(id); if (!s) return; stopWalkRef();
       room = s.room; focus = id; route(s.pos, s.look, zoneOf[s.room] || 'hub'); yaw = pitch = 0; zoom = 1; moving = true; emit();
     };
+    let stopWalkFn: () => void = () => undefined; function stopWalkRef() { stopWalkFn(); }
     apiRef.current = { goRoom, focus: doFocus };
 
+    // ---- 歩く（ゲームのように自由に）：キーボード（WASD・矢印、Shift で走る）か、スマホは画面のスティック。ドラッグで見回す ----
+    // 壁・柱・ボウル・台にはぶつかる。らせん階段に入ると中二階へ上がり、中二階の階段口から下りる
+    const STX = 3.7, STZ = -3.7, A0 = Math.PI * 0.62, ATOP = A0 + (17 * Math.PI * 2.02) / 18, EYE = 1.65, R0 = 0.32;
+    obs.push({ c: [0, 2.6, 3.8] }, { c: [STX, STZ, 1.0] });
+    for (const sx of [-5, 5]) for (const z of [8.6, 2.7, -5, -12]) obs.push({ c: [sx, z, 0.3] });
+    { const ry = 1.27, ux = Math.cos(ry), uz = -Math.sin(ry); for (const o of [-2.3, 0, 2.3]) obs.push({ c: [-8.6 + ux * o, -2.6 + uz * o, 1.7] }); } // 車の台
+    obs.push({ c: [6.6, 11.4, 1.3] }, { c: [-5.6, -6.0, 0.25] }, { c: [8.4, 12.9, 0.25] }); // 自転車の台と札
+    { const ry = -1.74, ux = Math.cos(ry), uz = -Math.sin(ry), cx = -26.4, cz = -12.1; for (const o of [-4, -2, 0, 2, 4]) obs.push({ c: [cx + ux * o, cz + uz * o, 1.85], hall: true }); obs.push({ c: [-22.4, -15.9, 0.25], hall: true }); } // ヨットの船台
+    const inR = (x: number, z: number, x0: number, x1: number, z0: number, z1: number) => x > x0 && x < x1 && z > z0 && z < z1;
+    let level = 0, hd = 0, pt = 0, stairArm = true;
+    let climb: { t: number; dur: number; up: boolean; from: THREE.Vector3; hd0: number } | null = null;
+    const me = V(0, 0, 12), keys = new Set<string>(), stick = { x: 0, y: 0 };
+    const free = (x: number, z: number) => {
+      if (level === 1) return inR(x, z, -4.7, 4.7, -13.6, -5.35);
+      const ok = inR(x, z, -W + 0.75, W - 0.75, -D + 0.75, D - 0.45)
+        || (hallBuilt && inR(x, z, -31.7, -12.6, -22, -3))
+        || inR(x, z, -13.0, -11.0, DOOR_WZ - DOOR_W / 2 + 0.35, DOOR_WZ + DOOR_W / 2 - 0.35);
+      if (!ok) return false;
+      for (const o of obs) {
+        if (o.c && Math.hypot(x - o.c[0], z - o.c[1]) < o.c[2] + R0) return false;
+        if (o.b && x > o.b[0] - R0 && x < o.b[1] + R0 && z > o.b[2] - R0 && z < o.b[3] + R0) return false;
+      }
+      return true;
+    };
+    const zoneAt = (p: THREE.Vector3): Zone => {
+      if (p.y > MZ + 0.5 && inR(p.x, p.z, -5.2, 5.2, -14, -4.8)) return 'mezz';
+      if (p.x < -W) return 'hall';
+      if (p.x < -5) return p.z >= 1 ? 'L1' : p.z >= -6 ? 'L2' : 'L3';
+      if (p.x > 5) return p.z >= 3 ? 'R1' : p.z >= -3 ? 'R2' : 'R3';
+      return p.z < -5 ? 'back' : 'hub';
+    };
+    const startWalk = () => {
+      if (walking) return;
+      const p = camera.position, d = camera.getWorldDirection(new THREE.Vector3());
+      level = p.y > MZ + 0.6 && inR(p.x, p.z, -5, 5, -14, -5) ? 1 : 0;
+      me.set(p.x, 0, p.z); hd = Math.atan2(-d.x, -d.z); pt = Math.max(-0.5, Math.min(0.5, Math.asin(Math.max(-1, Math.min(1, d.y)))));
+      if (!free(me.x, me.z)) { let done = false; for (let r = 0.3; r < 8 && !done; r += 0.3) for (let a = 0; a < 16 && !done; a++) { const x = me.x + Math.cos((a / 16) * Math.PI * 2) * r, z = me.z + Math.sin((a / 16) * Math.PI * 2) * r; if (free(x, z)) { me.x = x; me.z = z; done = true; } } }
+      walking = true; focus = null; via = []; moving = false; yaw = pitch = 0; zoom = 1; emit();
+    };
+    const stopWalk = () => {
+      if (!walking) return; walking = false; climb = null; keys.clear(); stick.x = stick.y = 0;
+      const d = camera.getWorldDirection(new THREE.Vector3());
+      cur.pos.copy(camera.position); cur.look.copy(camera.position).addScaledVector(d, 3); goal.pos.copy(cur.pos); goal.look.copy(cur.look);
+      zoneNow = goalZone = zoneAt(cur.pos);
+    };
+    const stairPos = (a: number, r: number, y: number) => V(STX + Math.cos(a) * r, y, STZ - Math.sin(a) * r);
+    const stepWalk = (dt: number) => {
+      if (climb) { // らせん階段：ぐるりと回りながら上る／下りる
+        climb.t = Math.min(1, climb.t + dt / climb.dur);
+        const u = climb.t, e = u * u * (3 - 2 * u), s = climb.up ? e : 1 - e;
+        const a = A0 + s * (ATOP - A0), p = stairPos(a, 0.55, s * MZ);
+        const lead = Math.min(1, u / 0.15);
+        const at = climb.up ? climb.from.clone().lerp(p, lead) : p;
+        if (!climb.up && u > 0.85) at.lerp(V(STX - 0.6, 0, STZ - 1.6), (u - 0.85) / 0.15);
+        me.set(at.x, at.y, at.z);
+        hd = a + (climb.up ? 0 : Math.PI); pt = 0; // 進む向き（らせんの接線）を向く
+        if (u >= 1) {
+          if (climb.up) { level = 1; me.set(3.6, 0, -5.9); hd = Math.PI; } else { level = 0; me.set(STX - 0.6, 0, STZ - 1.6); hd = Math.PI; }
+          climb = null; stairArm = false;
+        }
+        return;
+      }
+      let f = 0, s = 0, turn = 0;
+      if (keys.has('w') || keys.has('arrowup')) f += 1; if (keys.has('s') || keys.has('arrowdown')) f -= 1;
+      if (keys.has('a')) s -= 1; if (keys.has('d')) s += 1;
+      if (keys.has('arrowleft') || keys.has('q')) turn += 1; if (keys.has('arrowright') || keys.has('e')) turn -= 1;
+      f -= stick.y; s += stick.x;
+      hd += turn * 1.9 * dt;
+      const sp = keys.has('shift') ? 4.4 : 2.3;
+      const fx = -Math.sin(hd), fz = -Math.cos(hd), rx = Math.cos(hd), rz = -Math.sin(hd);
+      let mx = fx * f + rx * s, mz = fz * f + rz * s; const m = Math.hypot(mx, mz); if (m > 1) { mx /= m; mz /= m; }
+      const nx = me.x + mx * sp * dt, nz = me.z + mz * sp * dt;
+      if (free(nx, nz)) { me.x = nx; me.z = nz; } else if (free(nx, me.z)) me.x = nx; else if (free(me.x, nz)) me.z = nz;
+      if (me.x < -9) makeHall();
+      // 階段
+      const ds = Math.hypot(me.x - STX, me.z - STZ);
+      if (level === 0) { if (ds > 1.75) stairArm = true; if (stairArm && ds < 1.0 + R0 + 0.12 && m > 0.1) climb = { t: 0, dur: 3.2, up: true, from: me.clone(), hd0: hd }; }
+      else { if (me.z < -6.6 || me.x < 2.6) stairArm = true; if (stairArm && me.x > 2.9 && me.z > -5.75 && m > 0.1) climb = { t: 0, dur: 3.2, up: false, from: me.clone(), hd0: hd }; }
+    };
+    const camWalk = () => {
+      const y = (climb ? me.y : level ? MZ : 0) + EYE;
+      camera.position.set(me.x, y, me.z);
+      camera.lookAt(me.x - Math.sin(hd) * Math.cos(pt), y + Math.sin(pt), me.z - Math.cos(hd) * Math.cos(pt));
+    };
+
+    stopWalkFn = stopWalk;
+    apiRef.current = { goRoom, focus: doFocus, walk: (on: boolean) => { if (on) startWalk(); else { stopWalk(); goRoom(room); } }, stick: (x: number, y: number) => { stick.x = x; stick.y = y; if ((x || y) && !walking) startWalk(); } };
     const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
-    let drag: { x: number; y: number; yaw: number; pitch: number; moved: boolean } | null = null;
+    let drag: { x: number; y: number; yaw: number; pitch: number; hd: number; pt: number; moved: boolean } | null = null;
     const pinch = new Map<number, { x: number; y: number }>(); let pd0 = 0, z0 = 1;
     const dom = renderer.domElement;
     dom.style.touchAction = 'none';
-    dom.addEventListener('pointerdown', (e) => { pinch.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (pinch.size === 2) { const [a, b] = [...pinch.values()]; pd0 = Math.hypot(a.x - b.x, a.y - b.y); z0 = zoom; drag = null; return; } drag = { x: e.clientX, y: e.clientY, yaw, pitch, moved: false }; });
+    dom.addEventListener('pointerdown', (e) => { pinch.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (pinch.size === 2) { const [a, b] = [...pinch.values()]; pd0 = Math.hypot(a.x - b.x, a.y - b.y); z0 = zoom; drag = null; return; } drag = { x: e.clientX, y: e.clientY, yaw, pitch, hd, pt, moved: false }; });
     dom.addEventListener('pointermove', (e) => {
       if (pinch.has(e.pointerId)) pinch.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (pinch.size === 2) { const [a, b] = [...pinch.values()]; const d = Math.hypot(a.x - b.x, a.y - b.y); zoom = Math.max(0.45, Math.min(1.35, z0 * (pd0 / Math.max(1, d)))); return; }
-      if (drag) { const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.abs(dx) + Math.abs(dy) > 5) drag.moved = true; yaw = Math.max(-1.1, Math.min(1.1, drag.yaw - dx * 0.004)); pitch = Math.max(-0.45, Math.min(0.45, drag.pitch - dy * 0.003)); }
+      if (drag && walking) { const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.abs(dx) + Math.abs(dy) > 5) drag.moved = true; hd = drag.hd - dx * 0.005; pt = Math.max(-0.6, Math.min(0.6, drag.pt - dy * 0.004)); }
+      else if (drag) { const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.abs(dx) + Math.abs(dy) > 5) drag.moved = true; yaw = Math.max(-1.1, Math.min(1.1, drag.yaw - dx * 0.004)); pitch = Math.max(-0.45, Math.min(0.45, drag.pitch - dy * 0.003)); }
       else if (e.pointerType === 'mouse') { const r = dom.getBoundingClientRect(); ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, camera); dom.style.cursor = ray.intersectObjects(hits, false).length ? 'pointer' : 'grab'; }
     });
     const up = (e: PointerEvent) => {
@@ -581,9 +673,20 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
       if (h) cb.current.onPick(h.object.userData.id);
     };
     dom.addEventListener('pointerup', up); dom.addEventListener('pointercancel', (e) => { pinch.delete(e.pointerId); drag = null; });
-    dom.addEventListener('wheel', (e) => { e.preventDefault(); zoom = Math.max(0.45, Math.min(1.35, zoom * (1 + e.deltaY * 0.001))); }, { passive: false });
-    const key = (e: KeyboardEvent) => { if ((e.target as HTMLElement)?.tagName === 'INPUT') return; if (focus) return; if (e.key === 'ArrowRight') goRoom(Math.min(stops.length - 1, room + 1)); if (e.key === 'ArrowLeft') goRoom(Math.max(0, room - 1)); };
-    addEventListener('keydown', key);
+    dom.addEventListener('wheel', (e) => { e.preventDefault(); if (walking) return; zoom = Math.max(0.45, Math.min(1.35, zoom * (1 + e.deltaY * 0.001))); }, { passive: false });
+    const MOVE = new Set(['w', 'a', 's', 'd', 'q', 'e', 'arrowup', 'arrowdown', 'shift']);
+    const key = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
+      const k = e.key.toLowerCase();
+      if (k === 'escape' && walking) { stopWalk(); goRoom(room); return; }
+      if (walking && (MOVE.has(k) || k === 'arrowleft' || k === 'arrowright')) { keys.add(k); e.preventDefault(); return; }
+      if (focus) return;
+      if (MOVE.has(k) && k !== 'shift') { startWalk(); keys.add(k); e.preventDefault(); return; }
+      if (e.key === 'ArrowRight') goRoom(Math.min(stops.length - 1, room + 1)); if (e.key === 'ArrowLeft') goRoom(Math.max(0, room - 1));
+    };
+    const keyUp = (e: KeyboardEvent) => { keys.delete(e.key.toLowerCase()); };
+    const blur = () => keys.clear();
+    addEventListener('keydown', key); addEventListener('keyup', keyUp); addEventListener('blur', blur);
 
     const size = () => { const w = el.clientWidth, h = el.clientHeight; renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); };
     size(); const ro = new ResizeObserver(size); ro.observe(el);
@@ -594,6 +697,7 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
       raf = requestAnimationFrame(loop);
       const now = performance.now(), dt = Math.min(0.05, (now - prev) / 1000); prev = now; const t = (now - t0) / 1000;
       const k = 1 - Math.pow(0.0025, dt);
+      if (walking) { stepWalk(dt); camWalk(); } else {
       // 動きを減らす設定の端末では、移動せずに切り替える
       if (reduce) { while (via.length) { const n = via.shift()!; goal.pos.copy(n.pos); goal.look.copy(n.look); goalZone = n.zone; } cur.pos.copy(goal.pos); cur.look.copy(goal.look); }
       if (via.length && cur.pos.distanceTo(goal.pos) < 0.7) { zoneNow = goalZone; const n = via.shift()!; goal.pos.copy(n.pos); goal.look.copy(n.look); goalZone = n.zone; }
@@ -605,15 +709,16 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
       dir.applyAxisAngle(V(0, 1, 0), yaw); const side = V(0, 1, 0).cross(dir).normalize(); dir.applyAxisAngle(side, -pitch);
       tmp.copy(cur.pos).addScaledVector(dir, dist * (1 - zoom));
       camera.position.copy(tmp); camera.lookAt(tmp.clone().addScaledVector(dir, Math.max(0.5, dist * zoom)));
+      }
       if (!reduce) { spinners.forEach((s, i) => { s.rotation.y = Math.sin(t * 0.35 + i * 1.3) * 0.9; }); swayers.forEach((s) => { s.o.rotation.z = Math.sin(t * 1.1 + s.ph) * 0.02; s.o.rotation.y = Math.sin(t * 0.6 + s.ph) * 0.08; }); hallTick?.(now); giant.rotation.y = Math.sin(t * 0.12) * 0.5; }
-      if (cb.current.paused && !moving && !first) return;
+      if (cb.current.paused && !moving && !walking && !first) return;
       renderer.render(scene, camera);
       if (first) { first = false; emit(true); const gl = renderer.getContext(); const e = gl.getError(); if (e) report('gl error ' + e); if (!renderer.info.render.calls) report('nothing drawn'); }
     };
     loop();
 
     return () => {
-      alive = false; cancelAnimationFrame(raf); ro.disconnect(); removeEventListener('keydown', key); apiRef.current = null;
+      alive = false; cancelAnimationFrame(raf); ro.disconnect(); removeEventListener('keydown', key); removeEventListener('keyup', keyUp); removeEventListener('blur', blur); apiRef.current = null;
       scene.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) { m.geometry.dispose(); const mm = m.material as THREE.Material | THREE.Material[]; (Array.isArray(mm) ? mm : [mm]).forEach((x) => { (x as THREE.MeshStandardMaterial).map?.dispose(); x.dispose(); }); } });
       pm.dispose(); renderer.dispose(); renderer.domElement.remove();
     };

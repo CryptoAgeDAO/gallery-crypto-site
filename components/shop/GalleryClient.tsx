@@ -112,7 +112,7 @@ export default function GalleryClient({ initial }: { initial: ShopItem[] }) {
   const two = (n: number) => String(n).padStart(2, '0');
 
   return (
-    <div className={`gr ${cur && !isG ? 'has-panel' : ''} ${isG ? 'taking' : ''}`} translate="no">
+    <div className={`gr ${cur && !isG ? 'has-panel' : ''} ${isG ? 'taking' : ''} ${st.walking ? 'walking' : ''}`} translate="no">
       <Safe fallback={<Fallback />}>
         {phone !== null && <Showroom3D paused={isG} rooms={rooms} apiRef={api} onState={setSt} onPick={(id) => { api.current?.focus(id); sfx('open'); }} />}
       </Safe>
@@ -133,6 +133,19 @@ export default function GalleryClient({ initial }: { initial: ShopItem[] }) {
           <p>{lang === 'ja' ? g.dja : g.den}</p>
           <small>{t('‹ › to move between areas · drag to look around · pinch or scroll to get closer · tap a piece for details', '‹ › で売り場を移動 · ドラッグで見回す · ピンチ／スクロールで寄る · 商品を押すと詳細')}</small>
         </div>
+      )}
+
+      {/* 歩く：ゲームのように自由に。パソコンはキー、スマホは左下のスティック */}
+      {st.ready && !cur && (
+        <button className={`gr-walk ${st.walking ? 'on' : ''}`} onClick={() => { api.current?.walk?.(!st.walking); sfx('tick'); }}>
+          {st.walking ? t('Back to the tour', 'ツアーに戻る') : t('Walk freely', '自由に歩く')}
+        </button>
+      )}
+      {st.walking && !cur && (
+        <>
+          <Stick onMove={(x, y) => api.current?.stick?.(x, y)} />
+          <p className="gr-hint">{phone ? t('Left stick to walk · drag to look · walk into the spiral stair to go up', '左のスティックで歩く · ドラッグで見回す · らせん階段に入ると中二階へ') : t('WASD / arrows to walk · Shift to run · drag to look · Esc to go back', 'WASD・矢印で歩く · Shift で走る · ドラッグで見回す · Esc で戻る')}</p>
+        </>
       )}
 
       <nav className={`gr-nav ${cur ? 'dim' : ''}`} aria-label={t('Areas', 'エリア')}>
@@ -181,6 +194,26 @@ export default function GalleryClient({ initial }: { initial: ShopItem[] }) {
           </div>
         )}
       </aside>
+    </div>
+  );
+}
+
+// 画面のスティック（スマホで歩く）：中心からのずれを -1〜1 で返す。離すと 0
+function Stick({ onMove }: { onMove: (x: number, y: number) => void }) {
+  const ref = useRef<HTMLDivElement>(null), knob = useRef<HTMLElement>(null), id = useRef<number | null>(null);
+  const set = (e: React.PointerEvent) => {
+    const r = ref.current!.getBoundingClientRect(), R = r.width / 2;
+    let x = (e.clientX - r.left - R) / R, y = (e.clientY - r.top - R) / R; const m = Math.hypot(x, y); if (m > 1) { x /= m; y /= m; }
+    if (knob.current) knob.current.style.transform = `translate(${x * R * 0.55}px,${y * R * 0.55}px)`;
+    onMove(Math.abs(x) < 0.12 ? 0 : x, Math.abs(y) < 0.12 ? 0 : y);
+  };
+  const end = () => { id.current = null; if (knob.current) knob.current.style.transform = ''; onMove(0, 0); };
+  return (
+    <div ref={ref} className="gr-stick" aria-hidden
+      onPointerDown={(e) => { id.current = e.pointerId; (e.target as HTMLElement).setPointerCapture?.(e.pointerId); set(e); }}
+      onPointerMove={(e) => { if (id.current === e.pointerId) set(e); }}
+      onPointerUp={end} onPointerCancel={end}>
+      <i ref={knob} />
     </div>
   );
 }
