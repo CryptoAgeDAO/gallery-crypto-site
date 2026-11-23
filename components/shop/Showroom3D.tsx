@@ -1,9 +1,8 @@
 'use client';
-// ショールーム（シンプル版）：白い壁・明るいコンクリートの床の、ギャラリーのような一部屋。
-// 売り場ごとに陳列（DP）を変えて、商品を立体（3D）で見せる。
-//   入口：トルソー（回転台）  左の壁：二段のフェイスアウト  中央：たたみのテーブル  右奥：パンツのラック
-//   奥の壁：ヴィンテージ・ツアーのレール  右の壁：帽子の棚  右手前：小物のガラスケース  アート：額装
-//   左の壁の開口の先：展示ホール（ローライダー・カスタムBMX・ヨット。見本の展示）
+// ショールーム：磨いたコンクリートの床と白い壁で仕切った、入り組んだ売り場。中央は天井 10m の吹き抜け。
+// 商品は種類ごとに部屋を分け、部屋ごとに陳列（DP）を変えて立体（3D）で見せる（間取りは下の「建物」を参照）。
+//   吹き抜け：スケートボウル・吊るした大きな服・壁画・スケートデッキの壁・らせん階段で中二階へ
+//   L3（パンツ）の左の壁の開口の先：展示ホール（ローライダー・カスタムBMX・ヨット。見本の展示）
 // 服は写真（見本は絵）から、スマートスキャンと同じしくみで立体にする。押すと近づいて詳細が出る。
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
@@ -13,14 +12,28 @@ import { layerOf, bboxOf } from './garmentLayer';
 import { isPhone } from '@/lib/device';
 import { loadImage } from '@/lib/imgQueue';
 import type { GalleryApi, GState } from './Gallery3D';
-import { buildHall, exhibitStop, DOOR_Z, DOOR_W, DOOR_H, type ExhibitKind } from './exhibits';
+import { buildHall, exhibitStop, DOOR_WZ, DOOR_W, DOOR_H, type ExhibitKind } from './exhibits';
 
-export type DP = 'forms' | 'wall' | 'table' | 'rack' | 'back' | 'caps' | 'case' | 'art' | 'car' | 'bike' | 'yacht';
+export type DP = 'forms' | 'wall' | 'outer' | 'table' | 'rack' | 'back' | 'caps' | 'case' | 'art' | 'atrium' | 'car' | 'bike' | 'yacht';
 export type SPiece = { id: string; title: string; code?: string; kind: 'garment' | 'cap' | 'art'; tex: string; back?: string; heightM?: number };
 export type SRoom = { key: string; dp: DP; pieces: SPiece[] };
 
-const W = 8, D = 10, H = 4.6; // 半幅・半奥行・天井
+const W = 12, D = 14, H = 4.6, AH = 10, MZ = 4.9; // 半幅・半奥行・売り場の天井・吹き抜けの天井・中二階の床
 const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
+// 区画（カメラの通り道）。inn は部屋の中、out は親の区画側の、開口の前の点
+type Zone = 'hub' | 'L1' | 'L2' | 'L3' | 'back' | 'R1' | 'R2' | 'R3' | 'mezz' | 'hall';
+const ZP: Record<Zone, { parent: Zone | null; inn: THREE.Vector3; out: THREE.Vector3 }> = {
+  hub: { parent: null, inn: V(0, 1.7, 0), out: V(0, 1.7, 0) },
+  L1: { parent: 'hub', inn: V(-6.4, 1.7, 5), out: V(-3.6, 1.7, 5) },
+  L2: { parent: 'hub', inn: V(-6.4, 1.7, -2.5), out: V(-3.6, 1.7, -2.5) },
+  L3: { parent: 'L2', inn: V(-8.5, 1.7, -7.4), out: V(-8.5, 1.7, -4.6) },
+  back: { parent: 'hub', inn: V(0, 1.7, -6.6), out: V(0, 1.7, -3.4) },
+  R1: { parent: 'hub', inn: V(6.4, 1.7, 6), out: V(3.6, 1.7, 6) },
+  R2: { parent: 'hub', inn: V(6.4, 1.7, 0), out: V(3.6, 1.7, 0) },
+  R3: { parent: 'back', inn: V(6.4, 1.7, -9.5), out: V(3.6, 1.7, -9.5) },
+  mezz: { parent: 'hub', inn: V(0, MZ + 1.75, -5.7), out: V(0, MZ + 1.75, -3.0) },
+  hall: { parent: 'L3', inn: V(-13.6, 1.7, DOOR_WZ), out: V(-10.4, 1.7, DOOR_WZ) },
+};
 
 function canvasTex(w: number, h: number, draw: (g: CanvasRenderingContext2D, w: number, h: number) => void, rep?: [number, number]) {
   const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d')!, w, h);
@@ -69,9 +82,10 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
     // ---- 材質 ----
     const wallM = new THREE.MeshStandardMaterial({ color: 0xf7f6f2, roughness: 0.95 });
     const floorT = canvasTex(1024, 1024, (g, w, h) => {
-      g.fillStyle = '#d6d3cc'; g.fillRect(0, 0, w, h);
-      for (let i = 0; i < 18000; i++) { const v = 190 + Math.random() * 50; g.fillStyle = `rgba(${v},${v - 2},${v - 6},${Math.random() * 0.18})`; g.fillRect(Math.random() * w, Math.random() * h, 2, 2); }
+      g.fillStyle = '#c3bfb7'; g.fillRect(0, 0, w, h);
+      for (let i = 0; i < 18000; i++) { const v = 175 + Math.random() * 55; g.fillStyle = `rgba(${v},${v - 2},${v - 6},${Math.random() * 0.18})`; g.fillRect(Math.random() * w, Math.random() * h, 2, 2); }
       for (let i = 0; i < 14; i++) { const gr = g.createRadialGradient(Math.random() * w, Math.random() * h, 0, Math.random() * w, Math.random() * h, 260); gr.addColorStop(0, 'rgba(255,255,255,.08)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); }
+      g.fillStyle = 'rgba(60,56,50,.55)'; g.fillRect(0, 0, w, 3); g.fillRect(0, 0, 3, h); // 4m ごとの目地
     }, [W / 2, D / 2]);
     const floorM = new THREE.MeshStandardMaterial({ map: floorT, roughness: 0.32, metalness: 0.02 });
     const white = new THREE.MeshStandardMaterial({ color: 0xfbfaf7, roughness: 0.5 });
@@ -86,36 +100,130 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
     const rod = (a: THREE.Vector3, b: THREE.Vector3, r: number, m: THREE.Material, p: THREE.Object3D = scene) => { const l = a.distanceTo(b); const c = new THREE.Mesh(new THREE.CylinderGeometry(r, r, l, 12), m); c.position.copy(a).lerp(b, 0.5); c.quaternion.setFromUnitVectors(V(0, 1, 0), b.clone().sub(a).normalize()); c.castShadow = !mobile; p.add(c); return c; };
     const softShadow = (x: number, z: number, w: number, d: number, o = 0.5, p: THREE.Object3D = scene) => { const s = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshBasicMaterial({ map: shadowT, transparent: true, opacity: o, depthWrite: false })); s.rotation.x = -Math.PI / 2; s.position.set(x, 0.004, z); p.add(s); };
 
-    // ---- 部屋：床・壁・天井・入口のガラス ----
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(W * 2, D * 2), floorM); floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
-    // 左の壁は、展示ホールへの開口（扉なし）を残して三つに分ける
-    { const zA = DOOR_Z - DOOR_W / 2, zB = DOOR_Z + DOOR_W / 2;
-      box(0.2, H, zA + D, wallM, -W - 0.1, H / 2, (zA - D) / 2); box(0.2, H, D - zB, wallM, -W - 0.1, H / 2, (D + zB) / 2); box(0.2, H - DOOR_H, DOOR_W, wallM, -W - 0.1, DOOR_H + (H - DOOR_H) / 2, DOOR_Z);
-      // 開口の上の小さな案内
-      const t = canvasTex(1024, 128, (g, w, h) => { g.fillStyle = '#141414'; g.font = `400 ${h * 0.5}px "Times New Roman", Georgia, serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; (g as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = `${h * 0.14}px`; g.fillText('THE COLLECTION', w / 2, h / 2); });
-      const sg = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.3), new THREE.MeshBasicMaterial({ map: t, transparent: true })); sg.position.set(-W + 0.01, DOOR_H + 0.35, DOOR_Z); sg.rotation.y = Math.PI / 2; scene.add(sg); }
-    box(0.2, H, D * 2, wallM, W + 0.1, H / 2, 0); box(W * 2, H, 0.2, wallM, 0, H / 2, -D - 0.1);
-    const ceil = new THREE.Mesh(new THREE.PlaneGeometry(W * 2, D * 2), new THREE.MeshStandardMaterial({ color: 0xf6f5f2, roughness: 1 })); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; scene.add(ceil);
-    // 天井：美術館のような、白く光る大きな天窓（ライトレイ）
-    const lightM = new THREE.MeshBasicMaterial({ color: 0xffffff }), mullM = new THREE.MeshBasicMaterial({ color: 0xe4e2dc });
-    for (const x of [-4, 4]) for (const z of [-5, 5]) { const l = new THREE.Mesh(new THREE.PlaneGeometry(5, 7.4), lightM); l.rotation.x = Math.PI / 2; l.position.set(x, H - 0.01, z); scene.add(l); for (let i = 1; i < 4; i++) { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.03, 7.4), mullM); m.rotation.x = Math.PI / 2; m.position.set(x - 2.5 + i * 1.25, H - 0.015, z); scene.add(m); } }
-    // 幅木
-    // 幅木のかわりに細い影の目地（左は開口のところで切る）
-    const gapM = new THREE.MeshBasicMaterial({ color: 0x9c988f });
-    box(0.01, 0.03, D * 2, gapM, W - 0.005, 0.015, 0);
-    { const zA = DOOR_Z - DOOR_W / 2, zB = DOOR_Z + DOOR_W / 2; box(0.01, 0.03, zA + D, gapM, -W + 0.005, 0.015, (zA - D) / 2); box(0.01, 0.03, D - zB, gapM, -W + 0.005, 0.015, (D + zB) / 2); }
-    box(W * 2, 0.03, 0.01, gapM, 0, 0.015, -D + 0.005);
-    // 入口：ガラスと黒い枠
+    // ---- 建物：コンクリートの床・白い壁で仕切った売り場・中央の吹き抜け（天井 10m）・奥の中二階 ----
+    // 平面（上から見て、+z が入口）：
+    //   入口ホール x -12..12, z 9..14（トルソー）
+    //   吹き抜け x -5..5, z -5..9（スケートボウル・吊るした大きな服・壁画・スケートデッキの壁・らせん階段）
+    //   左：L1 トップス z 1..9 ／ L2 アウター z -6..1 ／ L3 パンツ z -14..-6（左の壁の開口の先が展示ホール）
+    //   右：R1 帽子 z 3..9 ／ R2 小物 z -3..3 ／ R3 Tシャツ z -14..-3（奥の部屋から入る）
+    //   奥：ヴィンテージ・ツアー x -5..5, z -14..-5（上は中二階のアート）
+    const wallBox = (w: number, h: number, d: number, x: number, y: number, z: number) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallM); b.position.set(x, y, z); b.receiveShadow = !mobile; scene.add(b); return b; };
+    const steel = new THREE.MeshStandardMaterial({ color: 0x1b1b1d, roughness: 0.4, metalness: 0.6 });
+    type Op = [number, number, number]; // 開口：中心・幅・高さ
+    // 軸に沿った壁。along 'x' は z = c の壁（x 方向に伸びる）、'z' は x = c の壁。開口には黒い鉄の枠
+    const wallLine = (along: 'x' | 'z', c: number, a0: number, a1: number, h: number, ops: Op[] = [], y0 = 0) => {
+      const seg = (s0: number, s1: number, yb: number, yt: number) => { if (s1 - s0 < 0.01 || yt - yb < 0.01) return; const L = s1 - s0, m = (s0 + s1) / 2, hh = yt - yb, yc = (yb + yt) / 2; if (along === 'x') wallBox(L, hh, 0.2, m, yc, c); else wallBox(0.2, hh, L, c, yc, m); };
+      const frame = (s0: number, s1: number, oh: number) => {
+        const P = (a: number, y: number) => (along === 'x' ? V(a, y, c) : V(c, y, a));
+        for (const a of [s0, s1]) { const p = P(a, y0 + oh / 2); const b = new THREE.Mesh(new THREE.BoxGeometry(along === 'x' ? 0.06 : 0.26, oh, along === 'x' ? 0.26 : 0.06), steel); b.position.copy(p); scene.add(b); }
+        const t = P((s0 + s1) / 2, y0 + oh - 0.03); const b = new THREE.Mesh(new THREE.BoxGeometry(along === 'x' ? s1 - s0 + 0.06 : 0.26, 0.06, along === 'x' ? 0.26 : s1 - s0 + 0.06), steel); b.position.copy(t); scene.add(b);
+      };
+      let s = a0;
+      for (const [oc, ow, oh] of [...ops].sort((p, q) => p[0] - q[0])) { seg(s, oc - ow / 2, y0, y0 + h); seg(oc - ow / 2, oc + ow / 2, y0 + oh, y0 + h); frame(oc - ow / 2, oc + ow / 2, oh); s = oc + ow / 2; }
+      seg(s, a1, y0, y0 + h);
+    };
+    const plane = (w: number, d: number, m: THREE.Material, x: number, y: number, z: number, down = false) => { const p = new THREE.Mesh(new THREE.PlaneGeometry(w, d), m); p.rotation.x = down ? Math.PI / 2 : -Math.PI / 2; p.position.set(x, y, z); p.receiveShadow = !down; scene.add(p); return p; };
+    const ceilM = new THREE.MeshStandardMaterial({ color: 0xf4f3ef, roughness: 1 });
+    // 床：磨いたコンクリート（4m ごとの目地）
+    plane(W * 2, D * 2, floorM, 0, 0, 0);
+    // 外壁と入口のガラス
+    wallLine('z', -W - 0.1, -D, 9, H, [[DOOR_WZ, DOOR_W, DOOR_H]]); wallLine('z', W + 0.1, -D, 9, H);
+    wallLine('z', -W - 0.1, 9, D, H); wallLine('z', W + 0.1, 9, D, H);
+    wallLine('x', -D - 0.1, -W, -5, H); wallLine('x', -D - 0.1, 5, W, H); wallLine('x', -D - 0.1, -5, 5, AH);
     { const z = D; for (let x = -W; x <= W + 0.01; x += 2) box(0.06, H, 0.08, black, x, H / 2, z); box(W * 2, 0.08, 0.08, black, 0, H - 0.04, z); box(W * 2, 0.08, 0.08, black, 0, 0.04, z);
       const gl = new THREE.Mesh(new THREE.PlaneGeometry(W * 2, H), glass); gl.position.set(0, H / 2, z); scene.add(gl); }
-    // 奥の壁の文字
+    // 仕切り：入口ホールと左右の棟（開口つき）
+    wallLine('x', 9, -W, -5, H, [[-8.5, 2.6, 3.4]]); wallLine('x', 9, 5, W, H, [[8.5, 2.6, 3.4]]);
+    // 吹き抜けの左右の壁（下は売り場への開口、上は 10m まで）
+    wallLine('z', -5, -D, 9, AH, [[5, 2.6, 3.4], [-2.5, 2.6, 3.4]]); wallLine('z', 5, -D, 9, AH, [[6, 2.6, 3.4], [0, 2.6, 3.4], [-9.5, 2.6, 3.4]]);
+    // 吹き抜けの入口側の上の壁（入口ホールの天井から上）
+    wallBox(10, AH - H, 0.2, 0, H + (AH - H) / 2, 9);
+    // 左の棟の仕切り
+    wallLine('x', 1, -W, -5, H); wallLine('x', -6, -W, -5, H, [[-8.5, 2.6, 3.4]]);
+    // 右の棟の仕切り
+    wallLine('x', 3, 5, W, H); wallLine('x', -3, 5, W, H);
+    // 天井：入口ホールと左右の棟は 4.6m、吹き抜けと中二階は 10m
+    plane(W * 2, D - 9, ceilM, 0, H, (D + 9) / 2, true);
+    plane(W - 5, 9 + D, ceilM, -(W + 5) / 2, H, (9 - D) / 2, true); plane(W - 5, 9 + D, ceilM, (W + 5) / 2, H, (9 - D) / 2, true);
+    plane(10, 9 + D, ceilM, 0, AH, (9 - D) / 2, true);
+    // 天窓（吹き抜けの上）と、売り場の長い蛍光灯
+    const lightM = new THREE.MeshBasicMaterial({ color: 0xffffff }), mullM = new THREE.MeshBasicMaterial({ color: 0xdedcd6 });
+    { const l = plane(8.4, 12.4, lightM, 0, AH - 0.01, 2, true); void l; for (let i = 1; i < 6; i++) plane(0.05, 12.4, mullM, -4.2 + i * 1.4, AH - 0.015, 2, true); for (let i = 1; i < 6; i++) plane(8.4, 0.05, mullM, 0, AH - 0.015, -4.2 + i * 2.07, true); }
+    const tubeM = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const tubes = (x0: number, x1: number, z0: number, z1: number, alongZ: boolean) => {
+      if (alongZ) for (let x = x0 + 1.5; x < x1 - 0.5; x += 2.2) { const t = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.05, z1 - z0 - 1.2), tubeM); t.position.set(x, H - 0.04, (z0 + z1) / 2); scene.add(t); }
+      else for (let z = z0 + 1.2; z < z1 - 0.5; z += 1.8) { const t = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0 - 1.2, 0.05, 0.07), tubeM); t.position.set((x0 + x1) / 2, H - 0.04, z); scene.add(t); }
+    };
+    tubes(-W, W, 9, D, false); tubes(-W, -5, 1, 9, true); tubes(-W, -5, -6, 1, true); tubes(-W, -5, -D, -6, true); tubes(5, W, 3, 9, true); tubes(5, W, -3, 3, true); tubes(5, W, -D, -3, true); tubes(-5, 5, -D, -5, false);
+    // 中二階：奥の部屋の上。床・前の縁・ガラスの手すり
+    { const sl = new THREE.Mesh(new THREE.BoxGeometry(10, MZ - H, 9), ceilM); sl.position.set(0, (H + MZ) / 2, -9.5); scene.add(sl);
+      plane(10, 9, floorM, 0, MZ + 0.005, -9.5);
+      box(10, 0.32, 0.06, steel, 0, MZ - 0.14, -4.98);
+      const gl = new THREE.Mesh(new THREE.PlaneGeometry(10, 1.05), glass); gl.position.set(0, MZ + 0.55, -5.04); scene.add(gl);
+      rod(V(-5, MZ + 1.08, -5.04), V(5, MZ + 1.08, -5.04), 0.025, chrome);
+      for (let x = -4; x <= 4; x += 2) rod(V(x, MZ, -5.04), V(x, MZ + 1.08, -5.04), 0.012, chrome); }
+    // 開口の上の案内（展示ホールへ）
+    { const t = canvasTex(1024, 128, (g, w, h) => { g.fillStyle = '#141414'; g.font = `400 ${h * 0.5}px "Times New Roman", Georgia, serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; (g as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = `${h * 0.14}px`; g.fillText('THE COLLECTION', w / 2, h / 2); });
+      const sg = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.3), new THREE.MeshBasicMaterial({ map: t, transparent: true })); sg.position.set(-W + 0.01, DOOR_H + 0.35, DOOR_WZ); sg.rotation.y = Math.PI / 2; scene.add(sg); }
+    // 奥の高い壁の文字（中二階の上）
     { const t = canvasTex(2048, 256, (g, w, h) => { g.clearRect(0, 0, w, h); g.fillStyle = '#141414'; g.font = `400 ${h * 0.62}px "Times New Roman", Georgia, serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; (g as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = `${h * 0.18}px`; g.fillText('GALLERY CRYPTO', w / 2, h / 2); });
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(8, 1), new THREE.MeshBasicMaterial({ map: t, transparent: true })); m.position.set(0, mobile ? 3.25 : 3.7, -D + 0.02); if (mobile) m.scale.setScalar(0.5); scene.add(m); } // スマホは縦長で文字が切れるので小さく
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(8, 1), new THREE.MeshBasicMaterial({ map: t, transparent: true })); m.position.set(0, 8.9, -D + 0.02); if (mobile) m.scale.setScalar(0.55); scene.add(m); } // スマホは縦長で文字が切れるので小さく
+
+    // ---- 吹き抜けの大きなオブジェクト ----
+    // スケートボウル：打ちっぱなしのコンクリート、縁は鉄のコーピング
+    { const BX = 0, BZ = 2.6, prof: THREE.Vector2[] = [new THREE.Vector2(0, 0.1), new THREE.Vector2(2.2, 0.1)];
+      for (let i = 1; i <= 14; i++) { const a = (i / 14) * Math.PI / 2; prof.push(new THREE.Vector2(2.2 + 1.1 * Math.sin(a), 1.2 - 1.1 * Math.cos(a))); }
+      prof.push(new THREE.Vector2(3.3, 1.4), new THREE.Vector2(3.75, 1.4), new THREE.Vector2(3.75, 0));
+      // ボウルの面：底は少し暗く、曲面は上へ明るく、縁と外壁は明るいコンクリート。タイヤの跡を少し
+      const bT = canvasTex(512, 512, (g, w, h) => {
+        const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#8f8b84'); gr.addColorStop(0.08, '#96928a'); gr.addColorStop(0.5, '#aaa69e'); gr.addColorStop(0.82, '#c4c0b8'); gr.addColorStop(0.86, '#d2cec6'); gr.addColorStop(0.9, '#c9c5bd'); gr.addColorStop(1, '#bdb9b1');
+        g.fillStyle = gr; g.fillRect(0, 0, w, h);
+        for (let i = 0; i < 9000; i++) { g.fillStyle = `rgba(${Math.random() < 0.5 ? '255,255,255' : '40,38,34'},${Math.random() * 0.08})`; g.fillRect(Math.random() * w, Math.random() * h, 2, 2); }
+        for (let i = 0; i < 26; i++) { g.strokeStyle = `rgba(30,28,26,${0.05 + Math.random() * 0.08})`; g.lineWidth = 2 + Math.random() * 3; g.beginPath(); const x = Math.random() * w, y = h * (0.1 + Math.random() * 0.6); g.moveTo(x, y); g.quadraticCurveTo(x + (Math.random() - 0.5) * 120, y + 60, x + (Math.random() - 0.5) * 200, y + 120 + Math.random() * 80); g.stroke(); }
+      });
+      bT.wrapS = THREE.RepeatWrapping; bT.repeat.set(6, 1);
+      const bowl = new THREE.Mesh(new THREE.LatheGeometry(prof, mobile ? 48 : 96), new THREE.MeshStandardMaterial({ map: bT, roughness: 0.75, side: THREE.DoubleSide })); bowl.position.set(BX, 0, BZ); bowl.receiveShadow = !mobile; bowl.castShadow = !mobile; scene.add(bowl);
+      const cop = new THREE.Mesh(new THREE.TorusGeometry(3.3, 0.042, 10, mobile ? 64 : 128), chrome); cop.rotation.x = Math.PI / 2; cop.position.set(BX, 1.42, BZ); scene.add(cop);
+      softShadow(BX, BZ, 9.5, 9.5, 0.35); }
+    // らせん階段（吹き抜けの右奥の角から中二階へ）
+    { const SX = 3.7, SZ = -3.7, n = 18, a0 = Math.PI * 0.62, da = (Math.PI * 2.02) / n;
+      rod(V(SX, 0, SZ), V(SX, MZ + 1.1, SZ), 0.075, steel);
+      const rail: THREE.Vector3[] = [];
+      for (let i = 0; i < n; i++) { const a = a0 + i * da, y = ((i + 1) / n) * MZ; const t = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.045, 0.34), steel); t.position.set(SX + Math.cos(a) * 0.55, y, SZ - Math.sin(a) * 0.55); t.rotation.y = a; scene.add(t); rail.push(V(SX + Math.cos(a) * 1.03, y + 0.92, SZ - Math.sin(a) * 1.03)); if (i % 2 === 0) rod(V(SX + Math.cos(a) * 1.03, y, SZ - Math.sin(a) * 1.03), V(SX + Math.cos(a) * 1.03, y + 0.92, SZ - Math.sin(a) * 1.03), 0.01, steel); }
+      scene.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(rail), 120, 0.022, 8), steel)); }
+    // 壁画（吹き抜けの右の壁の上）：オリジナルの抽象画
+    { const t = canvasTex(2048, 768, (g, w, h) => {
+        g.fillStyle = '#efebe2'; g.fillRect(0, 0, w, h);
+        let sd = 5; const r = () => { sd = (sd * 16807) % 2147483647; return (sd - 1) / 2147483646; };
+        g.fillStyle = '#1f3a8a'; g.beginPath(); g.arc(w * 0.72, h * 0.42, h * 0.3, 0, 7); g.fill();
+        g.fillStyle = '#c9a75c'; g.fillRect(w * 0.08, h * 0.58, w * 0.3, h * 0.08);
+        g.strokeStyle = '#111'; g.lineCap = 'round';
+        for (let i = 0; i < 7; i++) { g.lineWidth = 20 + r() * 50; g.beginPath(); const x = r() * w, y = r() * h; g.moveTo(x, y); g.bezierCurveTo(x + (r() - 0.5) * 900, y + (r() - 0.5) * 500, x + (r() - 0.5) * 900, y + (r() - 0.5) * 500, x + (r() - 0.5) * 1200, y + (r() - 0.5) * 300); g.stroke(); }
+        for (let i = 0; i < 30; i++) { g.fillStyle = 'rgba(17,17,17,.85)'; const x = r() * w, y = h * (0.2 + r() * 0.5); g.fillRect(x, y, 4 + r() * 6, 40 + r() * 160); }
+        g.fillStyle = '#111'; g.font = `400 ${h * 0.05}px "Times New Roman", Georgia, serif`; (g as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = `${h * 0.02}px`; g.fillText('GALLERY CRYPTO — TOKYO', w * 0.05, h * 0.92);
+      });
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(12.6, 4.6), new THREE.MeshStandardMaterial({ map: t, roughness: 0.9 })); m.position.set(4.89, 7.3, 2.0); m.rotation.y = -Math.PI / 2; scene.add(m); }
+    // スケートデッキの壁（吹き抜けの左の壁の上）：オリジナルの柄を一列に
+    { const n = mobile ? 10 : 14;
+      for (let i = 0; i < n; i++) {
+        const t = canvasTex(128, 512, (g, w, h) => {
+          const pal = [['#141414', '#efebe2'], ['#efebe2', '#141414'], ['#1f3a8a', '#efebe2'], ['#c9a75c', '#141414'], ['#2f4a35', '#efebe2'], ['#6b1d22', '#efebe2']][i % 6];
+          g.fillStyle = pal[0]; g.fillRect(0, 0, w, h); g.fillStyle = pal[1];
+          const k = i % 5;
+          if (k === 0) for (let y = 0; y < h; y += 48) g.fillRect(0, y, w, 18);
+          else if (k === 1) for (let j = 0; j < 30; j++) { g.beginPath(); g.arc((j * 37) % w, (j * 71) % h, 6 + (j % 4) * 4, 0, 7); g.fill(); }
+          else if (k === 2) { g.beginPath(); g.arc(w / 2, h / 2, w * 0.36, 0, 7); g.fill(); }
+          else if (k === 3) { g.font = `700 ${w * 0.5}px "Times New Roman", serif`; g.textAlign = 'center'; g.save(); g.translate(w / 2, h / 2); g.rotate(-Math.PI / 2); g.fillText('GC', 0, w * 0.18); g.restore(); }
+          else for (let y = -w; y < h; y += 40) { g.beginPath(); g.moveTo(0, y); g.lineTo(w, y + w); g.lineTo(w, y + w + 16); g.lineTo(0, y + 16); g.fill(); }
+        });
+        const dk = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.82), new THREE.MeshStandardMaterial({ map: t, roughness: 0.5 }));
+        dk.position.set(-4.88, 5.9, -3.6 + (i * 11.8) / (n - 1)); dk.rotation.y = Math.PI / 2; scene.add(dk);
+      } }
 
     // ---- 光 ----
-    scene.add(new THREE.HemisphereLight(0xffffff, 0xd8d3ca, 1.35));
-    const sun = new THREE.DirectionalLight(0xfff6ea, 1.3); sun.position.set(-4, 9, 6); sun.target.position.set(0, 0, -1); scene.add(sun, sun.target);
-    if (!mobile) { sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -W - 1, right: W + 1, top: D + 1, bottom: -D - 1, near: 1, far: 30 }); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02; sun.shadow.radius = 5; sun.shadow.camera.updateProjectionMatrix(); }
+    scene.add(new THREE.HemisphereLight(0xffffff, 0xd2cdc4, 1.3));
+    const sun = new THREE.DirectionalLight(0xfff6ea, 1.25); sun.position.set(-5, 16, 7); sun.target.position.set(0, 0, -1); scene.add(sun, sun.target);
+    if (!mobile) { sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -W - 1, right: W + 1, top: D + 1, bottom: -D - 1, near: 1, far: 40 }); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02; sun.shadow.radius = 5; sun.shadow.camera.updateProjectionMatrix(); }
     const fill = new THREE.DirectionalLight(0xe6eeff, 0.45); fill.position.set(5, 4, -6); scene.add(fill);
 
     // ---- 商品を置く ----
@@ -217,54 +325,108 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
       return m;
     };
 
+    // ---- 陳列の部品（どれも壁や台の「手前の面」が local +z、横が local x） ----
+    const grp = (x: number, z: number, ry: number, y = 0) => { const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = ry; scene.add(g); return g; };
+    // 壁のフェイスアウト：点数が多いと三段（高い位置まで一列に並べる）。いちばん上の棚には、たたんだ在庫
+    const faceWall = (g0: THREE.Group, ps: SPiece[], span: number, ri: number, face: THREE.Vector3) => {
+      const n = ps.length; if (!n) return;
+      const ys = n > 12 ? [3.5, 2.38, 1.26] : [2.75, 1.55], per = Math.ceil(n / ys.length), shelf = ys[0] + 0.85;
+      ys.forEach((y, r) => { if (r * per >= n) return; rod(V(-span / 2, y, 0.42), V(span / 2, y, 0.42), 0.016, chrome, g0); for (const ex of [-span / 2, span / 2]) rod(V(ex, y, 0.02), V(ex, y, 0.42), 0.012, chrome, g0); });
+      box(span, 0.03, 0.42, white, 0, shelf, 0.21, g0);
+      for (let x = -span / 2 + 0.4; x < span / 2 - 0.3; x += 0.55) box(0.36, 0.12, 0.3, new THREE.MeshStandardMaterial({ color: [0x1a1a1c, 0xe5e0d3, 0x4b5236, 0x1d2740][Math.floor(x * 7 + 40) % 4], roughness: 0.95 }), x, shelf + 0.075, 0.2, g0);
+      ps.forEach((p, k) => {
+        const r = Math.floor(k / per), kk = k - r * per, cnt = Math.min(per, n - r * per);
+        const x = cnt === 1 ? 0 : -span / 2 + 0.6 + (kk * (span - 1.2)) / (cnt - 1);
+        const arm = new THREE.Group(); arm.position.set(x, ys[r], 0.42); g0.add(arm);
+        garment(arm, p, 0.78, ri, face, 2.6);
+      });
+    };
+    // 壁の長いレール（一列）
+    const railWall = (g0: THREE.Group, ps: SPiece[], span: number, ri: number, face: THREE.Vector3, h0: number) => {
+      const n = ps.length; if (!n) return;
+      rod(V(-span / 2, 2.25, 0.4), V(span / 2, 2.25, 0.4), 0.016, chrome, g0);
+      for (const ex of [-span / 2, 0, span / 2]) rod(V(ex, 2.25, 0.02), V(ex, 2.25, 0.4), 0.012, chrome, g0);
+      ps.forEach((p, k) => {
+        const x = n === 1 ? 0 : -span / 2 + 0.6 + (k * (span - 1.2)) / (n - 1);
+        const a = new THREE.Group(); a.position.set(x, 2.25, 0.4); g0.add(a); swayers.push({ o: a, ph: k * 1.3 });
+        garment(a, p, h0, ri, face, 2.4);
+      });
+    };
+    // 自立式のクロームのラック（パンツはクリップ式のハンガー）
+    const rackFree = (g0: THREE.Group, ps: SPiece[], L: number, ri: number, face: THREE.Vector3) => {
+      const n = ps.length; if (!n) return;
+      for (const ex of [-L / 2, L / 2]) { rod(V(ex, 0.05, 0), V(ex, 1.85, 0), 0.02, chrome, g0); rod(V(ex, 0.05, -0.3), V(ex, 0.05, 0.3), 0.02, chrome, g0); }
+      rod(V(-L / 2, 1.85, 0), V(L / 2, 1.85, 0), 0.016, chrome, g0);
+      const c = new THREE.Vector3(); g0.getWorldPosition(c); softShadow(c.x, c.z, Math.abs(face.x) > 0.5 ? 1.6 : L + 0.8, Math.abs(face.x) > 0.5 ? L + 0.8 : 1.6, 0.4);
+      ps.forEach((p, k) => {
+        const x = n === 1 ? 0 : -L / 2 + 0.45 + (k * (L - 0.9)) / (n - 1);
+        const a = new THREE.Group(); a.position.set(x, 1.83, 0.02); g0.add(a); swayers.push({ o: a, ph: k });
+        garment(a, p, 1.05, ri, face, 2.6, true, true);
+      });
+    };
+    const wpos = (o: THREE.Object3D) => { const v = new THREE.Vector3(); o.getWorldPosition(v); return v; };
+
     let wantHall = false;
+    const zoneOf: Zone[] = [];
     rooms.forEach((room, ri) => {
       const ps = room.pieces, n = ps.length;
       switch (room.dp) {
-        case 'forms': { // 入口：白い回転台の上のトルソー（服を着せて、ゆっくり回る）
-          const sp = mobile ? 1.8 : 2.6, xs = n === 1 ? [0] : ps.map((_, k) => -sp + (2 * sp * k) / Math.max(1, n - 1));
+        case 'forms': { // 入口ホール：白い回転台の上のトルソー（吹き抜けを背に）
+          zoneOf[ri] = 'hub';
+          const sp = mobile ? 1.5 : 2.6, xs = n === 1 ? [0] : ps.map((_, k) => -sp + (2 * sp * k) / Math.max(1, n - 1));
           ps.forEach((p, k) => {
-            const x = xs[k], z = 5.2 - Math.abs(x) * 0.25;
+            const x = xs[k], z = 10.2 - Math.abs(x) * 0.25;
             const base = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.6, 0.3, 48), white); base.position.set(x, 0.15, z); base.castShadow = base.receiveShadow = !mobile; scene.add(base); softShadow(x, z, 1.8, 1.8, 0.45);
             const turn = new THREE.Group(); turn.position.set(x, 0.3, z); scene.add(turn); spinners.push(turn);
             rod(V(0, 0, 0), V(0, 1.3, 0), 0.02, chrome, turn);
-            // 肩の形の細いバー（服の中に隠れる）
             rod(V(-0.18, 1.5, 0), V(0.18, 1.5, 0), 0.015, chrome, turn);
             const g = garment(turn, p, 0.82, ri, V(0, 0, 1), 2.4, false); g.position.y = 1.52;
             spots.get(p.id)!.look.set(x, 1.1, z); spots.get(p.id)!.pos.set(x, 1.4, z + 2.3);
           });
-          stops[ri] = mobile ? { pos: V(0, 1.75, 9.8), look: V(0, 1.05, 4.6) } : { pos: V(0, 1.6, 9.4), look: V(0, 1.15, 4.6) };
+          stops[ri] = mobile ? { pos: V(0, 1.8, 13.8), look: V(0, 1.3, 9.0) } : { pos: V(0, 1.65, 13.6), look: V(0, 1.45, 8.6) };
           break;
         }
-        case 'wall': { // 左の壁：上下二段のフェイスアウト（白い棚板の上に、たたんだ在庫）
-          const g0 = new THREE.Group(); g0.position.set(-W, 0, -2.5); g0.rotation.y = Math.PI / 2; scene.add(g0);
-          const per = Math.ceil(n / 2), span = Math.min(12, per * 0.95 + 0.6);
-          for (const y of [2.75, 1.55]) { rod(V(-span / 2, y, 0.42), V(span / 2, y, 0.42), 0.016, chrome, g0); for (const ex of [-span / 2, span / 2]) rod(V(ex, y, 0.02), V(ex, y, 0.42), 0.012, chrome, g0); }
-          box(span, 0.03, 0.42, white, 0, 3.75, 0.21, g0); box(span, 0.03, 0.42, white, 0, 0.42, 0.21, g0);
-          ps.forEach((p, k) => {
-            const row = k < per ? 0 : 1, kk = row ? k - per : k, cnt = row ? n - per : per;
-            const x = -span / 2 + 0.6 + (kk * (span - 1.2)) / Math.max(1, cnt - 1);
-            const arm = new THREE.Group(); arm.position.set(cnt === 1 ? 0 : x, row ? 1.55 : 2.75, 0.42); g0.add(arm);
-            garment(arm, p, 0.78, ri, V(1, 0, 0), 2.6);
-          });
-          for (let x = -span / 2 + 0.4; x < span / 2 - 0.3; x += 0.55) box(0.36, 0.12, 0.3, new THREE.MeshStandardMaterial({ color: [0x1a1a1c, 0xe5e0d3, 0x4b5236, 0x1d2740][Math.floor(x * 7 + 40) % 4], roughness: 0.95 }), x, 3.82, 0.2, g0);
-          stops[ri] = { pos: V(-3.2, 1.75, -2.5), look: V(-W, 2.0, -2.5) };
+        case 'wall': { // L1 トップス：左の壁と仕切りの壁、二面に高く
+          zoneOf[ri] = 'L1';
+          const a = ps.slice(0, Math.ceil(n * 0.55)), b = ps.slice(a.length);
+          faceWall(grp(-W, 5, Math.PI / 2), a, 7.4, ri, V(1, 0, 0));
+          faceWall(grp(-8.2, 1.1, 0), b, 5.6, ri, V(0, 0, 1));
+          stops[ri] = mobile ? { pos: V(-7.4, 1.8, 6.4), look: V(-11.2, 1.95, 2.4) } : { pos: V(-6.4, 1.8, 7.6), look: V(-10.2, 2.1, 2.8) };
           break;
         }
-        case 'table': { // 中央：オークの長いテーブルに、たたんだ服の山（いちばん上に柄が見える）
-          const L = Math.max(3, Math.min(5.6, n * 0.62 + 0.6));
-          box(L, 0.05, 1.3, oak, 0, 0.88, -1, scene); for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(0.06, 0.86, 0.06, black, sx * (L / 2 - 0.15), 0.43, -1 + sz * 0.55);
-          softShadow(0, -1, L + 1.2, 2.6, 0.4);
-          // 低い台（ライザー）を2つ
-          box(0.7, 0.18, 0.5, white, -L / 2 + 0.6, 0.995, -1.25); box(0.7, 0.18, 0.5, white, L / 2 - 0.6, 0.995, -1.25);
+        case 'outer': { // L2 アウター：左の壁に一列
+          zoneOf[ri] = 'L2';
+          railWall(grp(-W, -2.5, Math.PI / 2), ps, Math.min(6.4, Math.max(3, n * 0.8 + 0.8)), ri, V(1, 0, 0), 0.92);
+          stops[ri] = mobile ? { pos: V(-6.0, 1.75, -2.5), look: V(-W, 1.65, -2.5) } : { pos: V(-6.6, 1.7, -2.5), look: V(-W, 1.7, -2.5) };
+          break;
+        }
+        case 'rack': { // L3 パンツ：二台のラックを L 字に（左の壁の開口から展示ホールへ抜けられる）
+          zoneOf[ri] = 'L3';
+          const a = ps.slice(0, Math.ceil(n * 0.58)), b = ps.slice(a.length);
+          rackFree(grp(-6.2, -10.1, -Math.PI / 2), a, 6.4, ri, V(-1, 0, 0));
+          if (b.length) rackFree(grp(-9.3, -12.9, 0), b, 4.6, ri, V(0, 0, 1));
+          stops[ri] = mobile ? { pos: V(-10.4, 2.0, -6.9), look: V(-7.4, 1.0, -12.2) } : { pos: V(-10.6, 1.8, -7.0), look: V(-7.6, 1.05, -11.8) };
+          break;
+        }
+        case 'back': { // 奥の部屋：ヴィンテージ・ツアーマーチの長いレール（上は中二階）
+          zoneOf[ri] = 'back';
+          railWall(grp(0, -D, 0), ps, Math.min(9.2, Math.max(4, n * 1.0 + 0.8)), ri, V(0, 0, 1), 0.82);
+          stops[ri] = mobile ? { pos: V(0, 1.7, -7.4), look: V(0, 1.7, -D) } : { pos: V(0, 1.7, -8.6), look: V(0, 1.7, -D) };
+          break;
+        }
+        case 'table': { // R3 Tシャツ：オークの長いテーブルにたたんで（奥の部屋から入る）
+          zoneOf[ri] = 'R3';
+          const g0 = grp(9.0, -9.4, -Math.PI / 2), cols = Math.ceil(n / 2), L = Math.max(3, Math.min(6.4, cols * 0.7 + 0.6));
+          box(L, 0.05, 1.3, oak, 0, 0.88, 0, g0); for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(0.06, 0.86, 0.06, black, sx * (L / 2 - 0.15), 0.43, sz * 0.55, g0);
+          softShadow(9.0, -9.4, 2.6, L + 1.2, 0.4);
+          box(0.7, 0.18, 0.5, white, -L / 2 + 0.6, 0.995, -0.25, g0); box(0.7, 0.18, 0.5, white, L / 2 - 0.6, 0.995, -0.25, g0);
           ps.forEach((p, k) => {
-            const col = k % Math.ceil(n / 2), row = Math.floor(k / Math.ceil(n / 2)), cols = Math.ceil(n / 2);
-            const x = -L / 2 + 0.45 + (col * (L - 0.9)) / Math.max(1, cols - 1), z = -1 + (row ? 0.32 : -0.28);
+            const col = k % cols, row = Math.floor(k / cols);
+            const x = -L / 2 + 0.45 + (col * (L - 0.9)) / Math.max(1, cols - 1), z = row ? 0.32 : -0.28;
             const onRiser = (col === 0 || col === cols - 1) && row === 0;
-            const st = new THREE.Group(); st.position.set(x, onRiser ? 1.085 : 0.905, z); scene.add(st);
+            const st = new THREE.Group(); st.position.set(x, onRiser ? 1.085 : 0.905, z); g0.add(st);
             loadTex(p.tex).then((t) => {
               if (!t || !alive) return;
-              // たたんだ形：胸のあたりを切り出した絵を、上の面に。側面は同じ絵を伸ばして生地の色に
               const top = t.clone(); top.repeat.set(0.42, 0.36); top.offset.set(0.29, 0.38); top.needsUpdate = true;
               const side = t.clone(); side.repeat.set(0.02, 0.02); side.offset.set(0.4, 0.14); side.needsUpdate = true;
               const sm = new THREE.MeshStandardMaterial({ map: side, roughness: 0.95 }), tm = new THREE.MeshStandardMaterial({ map: top, roughness: 0.9 });
@@ -274,83 +436,62 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
                 f.position.set((Math.random() - 0.5) * 0.015, 0.03 + i * 0.056, (Math.random() - 0.5) * 0.015); f.rotation.y = (Math.random() - 0.5) * 0.05; f.castShadow = f.receiveShadow = !mobile; f.userData.id = p.id; st.add(f); hits.push(f);
               }
             });
-            const look = st.position.clone().setY(st.position.y + 0.15);
-            spots.set(p.id, { look, pos: look.clone().add(V(0, 0.95, 1.05)), room: ri });
+            const look = wpos(st).setY(st.position.y + 0.15);
+            spots.set(p.id, { look, pos: look.clone().add(V(-1.05, 0.95, 0)), room: ri });
           });
-          stops[ri] = { pos: V(0, 2.35, 2.6), look: V(0, 0.85, -1) };
+          stops[ri] = mobile ? { pos: V(8.2, 3.0, -3.9), look: V(9.0, 0.8, -9.6) } : { pos: V(6.4, 2.6, -5.0), look: V(9.0, 0.85, -9.6) };
           break;
         }
-        case 'rack': { // 右奥：自立式のクロームのラックに、パンツを吊るす
-          const L = Math.max(2.4, Math.min(5, n * 0.62 + 0.8)), cx = 3.9, cz = -5.6;
-          const g0 = new THREE.Group(); g0.position.set(cx, 0, cz); scene.add(g0);
-          for (const ex of [-L / 2, L / 2]) { rod(V(ex, 0.05, 0), V(ex, 1.85, 0), 0.02, chrome, g0); rod(V(ex, 0.05, -0.3), V(ex, 0.05, 0.3), 0.02, chrome, g0); }
-          rod(V(-L / 2, 1.85, 0), V(L / 2, 1.85, 0), 0.016, chrome, g0);
-          softShadow(cx, cz, L + 0.8, 1.6, 0.4);
+        case 'case': { // R2 小物：長いガラスのショーケース（2段）
+          zoneOf[ri] = 'R2';
+          const per = Math.ceil(n / 2), L = Math.max(1.9, per * 0.42 + 0.3), g0 = grp(9.4, 0, -Math.PI / 2);
+          box(L, 0.9, 0.8, white, 0, 0.45, 0, g0); softShadow(9.4, 0, 1.8, L + 0.9, 0.45);
+          const gl = new THREE.Mesh(new THREE.BoxGeometry(L - 0.04, 0.75, 0.76), glass); gl.position.set(0, 1.28, 0); g0.add(gl);
+          for (const [a, b] of [[V(-L / 2, 1.655, -0.38), V(L / 2, 1.655, -0.38)], [V(-L / 2, 1.655, 0.38), V(L / 2, 1.655, 0.38)], [V(-L / 2, 1.655, -0.38), V(-L / 2, 1.655, 0.38)], [V(L / 2, 1.655, -0.38), V(L / 2, 1.655, 0.38)]] as [THREE.Vector3, THREE.Vector3][]) rod(a, b, 0.008, chrome, g0);
+          box(L - 0.1, 0.012, 0.7, glass, 0, 1.18, 0, g0);
           ps.forEach((p, k) => {
-            const x = -L / 2 + 0.45 + (k * (L - 0.9)) / Math.max(1, n - 1);
-            const a = new THREE.Group(); a.position.set(n === 1 ? 0 : x, 1.83, 0.02); g0.add(a); swayers.push({ o: a, ph: k });
-            garment(a, p, 1.05, ri, V(0, 0, 1), 2.6, true, true);
+            const tier = k < per ? 0 : 1, kk = tier ? k - per : k, cnt = tier ? n - per : per;
+            const x = cnt === 1 ? 0 : -L / 2 + 0.25 + (kk * (L - 0.5)) / (cnt - 1);
+            const h0 = new THREE.Group(); h0.position.set(x, tier ? 1.19 : 0.905, 0); g0.add(h0);
+            flatPiece(h0, p, 0.28, ri, V(-1, 0, 0), 1.2, 0.9);
           });
-          stops[ri] = { pos: V(cx - 0.4, 1.6, cz + 4.4), look: V(cx, 1.1, cz) };
+          stops[ri] = mobile ? { pos: V(6.0, 2.2, 0), look: V(9.4, 0.95, 0) } : { pos: V(6.6, 1.9, 0), look: V(9.4, 0.95, 0) };
           break;
         }
-        case 'back': { // 奥の壁：長いレール（ヴィンテージ・ツアーマーチ）
-          const span = Math.min(13, Math.max(4, n * 1.0 + 0.8));
-          const g0 = new THREE.Group(); g0.position.set(0, 0, -D); scene.add(g0);
-          rod(V(-span / 2, 2.25, 0.4), V(span / 2, 2.25, 0.4), 0.016, chrome, g0);
-          for (const ex of [-span / 2, 0, span / 2]) rod(V(ex, 2.25, 0.02), V(ex, 2.25, 0.4), 0.012, chrome, g0);
-          ps.forEach((p, k) => {
-            const x = -span / 2 + 0.6 + (k * (span - 1.2)) / Math.max(1, n - 1);
-            const a = new THREE.Group(); a.position.set(n === 1 ? 0 : x, 2.25, 0.4); g0.add(a); swayers.push({ o: a, ph: k * 1.3 });
-            garment(a, p, 0.82, ri, V(0, 0, 1), 2.4);
-          });
-          stops[ri] = { pos: V(0, 1.7, -4.2), look: V(0, 1.7, -D) };
-          break;
-        }
-        case 'caps': { // 右の壁：白い小さな棚を格子に並べて、帽子を一つずつ
-          const g0 = new THREE.Group(); g0.position.set(W, 0, 3.2); g0.rotation.y = -Math.PI / 2; scene.add(g0);
-          const cols = Math.min(5, Math.max(2, Math.ceil(n / 2))), rows = Math.ceil(n / cols);
+        case 'caps': { // R1 帽子：右の壁に白い小さな棚を格子に
+          zoneOf[ri] = 'R1';
+          const g0 = grp(W, 6, -Math.PI / 2), cols = Math.min(7, Math.max(2, Math.ceil(n / 2)));
           ps.forEach((p, k) => {
             const c = k % cols, r = Math.floor(k / cols);
-            const x = (c - (cols - 1) / 2) * 0.72, y = 2.4 - r * 0.62;
+            const x = (c - (cols - 1) / 2) * 0.72, y = 2.6 - r * 0.62;
             box(0.5, 0.025, 0.3, white, x, y, 0.15, g0);
             const holder = new THREE.Group(); holder.position.set(x, y + 0.012, 0.16); g0.add(holder);
             flatPiece(holder, p, 0.42, ri, V(-1, 0, 0), 1.6, 0.15);
           });
-          void rows;
-          stops[ri] = { pos: V(W - 3.6, 1.75, 3.2), look: V(W, 1.95, 3.2) };
+          stops[ri] = mobile ? { pos: V(6.0, 1.8, 6), look: V(W, 2.0, 6) } : { pos: V(7.6, 1.75, 6), look: V(W, 2.0, 6) };
           break;
         }
-        case 'case': { // 右手前：ガラスのショーケースに小物（3段）
-          const cx = 4.4, cz = 6.2;
-          box(1.9, 0.9, 0.8, white, cx, 0.45, cz); softShadow(cx, cz, 2.8, 1.8, 0.45);
-          const gl = new THREE.Mesh(new THREE.BoxGeometry(1.86, 0.75, 0.76), glass); gl.position.set(cx, 1.28, cz); scene.add(gl);
-          // ガラスの縁だけクローム
-          for (const [a, b] of [[V(cx - 0.93, 1.655, cz - 0.38), V(cx + 0.93, 1.655, cz - 0.38)], [V(cx - 0.93, 1.655, cz + 0.38), V(cx + 0.93, 1.655, cz + 0.38)], [V(cx - 0.93, 1.655, cz - 0.38), V(cx - 0.93, 1.655, cz + 0.38)], [V(cx + 0.93, 1.655, cz - 0.38), V(cx + 0.93, 1.655, cz + 0.38)]] as [THREE.Vector3, THREE.Vector3][]) rod(a, b, 0.008, chrome);
-          box(1.8, 0.012, 0.7, glass, cx, 1.18, cz);
+        case 'art': { // 中二階：奥の高い壁に額装
+          zoneOf[ri] = 'mezz';
+          const g0 = grp(0, -D, 0, MZ);
           ps.forEach((p, k) => {
-            const tier = k < Math.ceil(n / 2) ? 0 : 1, kk = tier ? k - Math.ceil(n / 2) : k, cnt = tier ? n - Math.ceil(n / 2) : Math.ceil(n / 2);
-            const x = cx - 0.7 + (kk * 1.4) / Math.max(1, cnt - 1);
-            const h0 = new THREE.Group(); h0.position.set(cnt === 1 ? cx : x, tier ? 1.19 : 0.905, cz); scene.add(h0);
-            flatPiece(h0, p, 0.28, ri, V(0, 0, 1), 1.2, 0.9);
-          });
-          stops[ri] = { pos: V(cx - 0.2, 1.85, cz + 2.0), look: V(cx, 0.95, cz) };
-          break;
-        }
-        case 'art': { // アート：左手前の壁に額装
-          const g0 = new THREE.Group(); g0.position.set(-W, 0, 6.4); g0.rotation.y = Math.PI / 2; scene.add(g0);
-          ps.forEach((p, k) => {
-            const x = (k - (n - 1) / 2) * 1.4;
-            const fr = box(1.1, 1.1, 0.05, black, x, 1.75, 0.03, g0); void fr;
+            const x = (k - (n - 1) / 2) * 1.6;
+            box(1.1, 1.1, 0.05, black, x, 1.75, 0.03, g0);
             const pic = new THREE.Mesh(new THREE.PlaneGeometry(0.94, 0.94), new THREE.MeshStandardMaterial({ roughness: 0.8 })); pic.position.set(x, 1.75, 0.062); pic.userData.id = p.id; g0.add(pic); hits.push(pic);
             loadTex(p.tex).then((t) => { if (t && alive) { (pic.material as THREE.MeshStandardMaterial).map = t; (pic.material as THREE.MeshStandardMaterial).needsUpdate = true; } });
-            const look = new THREE.Vector3(); pic.getWorldPosition(look);
-            spots.set(p.id, { look, pos: look.clone().add(V(2.2, -0.1, 0)), room: ri });
+            const look = wpos(pic);
+            spots.set(p.id, { look, pos: look.clone().add(V(0, -0.1, 2.2)), room: ri });
           });
-          stops[ri] = { pos: V(-3.6, 1.7, 6.4), look: V(-W, 1.7, 6.4) };
+          stops[ri] = mobile ? { pos: V(0, MZ + 1.7, -8.2), look: V(0, MZ + 1.7, -D) } : { pos: V(0, MZ + 1.7, -9.4), look: V(0, MZ + 1.7, -D) };
           break;
         }
-        case 'car': case 'bike': case 'yacht': { // 展示ホール（左の壁の開口の先）。建物は一度だけ、最初の画面が出てから作る
+        case 'atrium': { // 吹き抜け：中二階の手すりから見下ろす（ボウル・吊るした大きな服・壁画）
+          zoneOf[ri] = 'mezz';
+          stops[ri] = mobile ? { pos: V(0, MZ + 2.0, -6.4), look: V(0, 3.6, 5.5) } : { pos: V(0, MZ + 1.85, -5.9), look: V(0, 3.9, 5.5) };
+          break;
+        }
+        case 'car': case 'bike': case 'yacht': { // 展示ホール（L3 の左の壁の開口の先）。建物は最初の画面が出てから作る
+          zoneOf[ri] = 'hall';
           stops[ri] = exhibitStop(room.dp as ExhibitKind, mobile); wantHall = true;
           break;
         }
@@ -358,6 +499,20 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
     });
     let hallTick: ((now: number) => void) | null = null;
     if (wantHall) setTimeout(() => { if (!alive) return; try { hallTick = buildHall(scene, mobile, shadowT).tick; } catch (e) { report('hall: ' + String(e)); } }, 700);
+
+    // 吹き抜けに吊るす大きな服（入口のトルソーの一着を、高さ 4.4m に）。最後に作る
+    const giant = new THREE.Group(); giant.position.set(0, 0, 2.6); scene.add(giant);
+    { const hero = rooms.find((r) => r.dp === 'forms')?.pieces[0] || rooms.find((r) => r.dp === 'wall')?.pieces[0];
+      if (hero) queue.unshift(async () => { // いちばん先に作る
+        if (!alive) return; const F = await layerOf(hero.tex); if (!F || !alive || !bboxOf(F)) return;
+        const B = hero.back ? await layerOf(hero.back) : null;
+        const r = buildGarment(F, B, 4.4, 0.42, mobile ? 512 : 1024); if (!r || !alive) return;
+        const bx = new THREE.Box3().setFromObject(r.group), c = bx.getCenter(new THREE.Vector3());
+        r.group.position.set(-c.x, 9.2 - bx.max.y, -c.z);
+        r.group.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) { m.userData.id = hero.id; m.castShadow = !mobile; hits.push(m); } });
+        giant.add(r.group);
+        const hw = (bx.max.x - bx.min.x) * 0.3; for (const s of [-1, 1]) rod(V(s * hw, 9.15, 0), V(s * hw, AH, 0), 0.006, steel, giant);
+      }); }
 
     // 立体化を順番に（画面を止めないよう、1着ずつ間をあけて）
     (async () => { await new Promise((r) => setTimeout(r, 400)); for (const job of queue) { if (!alive) return; await job(); await new Promise((r) => setTimeout(r, 30)); } })();
@@ -368,22 +523,28 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
     const goal = { pos: cur.pos.clone(), look: cur.look.clone() };
     let yaw = 0, pitch = 0, zoom = 1, moving = false;
     const emit = (ready = true) => cb.current.onState({ room, focus, moving, ready });
-    // 本館と展示ホールのあいだは、壁を抜けないよう開口を通って移動する
-    let via: { pos: THREE.Vector3; look: THREE.Vector3 }[] = [];
-    const inHall = (p: THREE.Vector3) => p.x < -W;
-    const route = (pos: THREE.Vector3, look: THREE.Vector3) => {
-      via = [];
-      if (inHall(cur.pos) !== inHall(pos)) {
-        const s = inHall(cur.pos) ? -1 : 1; // 今いる側：本館 = +1
-        const a = V(-W + s * 1.4, 1.7, DOOR_Z), b = V(-W - s * 1.4, 1.7, DOOR_Z), ahead = V(-W - s * 6, 1.6, DOOR_Z);
-        goal.pos.copy(a); goal.look.copy(ahead); via = [{ pos: b, look: ahead }, { pos: pos.clone(), look: look.clone() }];
-      } else { goal.pos.copy(pos); goal.look.copy(look); }
+    // 売り場から売り場へ：壁を抜けないよう、部屋の開口（と吹き抜け）を通って移動する
+    type WP = { pos: THREE.Vector3; look: THREE.Vector3; zone: Zone };
+    let via: WP[] = [], zoneNow: Zone = zoneOf[0] || 'hub', goalZone: Zone = zoneNow;
+    const chain = (z: Zone) => { const c: Zone[] = [z]; while (ZP[c[c.length - 1]].parent) c.push(ZP[c[c.length - 1]].parent!); return c; };
+    const route = (pos: THREE.Vector3, look: THREE.Vector3, to: Zone) => {
+      const a = chain(zoneNow), b = chain(to), lca = a.find((z) => b.includes(z))!;
+      const pts: { p: THREE.Vector3; zone: Zone }[] = [];
+      for (const z of a) { if (z === lca) break; pts.push({ p: ZP[z].inn, zone: z }, { p: ZP[z].out, zone: ZP[z].parent! }); }
+      for (const z of b.slice(0, b.indexOf(lca)).reverse()) pts.push({ p: ZP[z].out, zone: ZP[z].parent! }, { p: ZP[z].inn, zone: z });
+      const wps: WP[] = pts.map((q, i) => {
+        const nx = i + 1 < pts.length ? pts[i + 1].p : pos, d = nx.clone().sub(q.p).setY(0);
+        const lk = d.lengthSq() > 0.04 ? q.p.clone().add(d.normalize().multiplyScalar(4)).setY(q.p.y - 0.1) : look.clone();
+        return { pos: q.p.clone(), look: lk, zone: q.zone };
+      });
+      wps.push({ pos: pos.clone(), look: look.clone(), zone: to });
+      const f = wps.shift()!; goal.pos.copy(f.pos); goal.look.copy(f.look); goalZone = f.zone; via = wps;
     };
-    const goRoom = (i: number) => { if (!stops[i]) return; room = i; focus = null; route(stops[i].pos, stops[i].look); yaw = pitch = 0; zoom = 1; moving = true; emit(); };
+    const goRoom = (i: number) => { if (!stops[i]) return; room = i; focus = null; route(stops[i].pos, stops[i].look, zoneOf[i] || 'hub'); yaw = pitch = 0; zoom = 1; moving = true; emit(); };
     const doFocus = (id: string | null) => {
       if (!id) { focus = null; goRoom(room); return; }
       const s = spots.get(id); if (!s) return;
-      room = s.room; focus = id; route(s.pos, s.look); yaw = pitch = 0; zoom = 1; moving = true; emit();
+      room = s.room; focus = id; route(s.pos, s.look, zoneOf[s.room] || 'hub'); yaw = pitch = 0; zoom = 1; moving = true; emit();
     };
     apiRef.current = { goRoom, focus: doFocus };
 
@@ -420,15 +581,18 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
       raf = requestAnimationFrame(loop);
       const now = performance.now(), dt = Math.min(0.05, (now - prev) / 1000); prev = now; const t = (now - t0) / 1000;
       const k = 1 - Math.pow(0.0025, dt);
-      if (via.length && cur.pos.distanceTo(goal.pos) < 0.7) { const n = via.shift()!; goal.pos.copy(n.pos); goal.look.copy(n.look); }
+      // 動きを減らす設定の端末では、移動せずに切り替える
+      if (reduce) { while (via.length) { const n = via.shift()!; goal.pos.copy(n.pos); goal.look.copy(n.look); goalZone = n.zone; } cur.pos.copy(goal.pos); cur.look.copy(goal.look); }
+      if (via.length && cur.pos.distanceTo(goal.pos) < 0.7) { zoneNow = goalZone; const n = via.shift()!; goal.pos.copy(n.pos); goal.look.copy(n.look); goalZone = n.zone; }
       cur.pos.lerp(goal.pos, k); cur.look.lerp(goal.look, k);
+      if (!via.length && cur.pos.distanceTo(goal.pos) < 0.7) zoneNow = goalZone;
       if (moving && !via.length && cur.pos.distanceTo(goal.pos) < 0.02) { moving = false; emit(); }
       // 見回し：注視点を、立ち位置を中心に回す。寄る：注視点へ近づく
       dir.copy(cur.look).sub(cur.pos); const dist = dir.length(); dir.normalize();
       dir.applyAxisAngle(V(0, 1, 0), yaw); const side = V(0, 1, 0).cross(dir).normalize(); dir.applyAxisAngle(side, -pitch);
       tmp.copy(cur.pos).addScaledVector(dir, dist * (1 - zoom));
       camera.position.copy(tmp); camera.lookAt(tmp.clone().addScaledVector(dir, Math.max(0.5, dist * zoom)));
-      if (!reduce) { spinners.forEach((s, i) => { s.rotation.y = Math.sin(t * 0.35 + i * 1.3) * 0.9; }); swayers.forEach((s) => { s.o.rotation.z = Math.sin(t * 1.1 + s.ph) * 0.02; s.o.rotation.y = Math.sin(t * 0.6 + s.ph) * 0.08; }); hallTick?.(now); }
+      if (!reduce) { spinners.forEach((s, i) => { s.rotation.y = Math.sin(t * 0.35 + i * 1.3) * 0.9; }); swayers.forEach((s) => { s.o.rotation.z = Math.sin(t * 1.1 + s.ph) * 0.02; s.o.rotation.y = Math.sin(t * 0.6 + s.ph) * 0.08; }); hallTick?.(now); giant.rotation.y = Math.sin(t * 0.12) * 0.5; }
       if (cb.current.paused && !moving && !first) return;
       renderer.render(scene, camera);
       if (first) { first = false; emit(true); const gl = renderer.getContext(); const e = gl.getError(); if (e) report('gl error ' + e); if (!renderer.info.render.calls) report('nothing drawn'); }

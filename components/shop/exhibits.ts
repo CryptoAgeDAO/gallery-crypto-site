@@ -8,11 +8,18 @@ export type ExhibitKind = 'car' | 'bike' | 'yacht';
 // ホールの範囲（x は左へ）。扉は本館の左の壁（x = -8.2）の z = DOOR_Z
 export const HALL = { xIn: -8.2, xOut: -28.2, z0: -10, z1: 10, h: 6.2 };
 export const DOOR_Z = 2.5, DOOR_W = 2.8, DOOR_H = 3.4;
+// 本館が広くなったので、ホール全体を左奥へずらして置く（扉は本館の左の壁 x = -12.2、z = DOOR_Z + HALL_DZ）
+export const HALL_DX = -4, HALL_DZ = -12.5;
+export const DOOR_WZ = DOOR_Z + HALL_DZ;
 const P = { car: { x: -14.4, z: -4.4, ry: -0.12 }, bike: { x: -13.6, z: 6.3 }, yacht: { x: -22.4, z: 0.4, ry: -1.74 } };
 const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 
 // それぞれの展示を見る立ち位置（スマホは縦長なので少し引く）
 export function exhibitStop(k: ExhibitKind, mobile: boolean) {
+  const s = stopLocal(k, mobile), d = V(HALL_DX, 0, HALL_DZ);
+  return { pos: s.pos.add(d), look: s.look.add(d) };
+}
+function stopLocal(k: ExhibitKind, mobile: boolean) {
   // 車は手前（前）が大きく見えるので、注視点を少し前へずらして全体を真ん中に
   if (k === 'car') return mobile ? { pos: V(-8.7, 2.6, 3.8), look: V(-13.7, 0.6, -4.6) } : { pos: V(-10.2, 1.75, 0.6), look: V(-14.0, 0.75, -4.6) };
   if (k === 'bike') return mobile ? { pos: V(-10.4, 1.6, 2.6), look: V(-13.6, 0.75, 6.3) } : { pos: V(-10.9, 1.5, 3.7), look: V(-13.6, 0.75, 6.3) };
@@ -27,7 +34,8 @@ const DISP = '"Anton", "Oswald", Impact, "Arial Narrow", sans-serif';
 const UI = '"Helvetica Neue", Arial, sans-serif';
 const SERIF = '"Times New Roman", Georgia, serif';
 
-export function buildHall(scene: THREE.Scene, mobile: boolean, shadowT: THREE.Texture) {
+export function buildHall(scene0: THREE.Scene, mobile: boolean, shadowT: THREE.Texture) {
+  const scene = new THREE.Group(); scene.position.set(HALL_DX, 0, HALL_DZ); scene0.add(scene);
   const SMALL = mobile;
   const canvas = (w: number, h: number, draw: Draw) => { if (SMALL && Math.max(w, h) >= 1024) { w = Math.round(w / 2); h = Math.round(h / 2); } const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d')!, w, h); return c; };
   const tex = (c: HTMLCanvasElement, rep?: [number, number]) => { const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = SMALL ? 2 : 8; if (rep) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rep[0], rep[1]); } return t; };
