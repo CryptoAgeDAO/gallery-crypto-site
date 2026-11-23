@@ -11,18 +11,20 @@ export const DOOR_Z = 2.5, DOOR_W = 2.8, DOOR_H = 3.4;
 // 本館が広くなったので、ホール全体を左奥へずらして置く（扉は本館の左の壁 x = -12.2、z = DOOR_Z + HALL_DZ）
 export const HALL_DX = -4, HALL_DZ = -12.5;
 export const DOOR_WZ = DOOR_Z + HALL_DZ;
-const P = { car: { x: -14.4, z: -4.4, ry: -0.12 }, bike: { x: -13.6, z: 6.3 }, yacht: { x: -22.4, z: 0.4, ry: -1.74 } };
+// 車と自転車は本館に出して、服と一緒に見せる（クロスDP）：車は左の棟のアウターの前、自転車は入口のトルソーの横。
+// どれもホールの座標（本館の座標から HALL_DX・HALL_DZ を引いたもの）で持つ
+const P = { car: { x: -8.6 - HALL_DX, z: -2.6 - HALL_DZ, ry: 1.27 }, bike: { x: 6.6 - HALL_DX, z: 11.4 - HALL_DZ }, yacht: { x: -22.4, z: 0.4, ry: -1.74 } };
 const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 
 // それぞれの展示を見る立ち位置（スマホは縦長なので少し引く）
 export function exhibitStop(k: ExhibitKind, mobile: boolean) {
+  // 本館の車と自転車（本館の座標）。スマホは引いて全体を
+  if (k === 'car') return mobile ? { pos: V(-4.0, 2.5, 6.0), look: V(-8.4, 0.8, -2.2) } : { pos: V(-4.2, 1.85, 2.4), look: V(-8.6, 0.85, -2.4) };
+  if (k === 'bike') return mobile ? { pos: V(2.6, 1.75, 13.8), look: V(6.6, 0.75, 11.2) } : { pos: V(3.4, 1.55, 13.3), look: V(6.6, 0.75, 11.3) };
   const s = stopLocal(k, mobile), d = V(HALL_DX, 0, HALL_DZ);
   return { pos: s.pos.add(d), look: s.look.add(d) };
 }
 function stopLocal(k: ExhibitKind, mobile: boolean) {
-  // 車は手前（前）が大きく見えるので、注視点を少し前へずらして全体を真ん中に
-  if (k === 'car') return mobile ? { pos: V(-8.7, 2.6, 3.8), look: V(-13.7, 0.6, -4.6) } : { pos: V(-10.2, 1.75, 0.6), look: V(-14.0, 0.75, -4.6) };
-  if (k === 'bike') return mobile ? { pos: V(-10.4, 1.6, 2.6), look: V(-13.6, 0.75, 6.3) } : { pos: V(-10.9, 1.5, 3.7), look: V(-13.6, 0.75, 6.3) };
   return mobile ? { pos: V(-12.6, 2.8, 6.4), look: V(-22.4, 1.3, 0.4) } : { pos: V(-14.6, 2.45, 5.6), look: V(-22.4, 1.25, 0.4) };
 }
 
@@ -34,7 +36,9 @@ const DISP = '"Anton", "Oswald", Impact, "Arial Narrow", sans-serif';
 const UI = '"Helvetica Neue", Arial, sans-serif';
 const SERIF = '"Times New Roman", Georgia, serif';
 
-export function buildHall(scene0: THREE.Scene, mobile: boolean, shadowT: THREE.Texture) {
+// part：'objects' は本館に置く車と自転車だけ、'hall' はホールの建物とヨットだけ、'all' は全部
+export function buildHall(scene0: THREE.Scene, mobile: boolean, shadowT: THREE.Texture, part: 'objects' | 'hall' | 'all' = 'all') {
+  const HB = part !== 'objects', OB = part !== 'hall';
   const scene = new THREE.Group(); scene.position.set(HALL_DX, 0, HALL_DZ); scene0.add(scene);
   const SMALL = mobile;
   const canvas = (w: number, h: number, draw: Draw) => { if (SMALL && Math.max(w, h) >= 1024) { w = Math.round(w / 2); h = Math.round(h / 2); } const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d')!, w, h); return c; };
@@ -58,6 +62,7 @@ export function buildHall(scene0: THREE.Scene, mobile: boolean, shadowT: THREE.T
   const plinthM = new THREE.MeshStandardMaterial({ color: 0xfbfaf7, roughness: 0.55 });
   const ticks: ((now: number) => void)[] = [];
 
+  if (HB) { // ホールの建物（スマホは、ホールへ行くときに初めて作る）
   // ---- 建物：白い壁・明るい床・天井の大きな光の天窓（ライトレイ）。本館より天井が高い ----
   const cx = (HALL.xIn + HALL.xOut) / 2, hw = (HALL.xIn - HALL.xOut) / 2, hd = (HALL.z1 - HALL.z0) / 2;
   const wallM = new THREE.MeshStandardMaterial({ color: 0xf7f6f2, roughness: 0.95 });
@@ -87,6 +92,7 @@ export function buildHall(scene0: THREE.Scene, mobile: boolean, shadowT: THREE.T
   // 奥の壁の題字
   { const t = textTex(2048, 256, (g, w, h) => { g.fillStyle = '#141414'; g.font = `400 ${h * 0.5}px ${SERIF}`; g.textAlign = 'center'; g.textBaseline = 'middle'; (g as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = `${h * 0.16}px`; g.fillText('THE COLLECTION', w / 2, h / 2); });
     const m = new THREE.Mesh(new THREE.PlaneGeometry(7, 0.875), new THREE.MeshBasicMaterial({ map: t, transparent: true })); m.position.set(HALL.xOut + 0.02, 4.4, 0.4); m.rotation.y = Math.PI / 2; if (mobile) m.scale.setScalar(0.6); scene.add(m); }
+  }
   // 展示札：白い細い台の上に、斜めの札（作品名・素材・見本の表示）
   const placard = (x: number, z: number, ry: number, title: string, lines: string[]) => {
     const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry; scene.add(g);
@@ -107,21 +113,21 @@ export function buildHall(scene0: THREE.Scene, mobile: boolean, shadowT: THREE.T
     rod(from, V(from.x, CH, from.z), 0.012, black, scene, 4);
     if (!mobile && power > 0) { const sp = new THREE.SpotLight(0xffffff, power, 14, 0.5, 0.7, 1.1); sp.position.copy(from); sp.target.position.copy(to); scene.add(sp, sp.target); }
   };
-  aim(V(-11.2, CH - 0.5, -1.6), V(P.car.x, 0.6, P.car.z), 60);
-  aim(V(-11.4, CH - 0.5, 4.6), V(P.bike.x, 0.6, P.bike.z), 30);
+  if (HB) {
   aim(V(-17.2, CH - 0.5, 3.4), V(P.yacht.x, 1.2, P.yacht.z), 70);
   aim(V(-24.5, CH - 0.5, -3.6), V(P.yacht.x, 1.2, P.yacht.z), 0);
   if (mobile) { const pl = new THREE.PointLight(0xffffff, 42, 18, 1.1); pl.position.set(-15, CH - 1, 1); scene.add(pl); }
   // 本館からの明かりとは別に、ホールの奥から当たるやわらかい光
   const hf = new THREE.DirectionalLight(0xfff8ef, 0.55); hf.position.set(-6, 7, 6); hf.target.position.set(-20, 0, -2); scene.add(hf, hf.target);
+  }
 
-  placard(-11.2, -7.0, 0.1, 'Candy Hardtop', ['Candy paint · lace · gold leaf', 'Hydraulics · wire wheels']);
-  placard(-14.5, 4.7, 1.89, 'Custom BMX', ['Chrome frame · gold parts · 20 in']);
-  placard(-18.4, -3.4, 0.43, 'Nocturne', ['Day cruiser · 8.6 m', 'Midnight hull · teak · cream leather']);
+  if (OB) placard(-1.6, 6.5, 1.2, 'Candy Hardtop', ['Candy paint · lace · gold leaf', 'Hydraulics · wire wheels']);
+  if (OB) placard(12.4, 25.4, -1.51, 'Custom BMX', ['Chrome frame · gold parts · 20 in']);
+  if (HB) placard(-18.4, -3.4, 0.43, 'Nocturne', ['Day cruiser · 8.6 m', 'Midnight hull · teak · cream leather']);
 
   // ---- ローライダー（最初のショールームのもの）：キャンディ塗装・レース・金の線・油圧で前を持ち上げて弾む ----
   let carTick: ((now: number) => void) | null = null;
-  {
+  if (OB) {
     const CX = P.car.x, CZ = P.car.z, L = 5.3, W = 1.94;
     const car = new THREE.Group(); car.position.set(CX, 0, CZ); car.rotation.y = P.car.ry; scene.add(car);
     const body = new THREE.Group(); car.add(body); // 油圧で傾く部分
@@ -232,7 +238,7 @@ export function buildHall(scene0: THREE.Scene, mobile: boolean, shadowT: THREE.T
     // 床：白い低い台と、影
     { const pl = new THREE.Mesh(new RoundedBoxGeometry(6.6, 0.16, 3.4, 3, 0.03), plinthM); pl.position.set(CX, 0.08, CZ); pl.rotation.y = P.car.ry; scene.add(pl); }
     car.position.y = 0.16;
-    floorShadow(CX, CZ, 5.8, 2.8, 0.55);
+    floorShadow(CX, CZ, 2.8, 5.8, 0.55); // 車は奥行き方向に置くので影も縦長
     // ショーの展示：車の下に斜めの鏡（クロームの足まわりが映る）、クロームの足まわり、ロープの柵、トロフィー、展示札
     const mirrorM = new THREE.MeshStandardMaterial({ color: 0xd8dde3, metalness: 1, roughness: 0.03 });
     for (const [mx, mz, ry] of [[1.6, -0.55, 0.0], [1.6, 0.55, Math.PI], [-1.55, -0.55, 0.0], [-1.55, 0.55, Math.PI], [0.02, -0.6, 0.0], [0.02, 0.6, Math.PI]] as [number, number, number][]) {
@@ -249,7 +255,7 @@ export function buildHall(scene0: THREE.Scene, mobile: boolean, shadowT: THREE.T
 
   // ---- カスタムBMX（最初のショールームのもの）：クロームのフレーム・金のパーツ。鏡の回転台 ----
   let bmxTick: ((now: number) => void) | null = null;
-  {
+  if (OB) {
     const BX = P.bike.x, BZ = P.bike.z;
     const gold2 = new THREE.MeshStandardMaterial({ color: 0xd8b25a, metalness: 1, roughness: 0.22 });
     const tireB = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.8 });
@@ -295,7 +301,7 @@ export function buildHall(scene0: THREE.Scene, mobile: boolean, shadowT: THREE.T
   if (bmxTick) ticks.push(bmxTick);
 
   // ---- ヨット（オリジナルのデイクルーザー「Nocturne」）：真夜中の紺の艇体・チークの甲板・クリームの革・湾曲した風防 ----
-  {
+  if (HB) {
     const L = 8.6, B = 1.32, N = mobile ? 28 : 48, M = mobile ? 8 : 14;
     const yacht = new THREE.Group(); yacht.position.set(P.yacht.x, 0.5, P.yacht.z); yacht.rotation.y = P.yacht.ry; scene.add(yacht);
     // 船体の形：t は船尾 0 → 船首 1、s は竜骨 0 → 舷縁 1

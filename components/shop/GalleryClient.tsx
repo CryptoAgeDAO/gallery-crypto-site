@@ -30,19 +30,18 @@ type RoomDef = { key: string; dp: DP; max: number; exhibit?: boolean; en: string
 const isLine = (i: ShopItem) => !!i.line;
 const ROOMS: RoomDef[] = [
   { key: 'forms', dp: 'forms', max: 3, en: 'At the door — on the forms', ja: '入口 — トルソー', den: 'Three pieces worn on forms, turning slowly on white plinths.', dja: '白い回転台の上で、ゆっくり回るトルソーに着せた3点。', pick: (i) => isLine(i) && /hoodie|jacket|crew/i.test(i.title) },
+  { key: 'bike', dp: 'bike', max: 0, exhibit: true, en: 'Custom BMX — by the door', ja: 'カスタムBMX — 入口のトルソーの横に', den: 'Chrome frame and gold parts on a turning mirror. Sample display — not for sale.', dja: 'クロームのフレームと金のパーツ、回る鏡の台。見本の展示で、売り物ではありません。', pick: () => false },
   { key: 'wall', dp: 'wall', max: 40, en: 'Tops room', ja: 'トップスの部屋', den: 'Face-out up to three rows high on two walls, folded stock on the top shelf.', dja: '二面の壁に、高く三段までのフェイスアウト。いちばん上の棚には、たたんだ在庫。', pick: (i) => i.line === 'tops' && !/ tee /i.test(` ${i.title} `) && !/Tee —/.test(i.title) },
-  { key: 'outer', dp: 'outer', max: 40, en: 'Outerwear room', ja: 'アウターの部屋', den: 'Jackets and coats on one long rail.', dja: 'ジャケットとコートを、長いレールに一列。', pick: (i) => i.line === 'outer' },
-  { key: 'rack', dp: 'rack', max: 40, en: 'Pants room', ja: 'パンツの部屋', den: 'Two racks set in an L. The opening on the left wall leads to The Collection.', dja: '二台のラックを L 字に。左の壁の開口から、展示ホールへ。', pick: (i) => i.line === 'bottoms' },
+  { key: 'outer', dp: 'outer', max: 40, en: 'Outerwear room', ja: 'アウターの部屋', den: 'Jackets and coats on one long rail, with the lowrider parked in front.', dja: 'ジャケットとコートを長いレールに一列。手前にローライダーを停めて。', pick: (i) => i.line === 'outer' },
+  { key: 'car', dp: 'car', max: 0, exhibit: true, en: 'Lowrider — with the outerwear', ja: 'ローライダー — アウターと一緒に', den: 'Candy paint, lace and gold leaf, on hydraulics. Sample display — not for sale.', dja: 'キャンディ塗装・レース・金の線、油圧で弾む。見本の展示で、売り物ではありません。', pick: () => false },
+  { key: 'rack', dp: 'rack', max: 40, en: 'Pants room', ja: 'パンツの部屋', den: 'Two racks set in an L. The opening on the left wall leads to the yacht hall.', dja: '二台のラックを L 字に。左の壁の開口から、ヨットの展示ホールへ。', pick: (i) => i.line === 'bottoms' },
+  { key: 'yacht', dp: 'yacht', max: 0, exhibit: true, en: 'The Collection — Nocturne', ja: 'コレクション — ヨット「Nocturne」', den: 'An original 8.6 m day cruiser: midnight hull, teak deck, cream leather. Sample display — not for sale.', dja: 'オリジナルの8.6mのデイクルーザー。真夜中の紺の船体・チークの甲板・クリームの革。見本の展示で、売り物ではありません。', pick: () => false },
   { key: 'back', dp: 'back', max: 40, en: 'Back room — vintage & tour', ja: '奥の部屋 — ヴィンテージ・ツアー', den: 'One-of-one vintage and tour merch on the long rail, under the mezzanine.', dja: '中二階の下の長いレールに、一点もののヴィンテージとツアーマーチ。', pick: (i) => !isLine(i) && kindOf(i) === 'garment' },
   { key: 'table', dp: 'table', max: 40, en: 'Tee room', ja: 'Tシャツの部屋', den: 'Folded tees stacked on a long oak table, print side up. Entered from the back room.', dja: '長いオークのテーブルに、柄を上にしてたたんだTシャツ。奥の部屋から入ります。', pick: (i) => i.line === 'tops' && /Tee —/.test(i.title) },
   { key: 'case', dp: 'case', max: 40, en: 'Small things room', ja: '小物の部屋', den: 'Stickers, pins, keychains and more under glass.', dja: 'ガラスの中に、ステッカー・ピン・キーホルダーなど。', pick: (i) => i.line === 'acc' },
   { key: 'caps', dp: 'caps', max: 40, en: 'Headwear room', ja: '帽子の部屋', den: 'Caps and beanies, one to a shelf.', dja: 'キャップとニット帽を、ひとつずつ棚に。', pick: (i) => i.line === 'head' || (!isLine(i) && kindOf(i) === 'cap') },
   { key: 'atrium', dp: 'atrium', max: 0, exhibit: true, en: 'The atrium', ja: '吹き抜け', den: 'Ten metres high: a skate bowl, one piece hung 4.4 m tall, a mural and a wall of decks. Seen from the mezzanine.', dja: '天井 10m。スケートボウル、高さ4.4mに吊るした一着、壁画とスケートデッキの壁。中二階から見下ろします。', pick: () => false },
   { key: 'art', dp: 'art', max: 40, en: 'Mezzanine — art', ja: '中二階 — アート', den: 'Framed pieces on the high back wall.', dja: '奥の高い壁に、額装の作品。', pick: (i) => !isLine(i) && kindOf(i) === 'art' },
-  // 展示ホール（左の壁の開口の先）：商品ではない見本の展示
-  { key: 'car', dp: 'car', max: 0, exhibit: true, en: 'The Collection — lowrider', ja: 'コレクション — ローライダー', den: 'Candy paint, lace and gold leaf, on hydraulics. Sample display — not for sale.', dja: 'キャンディ塗装・レース・金の線、油圧で弾む。見本の展示で、売り物ではありません。', pick: () => false },
-  { key: 'bike', dp: 'bike', max: 0, exhibit: true, en: 'The Collection — custom BMX', ja: 'コレクション — カスタムBMX', den: 'Chrome frame and gold parts on a turning mirror. Sample display — not for sale.', dja: 'クロームのフレームと金のパーツ、回る鏡の台。見本の展示で、売り物ではありません。', pick: () => false },
-  { key: 'yacht', dp: 'yacht', max: 0, exhibit: true, en: 'The Collection — Nocturne', ja: 'コレクション — ヨット「Nocturne」', den: 'An original 8.6 m day cruiser: midnight hull, teak deck, cream leather. Sample display — not for sale.', dja: 'オリジナルの8.6mのデイクルーザー。真夜中の紺の船体・チークの甲板・クリームの革。見本の展示で、売り物ではありません。', pick: () => false },
 ];
 
 function Fallback() {
@@ -71,7 +70,7 @@ export default function GalleryClient({ initial }: { initial: ShopItem[] }) {
       const cand = items.filter((i) => !used.has(i.id) && r.pick(i) && (i.img || i.pid));
       const seen = new Map<string, number>(), list: ShopItem[] = [];
       for (const i of cand) { const t = i.title.split(' —')[0]; if ((seen.get(t) || 0) >= (r.dp === 'table' ? 2 : 1) && cand.length > r.max) continue; seen.set(t, (seen.get(t) || 0) + 1); list.push(i); if (list.length >= r.max) break; }
-      if (phone && list.length > 8) list.length = 8;
+      if (phone && list.length > 6) list.length = 6; // スマホは売り場ごとに6点まで（軽くするため）
       list.forEach((i) => used.add(i.id));
       return { ...r, z: r.key, list };
     }).filter((r) => r.list.length || r.exhibit);

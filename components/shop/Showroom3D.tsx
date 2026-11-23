@@ -35,7 +35,10 @@ const ZP: Record<Zone, { parent: Zone | null; inn: THREE.Vector3; out: THREE.Vec
   hall: { parent: 'L3', inn: V(-13.6, 1.7, DOOR_WZ), out: V(-10.4, 1.7, DOOR_WZ) },
 };
 
+// スマホでは大きな絵（1024px 以上）を半分の大きさで描いて、メモリを軽くする
+let SMALL_TEX = false;
 function canvasTex(w: number, h: number, draw: (g: CanvasRenderingContext2D, w: number, h: number) => void, rep?: [number, number]) {
+  if (SMALL_TEX && Math.max(w, h) >= 1024) { w = Math.round(w / 2); h = Math.round(h / 2); }
   const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d')!, w, h);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
   if (rep) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rep[0], rep[1]); }
@@ -61,7 +64,7 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
   useEffect(() => {
     const el = host.current; if (!el) return;
     let alive = true;
-    const mobile = isPhone();
+    const mobile = isPhone(); SMALL_TEX = mobile;
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
     let renderer: THREE.WebGLRenderer;
     try { renderer = new THREE.WebGLRenderer({ antialias: !mobile, powerPreference: mobile ? 'default' : 'high-performance' }); }
@@ -77,7 +80,7 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
 
     const scene = new THREE.Scene(); scene.background = new THREE.Color(0xf1f0ec);
     const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.45;
-    const camera = new THREE.PerspectiveCamera(mobile ? 62 : 50, 1, 0.05, 80);
+    const camera = new THREE.PerspectiveCamera(mobile ? 70 : 50, 1, 0.05, 80); // スマホは画角を広げて、遠目に全体を
 
     // ---- 材質 ----
     const wallM = new THREE.MeshStandardMaterial({ color: 0xf7f6f2, roughness: 0.95 });
@@ -133,15 +136,19 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
     { const z = D; for (let x = -W; x <= W + 0.01; x += 2) box(0.06, H, 0.08, black, x, H / 2, z); box(W * 2, 0.08, 0.08, black, 0, H - 0.04, z); box(W * 2, 0.08, 0.08, black, 0, 0.04, z);
       const gl = new THREE.Mesh(new THREE.PlaneGeometry(W * 2, H), glass); gl.position.set(0, H / 2, z); scene.add(gl); }
     // 仕切り：入口ホールと左右の棟（開口つき）
-    wallLine('x', 9, -W, -5, H, [[-8.5, 2.6, 3.4]]); wallLine('x', 9, 5, W, H, [[8.5, 2.6, 3.4]]);
+    // 入口ホールと左右の棟のあいだは仕切らない（見通しよく）
     // 吹き抜けの左右の壁（下は売り場への開口、上は 10m まで）
-    wallLine('z', -5, -D, 9, AH, [[5, 2.6, 3.4], [-2.5, 2.6, 3.4]]); wallLine('z', 5, -D, 9, AH, [[6, 2.6, 3.4], [0, 2.6, 3.4], [-9.5, 2.6, 3.4]]);
+    // 吹き抜けの左右：下は柱だけで売り場とつながり、上（4.6m から 10m）は壁
+    for (const sx of [-5, 5]) {
+      wallLine('z', sx, -D, 9, AH - H, [], H);
+      box(0.26, 0.14, 9 + D, steel, sx, H + 0.07, (9 - D) / 2);
+      for (const z of [8.6, 2.7, -5, -12]) { const c = new THREE.Mesh(new THREE.BoxGeometry(0.38, H, 0.38), wallM); c.position.set(sx, H / 2, z); scene.add(c); }
+    }
     // 吹き抜けの入口側の上の壁（入口ホールの天井から上）
     wallBox(10, AH - H, 0.2, 0, H + (AH - H) / 2, 9);
     // 左の棟の仕切り
-    wallLine('x', 1, -W, -5, H); wallLine('x', -6, -W, -5, H, [[-8.5, 2.6, 3.4]]);
+    // 左右の棟の中も仕切らず、一続きの売り場に
     // 右の棟の仕切り
-    wallLine('x', 3, 5, W, H); wallLine('x', -3, 5, W, H);
     // 天井：入口ホールと左右の棟は 4.6m、吹き抜けと中二階は 10m
     plane(W * 2, D - 9, ceilM, 0, H, (D + 9) / 2, true);
     plane(W - 5, 9 + D, ceilM, -(W + 5) / 2, H, (9 - D) / 2, true); plane(W - 5, 9 + D, ceilM, (W + 5) / 2, H, (9 - D) / 2, true);
@@ -233,7 +240,7 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
     const spinners: THREE.Object3D[] = [];
     const swayers: { o: THREE.Object3D; ph: number }[] = [];
     const queue: (() => Promise<void>)[] = [];
-    let built3D = 0; const MAX3D = mobile ? 4 : 40;
+    let built3D = 0; const MAX3D = mobile ? 3 : 40;
 
     // 服：まず平らな絵を出し、順番に立体に置き換える。親の原点が肩の上の中央、高さ h（m）
     // ハンガー：服の中に腕が隠れ、首元から金具が出てレールに掛かる。パンツはクリップ式
@@ -342,13 +349,13 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
       });
     };
     // 壁の長いレール（一列）
-    const railWall = (g0: THREE.Group, ps: SPiece[], span: number, ri: number, face: THREE.Vector3, h0: number) => {
+    const railWall = (g0: THREE.Group, ps: SPiece[], span: number, ri: number, face: THREE.Vector3, h0: number, y = 2.25) => {
       const n = ps.length; if (!n) return;
-      rod(V(-span / 2, 2.25, 0.4), V(span / 2, 2.25, 0.4), 0.016, chrome, g0);
-      for (const ex of [-span / 2, 0, span / 2]) rod(V(ex, 2.25, 0.02), V(ex, 2.25, 0.4), 0.012, chrome, g0);
+      rod(V(-span / 2, y, 0.4), V(span / 2, y, 0.4), 0.016, chrome, g0);
+      for (const ex of [-span / 2, 0, span / 2]) rod(V(ex, y, 0.02), V(ex, y, 0.4), 0.012, chrome, g0);
       ps.forEach((p, k) => {
         const x = n === 1 ? 0 : -span / 2 + 0.6 + (k * (span - 1.2)) / (n - 1);
-        const a = new THREE.Group(); a.position.set(x, 2.25, 0.4); g0.add(a); swayers.push({ o: a, ph: k * 1.3 });
+        const a = new THREE.Group(); a.position.set(x, y, 0.4); g0.add(a); swayers.push({ o: a, ph: k * 1.3 });
         garment(a, p, h0, ri, face, 2.4);
       });
     };
@@ -383,21 +390,21 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
             const g = garment(turn, p, 0.82, ri, V(0, 0, 1), 2.4, false); g.position.y = 1.52;
             spots.get(p.id)!.look.set(x, 1.1, z); spots.get(p.id)!.pos.set(x, 1.4, z + 2.3);
           });
-          stops[ri] = mobile ? { pos: V(0, 1.8, 13.8), look: V(0, 1.3, 9.0) } : { pos: V(0, 1.65, 13.6), look: V(0, 1.45, 8.6) };
+          stops[ri] = mobile ? { pos: V(0, 2.0, 13.9), look: V(0, 1.4, 8.0) } : { pos: V(0, 1.65, 13.6), look: V(0, 1.45, 8.6) };
           break;
         }
-        case 'wall': { // L1 トップス：左の壁と仕切りの壁、二面に高く
+        case 'wall': { // L1 トップス：左の壁に高く（点数が多いと三段）
           zoneOf[ri] = 'L1';
-          const a = ps.slice(0, Math.ceil(n * 0.55)), b = ps.slice(a.length);
-          faceWall(grp(-W, 5, Math.PI / 2), a, 7.4, ri, V(1, 0, 0));
-          faceWall(grp(-8.2, 1.1, 0), b, 5.6, ri, V(0, 0, 1));
-          stops[ri] = mobile ? { pos: V(-7.4, 1.8, 6.4), look: V(-11.2, 1.95, 2.4) } : { pos: V(-6.4, 1.8, 7.6), look: V(-10.2, 2.1, 2.8) };
+          const per = Math.ceil(n / (n > 12 ? 3 : 2));
+          faceWall(grp(-W, 4.9, Math.PI / 2), ps, Math.min(8.4, Math.max(3, per * 0.95 + 1.0)), ri, V(1, 0, 0));
+          stops[ri] = mobile ? { pos: V(-4.6, 1.95, 4.9), look: V(-W, 1.95, 4.9) } : { pos: V(-4.4, 2.0, 4.9), look: V(-W, 2.2, 4.9) };
           break;
         }
-        case 'outer': { // L2 アウター：左の壁に一列
+        case 'outer': { // L2 アウター：左の壁に一列、少し高く。手前にローライダー（クロスDP）
           zoneOf[ri] = 'L2';
-          railWall(grp(-W, -2.5, Math.PI / 2), ps, Math.min(6.4, Math.max(3, n * 0.8 + 0.8)), ri, V(1, 0, 0), 0.92);
-          stops[ri] = mobile ? { pos: V(-6.0, 1.75, -2.5), look: V(-W, 1.65, -2.5) } : { pos: V(-6.6, 1.7, -2.5), look: V(-W, 1.7, -2.5) };
+          railWall(grp(-W, -3.0, Math.PI / 2), ps, Math.min(5.6, Math.max(3, n * 0.8 + 0.8)), ri, V(1, 0, 0), 0.92, 2.75);
+          // 車の後ろ寄りから斜めに見て、車越しにアウターが見えるように
+          stops[ri] = mobile ? { pos: V(-4.0, 3.2, -9.4), look: V(-W, 1.9, -2.6) } : { pos: V(-3.8, 3.1, -8.8), look: V(-W, 1.9, -2.6) };
           break;
         }
         case 'rack': { // L3 パンツ：二台のラックを L 字に（左の壁の開口から展示ホールへ抜けられる）
@@ -439,7 +446,7 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
             const look = wpos(st).setY(st.position.y + 0.15);
             spots.set(p.id, { look, pos: look.clone().add(V(-1.05, 0.95, 0)), room: ri });
           });
-          stops[ri] = mobile ? { pos: V(8.2, 3.0, -3.9), look: V(9.0, 0.8, -9.6) } : { pos: V(6.4, 2.6, -5.0), look: V(9.0, 0.85, -9.6) };
+          stops[ri] = mobile ? { pos: V(6.6, 3.0, -4.8), look: V(9.0, 0.85, -9.4) } : { pos: V(6.4, 2.6, -5.0), look: V(9.0, 0.85, -9.6) };
           break;
         }
         case 'case': { // R2 小物：長いガラスのショーケース（2段）
@@ -490,15 +497,20 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
           stops[ri] = mobile ? { pos: V(0, MZ + 2.0, -6.4), look: V(0, 3.6, 5.5) } : { pos: V(0, MZ + 1.85, -5.9), look: V(0, 3.9, 5.5) };
           break;
         }
-        case 'car': case 'bike': case 'yacht': { // 展示ホール（L3 の左の壁の開口の先）。建物は最初の画面が出てから作る
-          zoneOf[ri] = 'hall';
+        case 'car': case 'bike': case 'yacht': { // 車は左の棟のアウターの前、自転車は入口。ヨットは展示ホール（L3 の左の壁の開口の先）
+          zoneOf[ri] = room.dp === 'yacht' ? 'hall' : 'hub';
           stops[ri] = exhibitStop(room.dp as ExhibitKind, mobile); wantHall = true;
           break;
         }
       }
     });
     let hallTick: ((now: number) => void) | null = null;
-    if (wantHall) setTimeout(() => { if (!alive) return; try { hallTick = buildHall(scene, mobile, shadowT).tick; } catch (e) { report('hall: ' + String(e)); } }, 700);
+    // 車と自転車は最初の画面が出てから。ホールの建物とヨットは、スマホではホールへ向かうときに初めて作る（軽くするため）
+    const ticks: ((now: number) => void)[] = [];
+    let hallBuilt = false;
+    const makeHall = () => { if (hallBuilt || !alive) return; hallBuilt = true; try { ticks.push(buildHall(scene, mobile, shadowT, 'hall').tick); } catch (e) { report('hall: ' + String(e)); } };
+    if (wantHall) setTimeout(() => { if (!alive) return; try { ticks.push(buildHall(scene, mobile, shadowT, 'objects').tick); } catch (e) { report('objects: ' + String(e)); } if (!mobile) makeHall(); }, 700);
+    hallTick = (now) => { for (const f of ticks) f(now); };
 
     // 吹き抜けに吊るす大きな服（入口のトルソーの一着を、高さ 4.4m に）。最後に作る
     const giant = new THREE.Group(); giant.position.set(0, 0, 2.6); scene.add(giant);
@@ -528,6 +540,7 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
     let via: WP[] = [], zoneNow: Zone = zoneOf[0] || 'hub', goalZone: Zone = zoneNow;
     const chain = (z: Zone) => { const c: Zone[] = [z]; while (ZP[c[c.length - 1]].parent) c.push(ZP[c[c.length - 1]].parent!); return c; };
     const route = (pos: THREE.Vector3, look: THREE.Vector3, to: Zone) => {
+      if (to === 'hall' || to === 'L3') makeHall();
       const a = chain(zoneNow), b = chain(to), lca = a.find((z) => b.includes(z))!;
       const pts: { p: THREE.Vector3; zone: Zone }[] = [];
       for (const z of a) { if (z === lca) break; pts.push({ p: ZP[z].inn, zone: z }, { p: ZP[z].out, zone: ZP[z].parent! }); }
