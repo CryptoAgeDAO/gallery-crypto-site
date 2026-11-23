@@ -3593,3 +3593,10 @@ html.gate .eg{display:flex}
 @media (max-width:760px){body:has(.hr.focus) .gc-fab{display:none}}
 
 .hr.focus .hr-slot.on .hr-tag{opacity:0}
+
+/* スマホのショールーム：下の説明文の後ろを濃くして、床や幅木の線が文字にかからないように。上の見出しも背景を濃く */
+@media (max-width:760px){
+  .gr::after{height:50%;background:linear-gradient(transparent,rgba(20,17,14,.55) 35%,rgba(16,14,12,.92))}
+  .gr-top{background:linear-gradient(rgba(20,18,16,.78),rgba(20,18,16,.35) 75%,transparent)!important}
+}
+@media (max-width:760px){.gr-room{background:rgba(18,16,14,.74);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);padding:12px 14px 14px;border-radius:12px;left:12px;right:72px;bottom:92px;text-shadow:none}}

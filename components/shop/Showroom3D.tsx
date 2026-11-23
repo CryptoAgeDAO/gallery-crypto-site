@@ -100,7 +100,7 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
       const gl = new THREE.Mesh(new THREE.PlaneGeometry(W * 2, H), glass); gl.position.set(0, H / 2, z); scene.add(gl); }
     // 奥の壁の文字
     { const t = canvasTex(2048, 256, (g, w, h) => { g.clearRect(0, 0, w, h); g.fillStyle = '#141414'; g.font = `400 ${h * 0.62}px "Times New Roman", Georgia, serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; (g as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = `${h * 0.18}px`; g.fillText('GALLERY CRYPTO', w / 2, h / 2); });
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(8, 1), new THREE.MeshBasicMaterial({ map: t, transparent: true })); m.position.set(0, 3.7, -D + 0.02); scene.add(m); }
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(8, 1), new THREE.MeshBasicMaterial({ map: t, transparent: true })); m.position.set(0, mobile ? 3.25 : 3.7, -D + 0.02); if (mobile) m.scale.setScalar(0.5); scene.add(m); } // スマホは縦長で文字が切れるので小さく
 
     // ---- 光 ----
     scene.add(new THREE.HemisphereLight(0xffffff, 0xd8d3ca, 1.35));
