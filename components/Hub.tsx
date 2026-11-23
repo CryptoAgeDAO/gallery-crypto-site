@@ -481,6 +481,7 @@ export default function Hub() {
         return (
           <section key={k} className="hb-sec" id={k}>
             <div className="hb-sh" data-rv><i>{p.n}</i><h2>{L(p)[0]}</h2><p>{L(p)[1]}</p></div>
+            <SysBanner k={k} />
             {k === 'rwa' && <p className="hb-note">{t('Vintage originals and collaboration products. Each piece carries an NFC tag and a signed record whose fingerprint is anchored on a public blockchain — provenance and ownership you can verify without trusting us.', 'ヴィンテージの原型とコラボ商品。一点ごとにNFCタグと署名つきの記録を付け、その指紋を公開ブロックチェーンに記録します。私たちを信用しなくても、来歴と持ち主を確かめられます。')}</p>}
             {k === 'vintage' && (
               <div className="hb-tabs">
@@ -495,6 +496,7 @@ export default function Hub() {
 
       <section className="hb-sec" id="events">
         <div className="hb-sh" data-rv><i>04</i><h2>{t('Events & lottery', 'イベント・抽選')}</h2><p>{t('Pre-entry → fair draw → numbers, times and venues assigned automatically → edit anything', '事前登録 → 公平な抽選 → 番号・時間・場所を自動で割り振り → 何でも編集')}</p></div>
+        <SysBanner k="events" />
         <ol className="hb-flow">
           <li><b>1</b>{t('Pre-entry', '事前登録')}</li>
           <li><b>2</b>{t('Seed fingerprint published', '種の指紋を公開')}</li>
@@ -528,5 +530,24 @@ export default function Hub() {
 
       {sel && <Detail p={sel} onClose={() => setSel(null)} evs={evs || []} goEvent={goEvent} />}
     </div>
+  );
+}
+
+// 各柱の見出し下に置く、3Dの構造図（PIECE / TAG / RECORD / OWNER の4層）
+const SYS_ALT: Record<string, [string, string]> = {
+  rwa: ['The four layers of a piece: the garment, an NFC tag sewn into the seam, its record, and the owner', '一着の4層：服、縫い込まれたNFCタグ、来歴の記録、持ち主'],
+  vintage: ['The record layer: item, origin, where it was found, owners', '記録の層：品名、産地、見つかった場所、持ち主'],
+  art: ['The same four layers, turned into an object', '同じ4層を、ひとつのオブジェとして'],
+  events: ['A phone shows a lottery result: No. A-001, 12:00, Shibuya', '抽選結果をスマホで表示：No. A-001、12:00、渋谷'],
+};
+function SysBanner({ k }: { k: string }) {
+  const { lang } = useLang();
+  const a = SYS_ALT[k];
+  if (!a) return null;
+  return (
+    <figure className="hb-ban" data-rv>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={`/media/sys-${k}.webp`} alt={lang === 'ja' ? a[1] : a[0]} width={1600} height={800} loading="lazy" decoding="async" />
+    </figure>
   );
 }
