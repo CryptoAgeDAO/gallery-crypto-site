@@ -3,6 +3,7 @@
 // 売り場ごとに陳列（DP）を変えて、商品を立体（3D）で見せる。
 //   入口：トルソー（回転台）  左の壁：二段のフェイスアウト  中央：たたみのテーブル  右奥：パンツのラック
 //   奥の壁：ヴィンテージ・ツアーのレール  右の壁：帽子の棚  右手前：小物のガラスケース  アート：額装
+//   左の壁の開口の先：展示ホール（ローライダー・カスタムBMX・ヨット。見本の展示）
 // 服は写真（見本は絵）から、スマートスキャンと同じしくみで立体にする。押すと近づいて詳細が出る。
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
@@ -12,8 +13,9 @@ import { layerOf, bboxOf } from './garmentLayer';
 import { isPhone } from '@/lib/device';
 import { loadImage } from '@/lib/imgQueue';
 import type { GalleryApi, GState } from './Gallery3D';
+import { buildHall, exhibitStop, DOOR_Z, DOOR_W, DOOR_H, type ExhibitKind } from './exhibits';
 
-export type DP = 'forms' | 'wall' | 'table' | 'rack' | 'back' | 'caps' | 'case' | 'art';
+export type DP = 'forms' | 'wall' | 'table' | 'rack' | 'back' | 'caps' | 'case' | 'art' | 'car' | 'bike' | 'yacht';
 export type SPiece = { id: string; title: string; code?: string; kind: 'garment' | 'cap' | 'art'; tex: string; back?: string; heightM?: number };
 export type SRoom = { key: string; dp: DP; pieces: SPiece[] };
 
@@ -60,19 +62,18 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
     renderer.debug.onShaderError = (gl, prog, vs, fs) => { report('shader: ' + (gl.getProgramInfoLog(prog) || '') + ' ' + (gl.getShaderInfoLog(fs) || gl.getShaderInfoLog(vs) || '')); };
     renderer.domElement.addEventListener('webglcontextlost', (e) => { e.preventDefault(); cb.current.onState({ room: 0, focus: null, moving: false, ready: true, lost: true }); });
 
-    const scene = new THREE.Scene(); scene.background = new THREE.Color(0xe9e7e2);
+    const scene = new THREE.Scene(); scene.background = new THREE.Color(0xf1f0ec);
     const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.45;
     const camera = new THREE.PerspectiveCamera(mobile ? 62 : 50, 1, 0.05, 80);
 
     // ---- 材質 ----
-    const wallM = new THREE.MeshStandardMaterial({ color: 0xf3f2ee, roughness: 0.95 });
+    const wallM = new THREE.MeshStandardMaterial({ color: 0xf7f6f2, roughness: 0.95 });
     const floorT = canvasTex(1024, 1024, (g, w, h) => {
-      g.fillStyle = '#cfccc5'; g.fillRect(0, 0, w, h);
-      for (let i = 0; i < 26000; i++) { const v = 170 + Math.random() * 60; g.fillStyle = `rgba(${v},${v - 2},${v - 6},${Math.random() * 0.25})`; g.fillRect(Math.random() * w, Math.random() * h, 2, 2); }
+      g.fillStyle = '#d6d3cc'; g.fillRect(0, 0, w, h);
+      for (let i = 0; i < 18000; i++) { const v = 190 + Math.random() * 50; g.fillStyle = `rgba(${v},${v - 2},${v - 6},${Math.random() * 0.18})`; g.fillRect(Math.random() * w, Math.random() * h, 2, 2); }
       for (let i = 0; i < 14; i++) { const gr = g.createRadialGradient(Math.random() * w, Math.random() * h, 0, Math.random() * w, Math.random() * h, 260); gr.addColorStop(0, 'rgba(255,255,255,.08)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); }
-      g.strokeStyle = 'rgba(0,0,0,.08)'; g.lineWidth = 2; for (let x = 0; x <= w; x += w / 2) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); } for (let y = 0; y <= h; y += h / 2) { g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke(); }
     }, [W / 2, D / 2]);
-    const floorM = new THREE.MeshStandardMaterial({ map: floorT, roughness: 0.38, metalness: 0.02 });
+    const floorM = new THREE.MeshStandardMaterial({ map: floorT, roughness: 0.32, metalness: 0.02 });
     const white = new THREE.MeshStandardMaterial({ color: 0xfbfaf7, roughness: 0.5 });
     const black = new THREE.MeshStandardMaterial({ color: 0x151517, roughness: 0.45 });
     const chrome = new THREE.MeshStandardMaterial({ color: 0xe8eaec, metalness: 1, roughness: 0.14 });
@@ -87,14 +88,23 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
 
     // ---- 部屋：床・壁・天井・入口のガラス ----
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(W * 2, D * 2), floorM); floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
-    box(0.2, H, D * 2, wallM, -W - 0.1, H / 2, 0); box(0.2, H, D * 2, wallM, W + 0.1, H / 2, 0); box(W * 2, H, 0.2, wallM, 0, H / 2, -D - 0.1);
+    // 左の壁は、展示ホールへの開口（扉なし）を残して三つに分ける
+    { const zA = DOOR_Z - DOOR_W / 2, zB = DOOR_Z + DOOR_W / 2;
+      box(0.2, H, zA + D, wallM, -W - 0.1, H / 2, (zA - D) / 2); box(0.2, H, D - zB, wallM, -W - 0.1, H / 2, (D + zB) / 2); box(0.2, H - DOOR_H, DOOR_W, wallM, -W - 0.1, DOOR_H + (H - DOOR_H) / 2, DOOR_Z);
+      // 開口の上の小さな案内
+      const t = canvasTex(1024, 128, (g, w, h) => { g.fillStyle = '#141414'; g.font = `400 ${h * 0.5}px "Times New Roman", Georgia, serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; (g as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = `${h * 0.14}px`; g.fillText('THE COLLECTION', w / 2, h / 2); });
+      const sg = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.3), new THREE.MeshBasicMaterial({ map: t, transparent: true })); sg.position.set(-W + 0.01, DOOR_H + 0.35, DOOR_Z); sg.rotation.y = Math.PI / 2; scene.add(sg); }
+    box(0.2, H, D * 2, wallM, W + 0.1, H / 2, 0); box(W * 2, H, 0.2, wallM, 0, H / 2, -D - 0.1);
     const ceil = new THREE.Mesh(new THREE.PlaneGeometry(W * 2, D * 2), new THREE.MeshStandardMaterial({ color: 0xf6f5f2, roughness: 1 })); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; scene.add(ceil);
-    // 天井の細長い照明
-    const lightM = new THREE.MeshBasicMaterial({ color: 0xffffff });
-    for (const x of [-4, 0, 4]) for (let z = -8; z <= 8; z += 4) { const l = new THREE.Mesh(new THREE.PlaneGeometry(0.12, 2.6), lightM); l.rotation.x = Math.PI / 2; l.position.set(x, H - 0.01, z); scene.add(l); }
+    // 天井：美術館のような、白く光る大きな天窓（ライトレイ）
+    const lightM = new THREE.MeshBasicMaterial({ color: 0xffffff }), mullM = new THREE.MeshBasicMaterial({ color: 0xe4e2dc });
+    for (const x of [-4, 4]) for (const z of [-5, 5]) { const l = new THREE.Mesh(new THREE.PlaneGeometry(5, 7.4), lightM); l.rotation.x = Math.PI / 2; l.position.set(x, H - 0.01, z); scene.add(l); for (let i = 1; i < 4; i++) { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.03, 7.4), mullM); m.rotation.x = Math.PI / 2; m.position.set(x - 2.5 + i * 1.25, H - 0.015, z); scene.add(m); } }
     // 幅木
-    for (const s of [-1, 1]) box(0.02, 0.08, D * 2, black, s * (W - 0.01), 0.04, 0);
-    box(W * 2, 0.08, 0.02, black, 0, 0.04, -D + 0.01);
+    // 幅木のかわりに細い影の目地（左は開口のところで切る）
+    const gapM = new THREE.MeshBasicMaterial({ color: 0x9c988f });
+    box(0.01, 0.03, D * 2, gapM, W - 0.005, 0.015, 0);
+    { const zA = DOOR_Z - DOOR_W / 2, zB = DOOR_Z + DOOR_W / 2; box(0.01, 0.03, zA + D, gapM, -W + 0.005, 0.015, (zA - D) / 2); box(0.01, 0.03, D - zB, gapM, -W + 0.005, 0.015, (D + zB) / 2); }
+    box(W * 2, 0.03, 0.01, gapM, 0, 0.015, -D + 0.005);
     // 入口：ガラスと黒い枠
     { const z = D; for (let x = -W; x <= W + 0.01; x += 2) box(0.06, H, 0.08, black, x, H / 2, z); box(W * 2, 0.08, 0.08, black, 0, H - 0.04, z); box(W * 2, 0.08, 0.08, black, 0, 0.04, z);
       const gl = new THREE.Mesh(new THREE.PlaneGeometry(W * 2, H), glass); gl.position.set(0, H / 2, z); scene.add(gl); }
@@ -207,6 +217,7 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
       return m;
     };
 
+    let wantHall = false;
     rooms.forEach((room, ri) => {
       const ps = room.pieces, n = ps.length;
       switch (room.dp) {
@@ -339,8 +350,14 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
           stops[ri] = { pos: V(-3.6, 1.7, 6.4), look: V(-W, 1.7, 6.4) };
           break;
         }
+        case 'car': case 'bike': case 'yacht': { // 展示ホール（左の壁の開口の先）。建物は一度だけ、最初の画面が出てから作る
+          stops[ri] = exhibitStop(room.dp as ExhibitKind, mobile); wantHall = true;
+          break;
+        }
       }
     });
+    let hallTick: ((now: number) => void) | null = null;
+    if (wantHall) setTimeout(() => { if (!alive) return; try { hallTick = buildHall(scene, mobile, shadowT).tick; } catch (e) { report('hall: ' + String(e)); } }, 700);
 
     // 立体化を順番に（画面を止めないよう、1着ずつ間をあけて）
     (async () => { await new Promise((r) => setTimeout(r, 400)); for (const job of queue) { if (!alive) return; await job(); await new Promise((r) => setTimeout(r, 30)); } })();
@@ -351,11 +368,22 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
     const goal = { pos: cur.pos.clone(), look: cur.look.clone() };
     let yaw = 0, pitch = 0, zoom = 1, moving = false;
     const emit = (ready = true) => cb.current.onState({ room, focus, moving, ready });
-    const goRoom = (i: number) => { if (!stops[i]) return; room = i; focus = null; goal.pos.copy(stops[i].pos); goal.look.copy(stops[i].look); yaw = pitch = 0; zoom = 1; moving = true; emit(); };
+    // 本館と展示ホールのあいだは、壁を抜けないよう開口を通って移動する
+    let via: { pos: THREE.Vector3; look: THREE.Vector3 }[] = [];
+    const inHall = (p: THREE.Vector3) => p.x < -W;
+    const route = (pos: THREE.Vector3, look: THREE.Vector3) => {
+      via = [];
+      if (inHall(cur.pos) !== inHall(pos)) {
+        const s = inHall(cur.pos) ? -1 : 1; // 今いる側：本館 = +1
+        const a = V(-W + s * 1.4, 1.7, DOOR_Z), b = V(-W - s * 1.4, 1.7, DOOR_Z), ahead = V(-W - s * 6, 1.6, DOOR_Z);
+        goal.pos.copy(a); goal.look.copy(ahead); via = [{ pos: b, look: ahead }, { pos: pos.clone(), look: look.clone() }];
+      } else { goal.pos.copy(pos); goal.look.copy(look); }
+    };
+    const goRoom = (i: number) => { if (!stops[i]) return; room = i; focus = null; route(stops[i].pos, stops[i].look); yaw = pitch = 0; zoom = 1; moving = true; emit(); };
     const doFocus = (id: string | null) => {
       if (!id) { focus = null; goRoom(room); return; }
       const s = spots.get(id); if (!s) return;
-      room = s.room; focus = id; goal.pos.copy(s.pos); goal.look.copy(s.look); yaw = pitch = 0; zoom = 1; moving = true; emit();
+      room = s.room; focus = id; route(s.pos, s.look); yaw = pitch = 0; zoom = 1; moving = true; emit();
     };
     apiRef.current = { goRoom, focus: doFocus };
 
@@ -392,14 +420,15 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
       raf = requestAnimationFrame(loop);
       const now = performance.now(), dt = Math.min(0.05, (now - prev) / 1000); prev = now; const t = (now - t0) / 1000;
       const k = 1 - Math.pow(0.0025, dt);
+      if (via.length && cur.pos.distanceTo(goal.pos) < 0.7) { const n = via.shift()!; goal.pos.copy(n.pos); goal.look.copy(n.look); }
       cur.pos.lerp(goal.pos, k); cur.look.lerp(goal.look, k);
-      if (moving && cur.pos.distanceTo(goal.pos) < 0.02) { moving = false; emit(); }
+      if (moving && !via.length && cur.pos.distanceTo(goal.pos) < 0.02) { moving = false; emit(); }
       // 見回し：注視点を、立ち位置を中心に回す。寄る：注視点へ近づく
       dir.copy(cur.look).sub(cur.pos); const dist = dir.length(); dir.normalize();
       dir.applyAxisAngle(V(0, 1, 0), yaw); const side = V(0, 1, 0).cross(dir).normalize(); dir.applyAxisAngle(side, -pitch);
       tmp.copy(cur.pos).addScaledVector(dir, dist * (1 - zoom));
       camera.position.copy(tmp); camera.lookAt(tmp.clone().addScaledVector(dir, Math.max(0.5, dist * zoom)));
-      if (!reduce) { spinners.forEach((s, i) => { s.rotation.y = Math.sin(t * 0.35 + i * 1.3) * 0.9; }); swayers.forEach((s) => { s.o.rotation.z = Math.sin(t * 1.1 + s.ph) * 0.02; s.o.rotation.y = Math.sin(t * 0.6 + s.ph) * 0.08; }); }
+      if (!reduce) { spinners.forEach((s, i) => { s.rotation.y = Math.sin(t * 0.35 + i * 1.3) * 0.9; }); swayers.forEach((s) => { s.o.rotation.z = Math.sin(t * 1.1 + s.ph) * 0.02; s.o.rotation.y = Math.sin(t * 0.6 + s.ph) * 0.08; }); hallTick?.(now); }
       if (cb.current.paused && !moving && !first) return;
       renderer.render(scene, camera);
       if (first) { first = false; emit(true); const gl = renderer.getContext(); const e = gl.getError(); if (e) report('gl error ' + e); if (!renderer.info.render.calls) report('nothing drawn'); }

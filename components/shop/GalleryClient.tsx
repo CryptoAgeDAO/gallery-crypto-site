@@ -26,7 +26,7 @@ class Safe extends Component<{ children: React.ReactNode; fallback: React.ReactN
 }
 
 // 売り場（陳列の仕方ごと）。商品の種類で振り分ける
-type RoomDef = { key: string; dp: DP; max: number; en: string; ja: string; den: string; dja: string; pick: (i: ShopItem) => boolean };
+type RoomDef = { key: string; dp: DP; max: number; exhibit?: boolean; en: string; ja: string; den: string; dja: string; pick: (i: ShopItem) => boolean };
 const isLine = (i: ShopItem) => !!i.line;
 const ROOMS: RoomDef[] = [
   { key: 'forms', dp: 'forms', max: 3, en: 'At the door — on the forms', ja: '入口 — トルソー', den: 'Three pieces worn on forms, turning slowly on white plinths.', dja: '白い回転台の上で、ゆっくり回るトルソーに着せた3点。', pick: (i) => isLine(i) && /hoodie|jacket|crew/i.test(i.title) },
@@ -37,6 +37,10 @@ const ROOMS: RoomDef[] = [
   { key: 'caps', dp: 'caps', max: 10, en: 'Headwear wall', ja: '帽子の棚', den: 'Caps and beanies, one to a shelf.', dja: 'キャップとニット帽を、ひとつずつ棚に。', pick: (i) => i.line === 'head' || (!isLine(i) && kindOf(i) === 'cap') },
   { key: 'case', dp: 'case', max: 8, en: 'The case — small things', ja: 'ショーケース — 小物', den: 'Stickers, pins, keychains and more under glass.', dja: 'ガラスの中に、ステッカー・ピン・キーホルダーなど。', pick: (i) => i.line === 'acc' },
   { key: 'art', dp: 'art', max: 3, en: 'Art', ja: 'アート', den: 'Framed pieces on the front wall.', dja: '手前の壁に、額装の作品。', pick: (i) => !isLine(i) && kindOf(i) === 'art' },
+  // 展示ホール（左の壁の開口の先）：商品ではない見本の展示
+  { key: 'car', dp: 'car', max: 0, exhibit: true, en: 'The Collection — lowrider', ja: 'コレクション — ローライダー', den: 'Candy paint, lace and gold leaf, on hydraulics. Sample display — not for sale.', dja: 'キャンディ塗装・レース・金の線、油圧で弾む。見本の展示で、売り物ではありません。', pick: () => false },
+  { key: 'bike', dp: 'bike', max: 0, exhibit: true, en: 'The Collection — custom BMX', ja: 'コレクション — カスタムBMX', den: 'Chrome frame and gold parts on a turning mirror. Sample display — not for sale.', dja: 'クロームのフレームと金のパーツ、回る鏡の台。見本の展示で、売り物ではありません。', pick: () => false },
+  { key: 'yacht', dp: 'yacht', max: 0, exhibit: true, en: 'The Collection — Nocturne', ja: 'コレクション — ヨット「Nocturne」', den: 'An original 8.6 m day cruiser: midnight hull, teak deck, cream leather. Sample display — not for sale.', dja: 'オリジナルの8.6mのデイクルーザー。真夜中の紺の船体・チークの甲板・クリームの革。見本の展示で、売り物ではありません。', pick: () => false },
 ];
 
 function Fallback() {
@@ -68,7 +72,7 @@ export default function GalleryClient({ initial }: { initial: ShopItem[] }) {
       if (phone && list.length > 4) list.length = 4;
       list.forEach((i) => used.add(i.id));
       return { ...r, z: r.key, list };
-    }).filter((r) => r.list.length);
+    }).filter((r) => r.list.length || r.exhibit);
   }, [items, phone]);
   const rooms: SRoom[] = useMemo(() => groups.map((g) => ({ key: g.key, dp: g.dp, pieces: g.list.map((i) => ({ id: i.id, title: i.title, code: i.code, kind: kindOf(i), tex: i.img || (i.pid ? cutout(i.pid) : ''), back: i.back, heightM: i.heightM })) })), [groups]);
   const api = useRef<GalleryApi | null>(null);
