@@ -280,7 +280,7 @@ export default function MockupStudio() {
         // 背面の絵を正面と同じ枠に置き直す（フードなどで上下の範囲がちがっても位置がずれない）
         const al = document.createElement('canvas'); al.width = front.canvas.width; al.height = front.canvas.height;
         al.getContext('2d')!.drawImage(back.canvas, (back.bounds.x0 - front.bounds.x0) * PX, (back.bounds.y0 - front.bounds.y0) * PX);
-        const res = buildPillow(F, layerFrom(al), heightM, depth, phone ? 1024 : 2048, phone ? 140 : 200, true);
+        const res = buildPillow(F, layerFrom(al), heightM, depth * 0.55, phone ? 1024 : 2048, phone ? 140 : 200, true);
         three.current?.setGarment(res?.group || null, kind !== 'pants' && kind !== 'shorts');
       }, 350);
     })();

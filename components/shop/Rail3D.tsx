@@ -97,7 +97,8 @@ export default function Rail3D({ items, host, pcEls, sway, state, onReady }: {
           const F = await layerOf(it.src); if (!F) { onReady(it.id, false); continue; }
           const B = it.back ? await layerOf(it.back) : null;
           const bb = bboxOf(F); if (!bb) { onReady(it.id, false); continue; }
-          const g = buildGarment(F, B, 1, 1, mobile ? 512 : 1024); if (!g || !alive) { onReady(it.id, false); continue; }
+          // ハンガーに掛けた服の厚み（人が着ているようにふくらませない）
+          const g = buildGarment(F, B, 1, 0.42, mobile ? 512 : 1024); if (!g || !alive) { onReady(it.id, false); continue; }
           // 肩の上・横の中央を原点に
           const box = new THREE.Box3().setFromObject(g.group), c = box.getCenter(new THREE.Vector3()), s = box.getSize(new THREE.Vector3());
           g.group.position.set(-c.x, -box.max.y, -c.z);

@@ -152,7 +152,7 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
         s2.quadraticCurveTo(-0.02, -0.05, -0.05, -0.056); s2.quadraticCurveTo(-hw * 0.55, -0.085, -hw + 0.022, -0.11);
         s2.quadraticCurveTo(-hw + 0.004, -0.114, -hw, -0.1); s2.quadraticCurveTo(-hw - 0.004, -0.08, -hw + 0.02, -0.074);
         s2.quadraticCurveTo(-hw * 0.55, -0.04, -0.05, -0.008); s2.quadraticCurveTo(-0.03, 0, 0, 0);
-        const m = new THREE.Mesh(extrude(s2, 0.03, 0.009), hCloth); m.position.set(0, top, -0.022); m.castShadow = !mobile; hg.add(m); // 服の後ろ寄りに（首元の山だけがのぞく）
+        const m = new THREE.Mesh(extrude(s2, 0.022, 0.006), hCloth); m.position.set(0, top, -0.032); m.castShadow = !mobile; hg.add(m); // 服の後ろ寄りに（首元の山だけがのぞく）
       }
       return hg;
     };
@@ -186,7 +186,8 @@ export default function Showroom3D({ rooms, apiRef, onState, onPick, paused = fa
         if (!alive || built3D >= MAX3D) return;
         const F = await layerOf(p.tex); if (!F || !alive) return;
         const B = p.back ? await layerOf(p.back) : null; if (!bboxOf(F)) return;
-        const r = buildGarment(F, B, h, 1, mobile ? 512 : 1024); if (!r || !alive) return;
+        // 吊るした服の薄さで
+        const r = buildGarment(F, B, h, 0.42, mobile ? 512 : 1024); if (!r || !alive) return;
         const bx = new THREE.Box3().setFromObject(r.group), c = bx.getCenter(new THREE.Vector3());
         r.group.position.set(-c.x, -bx.max.y, -c.z);
         r.group.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) { m.userData.id = p.id; m.castShadow = !mobile; hits.push(m); const mm = m.material as THREE.MeshStandardMaterial; if (mm.side === THREE.BackSide) mm.color.setHex(0x8d877e); } });
