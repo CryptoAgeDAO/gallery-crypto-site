@@ -37,8 +37,13 @@ const UI = '"Helvetica Neue", Arial, sans-serif';
 const SERIF = '"Times New Roman", Georgia, serif';
 
 // part：'objects' は本館に置く車と自転車だけ、'hall' はホールの建物とヨットだけ、'all' は全部
-export function buildHall(scene0: THREE.Scene, mobile: boolean, shadowT: THREE.Texture, part: 'objects' | 'hall' | 'all' = 'all') {
-  const HB = part !== 'objects', OB = part !== 'hall';
+// 'beach' は海のショールーム用：車・自転車・ヨットだけ（ホールの建物・札・ホールの照明なし）。at で置き場所（本館の座標）を変えられる
+type At = { car?: { x: number; z: number; ry: number }; bike?: { x: number; z: number }; yacht?: { x: number; z: number; ry: number } };
+export function buildHall(scene0: THREE.Scene, mobile: boolean, shadowT: THREE.Texture, part: 'objects' | 'hall' | 'all' | 'beach' = 'all', at?: At) {
+  if (at?.car) Object.assign(P.car, { x: at.car.x - HALL_DX, z: at.car.z - HALL_DZ, ry: at.car.ry });
+  if (at?.bike) Object.assign(P.bike, { x: at.bike.x - HALL_DX, z: at.bike.z - HALL_DZ });
+  if (at?.yacht) Object.assign(P.yacht, { x: at.yacht.x - HALL_DX, z: at.yacht.z - HALL_DZ, ry: at.yacht.ry });
+  const HB = part === 'hall' || part === 'all', OB = part !== 'hall', YB = part !== 'objects', PL = part !== 'beach';
   const scene = new THREE.Group(); scene.position.set(HALL_DX, 0, HALL_DZ); scene0.add(scene);
   const SMALL = mobile;
   const canvas = (w: number, h: number, draw: Draw) => { if (SMALL && Math.max(w, h) >= 1024) { w = Math.round(w / 2); h = Math.round(h / 2); } const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d')!, w, h); return c; };
@@ -121,8 +126,8 @@ export function buildHall(scene0: THREE.Scene, mobile: boolean, shadowT: THREE.T
   const hf = new THREE.DirectionalLight(0xfff8ef, 0.55); hf.position.set(-6, 7, 6); hf.target.position.set(-20, 0, -2); scene.add(hf, hf.target);
   }
 
-  if (OB) placard(-1.6, 6.5, 1.2, 'Candy Hardtop', ['Candy paint · lace · gold leaf', 'Hydraulics · wire wheels']);
-  if (OB) placard(12.4, 25.4, -1.51, 'Custom BMX', ['Chrome frame · gold parts · 20 in']);
+  if (OB && PL) placard(-1.6, 6.5, 1.2, 'Candy Hardtop', ['Candy paint · lace · gold leaf', 'Hydraulics · wire wheels']);
+  if (OB && PL) placard(12.4, 25.4, -1.51, 'Custom BMX', ['Chrome frame · gold parts · 20 in']);
   if (HB) placard(-18.4, -3.4, 0.43, 'Nocturne', ['Day cruiser · 8.6 m', 'Midnight hull · teak · cream leather']);
 
   // ---- ローライダー（最初のショールームのもの）：キャンディ塗装・レース・金の線・油圧で前を持ち上げて弾む ----
@@ -301,7 +306,7 @@ export function buildHall(scene0: THREE.Scene, mobile: boolean, shadowT: THREE.T
   if (bmxTick) ticks.push(bmxTick);
 
   // ---- ヨット（オリジナルのデイクルーザー「Nocturne」）：真夜中の紺の艇体・チークの甲板・クリームの革・湾曲した風防 ----
-  if (HB) {
+  if (YB) {
     const L = 8.6, B = 1.32, N = mobile ? 28 : 48, M = mobile ? 8 : 14;
     const yacht = new THREE.Group(); yacht.position.set(P.yacht.x, 0.5, P.yacht.z); yacht.rotation.y = P.yacht.ry; scene.add(yacht);
     // 船体の形：t は船尾 0 → 船首 1、s は竜骨 0 → 舷縁 1

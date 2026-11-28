@@ -14,6 +14,7 @@ import { type Layer } from './GhostMannequin';
 import dynamic from 'next/dynamic';
 import { matte } from '@/lib/scan/matte';
 import { carve, surface, hullMesh, exportable, type View } from '@/lib/scan/hull';
+import { putModel, delModel } from '@/lib/modelStore';
 import type { Shot } from './scan/Capture';
 import { isPhone } from '@/lib/device';
 import { unlockSpeech } from '@/lib/voice';
@@ -223,15 +224,23 @@ export default function SmartScan() {
     try { localStorage.setItem('gc-mock-src', JSON.stringify({ front: toPng(made.L), back: made.B ? toPng(made.B) : undefined, length: Math.round(made.spec.length * 2) / 2, chest: Math.round(made.spec.chest * 4) / 2 })); location.hash = 'mock'; dispatchEvent(new HashChangeEvent('hashchange')); }
     catch { setMsg(tt('Could not hand over to the mockup (storage is full).', 'モックアップに渡せませんでした（保存領域がいっぱいです）。')); }
   };
-  const hang = () => {
+  // スキャンした服を店に並べる：切り抜いた正面・背面（レール用）と、彫り出した立体（.glb、ショールームのスキャンの台用）をこの端末に保存
+  const hang = async () => {
     if (!made) return;
+    let glbKey: string | undefined;
+    const id0 = 'scan-' + Date.now().toString(36);
     try {
-      const id = 'scan-' + Date.now().toString(36), n2 = (JSON.parse(localStorage.getItem('gc-shop-local') || '[]') as { id: string }[]);
+      const src = three.current?.group?.getObjectByName('scan') as THREE.Mesh | undefined;
+      if (src) { const res = await new GLTFExporter().parseAsync(exportable(src), { binary: true, maxTextureSize: 1024 }); await putModel(id0, res as ArrayBuffer); glbKey = id0; }
+    } catch { /* 立体が保存できなくても、絵だけで並べる */ }
+    try {
+      const id = id0, n2 = (JSON.parse(localStorage.getItem('gc-shop-local') || '[]') as { id: string }[]);
       const sp = made.spec;
       const item = { id, code: 'SCAN-' + id.slice(-4).toUpperCase(), title: tt('Scanned piece', 'スキャンした服'), sub: tt('Smart scan · on this device', 'スマートスキャン · この端末'), price: '—', img: toPng(made.L), back: made.B ? toPng(made.B) : undefined, buy: 'local', desc: '',
-        facts: [['Size', `${tt('Length', '着丈')} ${Math.round(sp.length)} / ${tt('Chest', '身幅')} ${Math.round(sp.chest * 2)} cm`], [tt('Shoulder', '肩幅'), `${Math.round(sp.shoulderX * 2)} cm`], [tt('Sleeve', '袖丈'), `${Math.round(sp.sleeve)} cm`]], zone: 'vintage', heightM: Math.round(sp.length + 3) / 100 };
+        facts: [['Size', `${tt('Length', '着丈')} ${Math.round(sp.length)} / ${tt('Chest', '身幅')} ${Math.round(sp.chest * 2)} cm`], [tt('Shoulder', '肩幅'), `${Math.round(sp.shoulderX * 2)} cm`], [tt('Sleeve', '袖丈'), `${Math.round(sp.sleeve)} cm`]], zone: 'vintage', heightM: Math.round(sp.length + 3) / 100, glbKey };
       // この端末の保存容量に収まるよう、スキャンは新しい6着まで
-      const rest = n2.filter((x) => !String(x.id).startsWith('scan-')).concat(n2.filter((x) => String(x.id).startsWith('scan-')).slice(0, 5));
+      const old = n2.filter((x) => String(x.id).startsWith('scan-')), rest = n2.filter((x) => !String(x.id).startsWith('scan-')).concat(old.slice(0, 5));
+      for (const x of old.slice(5)) delModel(x.id).catch(() => undefined); // 古いスキャンの立体も消す
       localStorage.setItem('gc-shop-local', JSON.stringify([item, ...rest]));
       setHung(id);
     } catch { setMsg(tt('Could not save on this device (storage is full).', 'この端末に保存できませんでした（保存領域がいっぱいです）。')); }
@@ -313,8 +322,8 @@ export default function SmartScan() {
                 <div className="ss-row">
                   <button className="ss-btn" onClick={exportGLB}>{tt('Download 3D (GLB)', '3Dを保存（GLB）')}</button>
                   {hung
-                    ? <a className="ss-btn" href={`/shop/rail#p=${hung}`}>{tt('See it on the rail →', 'レールで見る →')}</a>
-                    : <button className="ss-btn ghost" onClick={hang}>{tt('Hang it on the rail', 'レールに掛ける')}</button>}
+                    ? <><a className="ss-btn" href={`/shop/room#p=${hung}`}>{tt('See it in the showroom →', 'ショールームで見る →')}</a><a className="ss-btn ghost" href={`/shop/rail#p=${hung}`}>{tt('On the rail →', 'レールで見る →')}</a></>
+                    : <button className="ss-btn ghost" onClick={hang}>{tt('Display in the showroom', 'ショールームに並べる')}</button>}
                   <button className="ss-btn ghost" onClick={toMock}>{tt('Edit as mockup →', 'モックアップで編集 →')}</button>
                 </div>
                 <p className="ss-fine">{tt('Built from the outline seen from every angle (a visual hull), so deep folds and the inside are smoothed over. Size comes from the real length you entered. Not a laser-measured scan.', 'すべての向きから見た輪郭で形をつくる方式（ビジュアルハル）のため、深いくぼみや内側はなめらかに埋まります。大きさは入力した着丈の実寸で合わせます。レーザー測量のスキャンではありません。')}</p>

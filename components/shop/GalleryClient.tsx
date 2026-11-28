@@ -29,19 +29,19 @@ class Safe extends Component<{ children: React.ReactNode; fallback: React.ReactN
 type RoomDef = { key: string; dp: DP; max: number; exhibit?: boolean; en: string; ja: string; den: string; dja: string; pick: (i: ShopItem) => boolean };
 const isLine = (i: ShopItem) => !!i.line;
 const ROOMS: RoomDef[] = [
-  { key: 'forms', dp: 'forms', max: 3, en: 'At the door — on the forms', ja: '入口 — トルソー', den: 'Three pieces worn on forms, turning slowly on white plinths.', dja: '白い回転台の上で、ゆっくり回るトルソーに着せた3点。', pick: (i) => isLine(i) && /hoodie|jacket|crew/i.test(i.title) },
-  { key: 'bike', dp: 'bike', max: 0, exhibit: true, en: 'Custom BMX — by the door', ja: 'カスタムBMX — 入口のトルソーの横に', den: 'Chrome frame and gold parts on a turning mirror. Sample display — not for sale.', dja: 'クロームのフレームと金のパーツ、回る鏡の台。見本の展示で、売り物ではありません。', pick: () => false },
-  { key: 'wall', dp: 'wall', max: 40, en: 'Tops room', ja: 'トップスの部屋', den: 'Face-out on long chrome rails, slightly overlapped, with three curved white shelves of folded stock above.', dja: '長いクロームのレールに少しずつ重ねて掛け、その上に白い曲線の棚を三段。棚にはたたんだ服。', pick: (i) => i.line === 'tops' && !/ tee /i.test(` ${i.title} `) && !/Tee —/.test(i.title) },
-  { key: 'outer', dp: 'outer', max: 40, en: 'Outerwear room', ja: 'アウターの部屋', den: 'Jackets and coats on one long rail, with the lowrider parked in front.', dja: 'ジャケットとコートを長いレールに一列。手前にローライダーを停めて。', pick: (i) => i.line === 'outer' },
-  { key: 'car', dp: 'car', max: 0, exhibit: true, en: 'Lowrider — with the outerwear', ja: 'ローライダー — アウターと一緒に', den: 'Candy paint, lace and gold leaf, on hydraulics. Sample display — not for sale.', dja: 'キャンディ塗装・レース・金の線、油圧で弾む。見本の展示で、売り物ではありません。', pick: () => false },
-  { key: 'rack', dp: 'rack', max: 40, en: 'Pants room', ja: 'パンツの部屋', den: 'Two racks set in an L. The opening on the left wall leads to the yacht hall.', dja: '二台のラックを L 字に。左の壁の開口から、ヨットの展示ホールへ。', pick: (i) => i.line === 'bottoms' },
-  { key: 'yacht', dp: 'yacht', max: 0, exhibit: true, en: 'The Collection — Nocturne', ja: 'コレクション — ヨット「Nocturne」', den: 'An original 8.6 m day cruiser: midnight hull, teak deck, cream leather. Sample display — not for sale.', dja: 'オリジナルの8.6mのデイクルーザー。真夜中の紺の船体・チークの甲板・クリームの革。見本の展示で、売り物ではありません。', pick: () => false },
-  { key: 'back', dp: 'back', max: 40, en: 'Back room — vintage & tour', ja: '奥の部屋 — ヴィンテージ・ツアー', den: 'One-of-one vintage and tour merch on a raised glowing stage, glass steps and a chrome rail.', dja: '下から光る一段高いステージに、一点もののヴィンテージとツアーマーチ。ガラスの段とクロームの手すり。', pick: (i) => !isLine(i) && kindOf(i) === 'garment' },
-  { key: 'table', dp: 'table', max: 40, en: 'Tee room', ja: 'Tシャツの部屋', den: 'Three stone-top tables with chrome X legs in a line, tees laid flat print side up. Entered from the back room.', dja: 'クロームのX脚に石の天板のテーブルを三台一列に。Tシャツは柄を上にして平置き。奥の部屋から入ります。', pick: (i) => i.line === 'tops' && /Tee —/.test(i.title) },
-  { key: 'case', dp: 'case', max: 40, en: 'Small things room', ja: '小物の部屋', den: 'A rounded glass case against navy panels, and two tilted display boards in front.', dja: '紺のパネルの前に角の丸いガラスケース。手前には斜めの陳列台を二台。', pick: (i) => i.line === 'acc' },
-  { key: 'caps', dp: 'caps', max: 40, en: 'Headwear room', ja: '帽子の部屋', den: 'Caps and beanies, one to each glowing cube.', dja: 'キャップとニット帽を、光る箱の格子にひとつずつ。', pick: (i) => i.line === 'head' || (!isLine(i) && kindOf(i) === 'cap') },
-  { key: 'atrium', dp: 'atrium', max: 0, exhibit: true, en: 'The atrium', ja: '吹き抜け', den: 'Ten metres high: a skate bowl, one piece hung 4.4 m tall, a mural and a wall of decks. Seen from the mezzanine.', dja: '天井 10m。スケートボウル、高さ4.4mに吊るした一着、壁画とスケートデッキの壁。中二階から見下ろします。', pick: () => false },
-  { key: 'art', dp: 'art', max: 40, en: 'Mezzanine — art', ja: '中二階 — アート', den: 'Framed pieces on the high back wall.', dja: '奥の高い壁に、額装の作品。', pick: (i) => !isLine(i) && kindOf(i) === 'art' },
+  { key: 'forms', dp: 'forms', max: 3, en: 'At the door — on the forms', ja: '入口 — トルソー', den: 'Three pieces on forms over a glowing plinth, the Pacific through the glass behind.', dja: '下から光る白い台のトルソーに3点。正面のガラスの向こうは太平洋。', pick: (i) => isLine(i) && /hoodie|jacket|crew/i.test(i.title) },
+  { key: 'scan', dp: 'scan', max: 4, exhibit: true, en: 'Your scans — in 3D', ja: 'スキャン — 立体のまま', den: 'Pieces you scanned in the Studio, shown as the carved 3D model on the glowing island (kept on this device).', dja: 'スタジオでスキャンした服を、彫り出した立体のまま中央の光る台に（この端末に保存）。', pick: (i) => !!i.glbKey || String(i.id).startsWith('scan-') },
+  { key: 'wall', dp: 'wall', max: 40, en: 'Tops wall', ja: 'トップスの壁', den: 'Face-out on long chrome rails, slightly overlapped, with three curved white shelves of folded stock above.', dja: '長いクロームのレールに少しずつ重ねて掛け、その上に白い曲線の棚を三段。棚にはたたんだ服。', pick: (i) => i.line === 'tops' && !/Tee —/.test(i.title) },
+  { key: 'outer', dp: 'outer', max: 40, en: 'Outerwear', ja: 'アウター', den: 'Jackets and coats on one rail by the door.', dja: 'ジャケットとコートを、入口側のレールに一列。', pick: (i) => i.line === 'outer' },
+  { key: 'rack', dp: 'rack', max: 40, en: 'Pants rack', ja: 'パンツのラック', den: 'A double-sided chrome rack, pants on both faces.', dja: '両面のクロームのラック。前と後ろにパンツ。', pick: (i) => i.line === 'bottoms' },
+  { key: 'car', dp: 'car', max: 0, exhibit: true, en: 'Lowrider — by the window', ja: 'ローライダー — 窓ぎわに', den: 'Candy paint, lace and gold leaf on hydraulics, with the beach behind the glass. Sample display — not for sale.', dja: 'キャンディ塗装・レース・金の線、油圧で弾む。ガラスの向こうは砂浜。見本の展示で、売り物ではありません。', pick: () => false },
+  { key: 'bike', dp: 'bike', max: 0, exhibit: true, en: 'Custom BMX', ja: 'カスタムBMX', den: 'Chrome frame and gold parts on a turning plinth, surfboards in the corner. Sample display — not for sale.', dja: 'クロームのフレームと金のパーツ、回る台。角にはサーフボード。見本の展示で、売り物ではありません。', pick: () => false },
+  { key: 'yacht', dp: 'yacht', max: 0, exhibit: true, en: 'On the sand — Nocturne', ja: '砂浜 — ヨット「Nocturne」', den: 'Step out onto the deck: an original 8.6 m day cruiser on the sand, the pier and its wheel down the beach. Sample display — not for sale.', dja: 'デッキへ出ると、砂浜にオリジナルの8.6mのデイクルーザー。浜の先には桟橋と観覧車。見本の展示で、売り物ではありません。', pick: () => false },
+  { key: 'table', dp: 'table', max: 40, en: 'Tees by the glass', ja: 'Tシャツ — ガラスぎわ', den: 'Stone-top tables with chrome X legs, tees laid flat print side up.', dja: 'クロームのX脚に石の天板のテーブル。Tシャツは柄を上にして平置き。', pick: (i) => i.line === 'tops' && /Tee —/.test(i.title) },
+  { key: 'back', dp: 'back', max: 40, en: 'Vintage & tour', ja: 'ヴィンテージ・ツアー', den: 'One-of-one vintage and tour merch on a glowing stage along the right wall.', dja: '右の壁の下から光るステージに、一点もののヴィンテージとツアーマーチ。', pick: (i) => !isLine(i) && kindOf(i) === 'garment' },
+  { key: 'case', dp: 'case', max: 40, en: 'Small things', ja: '小物', den: 'A rounded glass case against navy panels, and two tilted display boards in front.', dja: '紺のパネルの前に角の丸いガラスケース。手前には斜めの陳列台を二台。', pick: (i) => i.line === 'acc' },
+  { key: 'caps', dp: 'caps', max: 40, en: 'Headwear', ja: '帽子', den: 'Caps and beanies, one to each glowing cube.', dja: 'キャップとニット帽を、光る箱の格子にひとつずつ。', pick: (i) => i.line === 'head' || (!isLine(i) && kindOf(i) === 'cap') },
+  { key: 'art', dp: 'art', max: 3, en: 'Art', ja: 'アート', den: 'Framed pieces above the door.', dja: '入口の上の壁に、額装の作品。', pick: (i) => !isLine(i) && kindOf(i) === 'art' },
 ];
 
 function Fallback() {
@@ -75,7 +75,7 @@ export default function GalleryClient({ initial }: { initial: ShopItem[] }) {
       return { ...r, z: r.key, list };
     }).filter((r) => r.list.length || r.exhibit);
   }, [items, phone]);
-  const rooms: SRoom[] = useMemo(() => groups.map((g) => ({ key: g.key, dp: g.dp, pieces: g.list.map((i) => ({ id: i.id, title: i.title, code: i.code, kind: kindOf(i), tex: i.img || (i.pid ? cutout(i.pid) : ''), back: i.back, heightM: i.heightM })) })), [groups]);
+  const rooms: SRoom[] = useMemo(() => groups.map((g) => ({ key: g.key, dp: g.dp, pieces: g.list.map((i) => ({ id: i.id, title: i.title, code: i.code, kind: kindOf(i), tex: i.img || (i.pid ? cutout(i.pid) : ''), back: i.back, heightM: i.heightM, glbKey: i.glbKey })) })), [groups]);
   const api = useRef<GalleryApi | null>(null);
   const [st, setSt] = useState<GState>({ room: 0, focus: null, moving: false, ready: false });
   // 診断：この画面で起きたエラーを画面の下に出す（iPhone で表示できない原因を確かめるため）
@@ -141,6 +141,8 @@ export default function GalleryClient({ initial }: { initial: ShopItem[] }) {
           {st.walking ? t('Back to the tour', 'ツアーに戻る') : t('Walk freely', '自由に歩く')}
         </button>
       )}
+      {/* スキャンの台：スタジオでスキャンして、ここに立体のまま並べる */}
+      {st.ready && !cur && !st.walking && g?.key === 'scan' && <a className="gr-scanbtn" href="/studio#scan">{t('Scan a piece →', 'スキャンして並べる →')}</a>}
       {st.walking && !cur && (
         <>
           <Stick onMove={(x, y) => api.current?.stick?.(x, y)} />

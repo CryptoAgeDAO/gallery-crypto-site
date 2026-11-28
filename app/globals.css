@@ -3602,8 +3602,8 @@ html.gate .eg{display:flex}
 @media (max-width:760px){.gr-room{background:rgba(18,16,14,.74);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);padding:12px 14px 14px;border-radius:12px;left:12px;right:72px;bottom:92px;text-shadow:none}}
 
 /* ショールーム：自由に歩く */
-.gr-walk{position:absolute;top:64px;right:clamp(12px,2.5vw,32px);z-index:7;border:1px solid rgba(255,255,255,.55);background:rgba(18,16,14,.86);color:#f4f1ea;font:500 13px/1 var(--font-sans,system-ui);letter-spacing:.06em;padding:10px 16px;border-radius:999px;cursor:pointer;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
-.gr-walk.on{background:#f4f1ea;color:#141414}
+.gr .gr-walk,.gr button.gr-walk{position:absolute;top:64px;right:clamp(12px,2.5vw,32px);z-index:7;border:1px solid rgba(255,255,255,.55);background:rgba(18,16,14,.86);color:#f4f1ea;font:500 13px/1 var(--font-sans,system-ui);letter-spacing:.06em;padding:10px 16px;border-radius:999px;cursor:pointer;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.gr .gr-walk.on{background:#f4f1ea;color:#141414}
 .gr.walking .gr-room{display:none}
 .gr-stick{position:absolute;left:22px;bottom:104px;z-index:7;width:124px;height:124px;border-radius:50%;background:rgba(18,16,14,.34);border:1px solid rgba(255,255,255,.45);touch-action:none;display:grid;place-items:center;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
 .gr-stick i{width:52px;height:52px;border-radius:50%;background:rgba(244,241,234,.92);box-shadow:0 2px 10px rgba(0,0,0,.25);pointer-events:none;transition:transform .08s}
@@ -3612,3 +3612,5 @@ html.gate .eg{display:flex}
 @media (max-width:760px){.gr-hint{left:160px;right:76px;transform:none;white-space:normal;bottom:110px;border-radius:12px}}
 .gr-hint{animation:grHint 9s ease forwards}
 @keyframes grHint{0%,75%{opacity:1}100%{opacity:0}}
+
+.gr .gr-scanbtn,.gr a.gr-scanbtn{position:absolute;top:112px;right:clamp(12px,2.5vw,32px);z-index:7;background:#f4f1ea;color:#141414;font:500 13px/1 var(--font-sans,system-ui);letter-spacing:.04em;padding:10px 16px;border-radius:999px;text-decoration:none}
